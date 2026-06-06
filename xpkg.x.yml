@@ -25,6 +25,7 @@ $:
     x xpkg build bin
   build.docs: |
     pushd docs/pages
+    npm install
     if [ "$(x-opt "start")" = "true" ]; then
       npm run start
     else
