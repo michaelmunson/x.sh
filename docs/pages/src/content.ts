@@ -1,4 +1,5 @@
 import type { ContentBlock } from "./components";
+import { EXAPP_X, EXAPP_HANDLERS_A, EXAPP_HANDLERS_B } from "./examples";
 
 export type NavItem = {
     id: string;
@@ -19,10 +20,10 @@ export const NAV_ITEMS: NavItem[] = [
     { id: "synopsis", label: "Synopsis DSL", group: "Apps" },
     { id: "builtins", label: "Built-in Helpers", group: "Apps" },
     { id: "validation-help", label: "Validation & Help", group: "Apps" },
+    { id: "examples", label: "Examples", group: "Apps" },
     { id: "configuration", label: "Configuration", group: "Advanced" },
     { id: "ai", label: "AI Integration", group: "Advanced" },
     { id: "languages", label: "Supported Languages", group: "Advanced" },
-    { id: "examples", label: "Examples", group: "Advanced" },
     { id: "faq", label: "FAQ", group: "Advanced" },
 ];
 
@@ -417,6 +418,26 @@ echo "\${colors[0]}"` },
         ],
     },
     {
+        id: "examples",
+        title: "Examples",
+        subtitle: "Real-world references in the repository.",
+        blocks: [
+            { type: "h3", text: "Comprehensive example app (`exapp`)" },
+            { type: "p", text: "The app definition imports handlers from two sidecar files:" },
+            { type: "code", title: "exapp.x.yml", code: EXAPP_X },
+            { type: "code", title: "exapp.handlers-a.yml", code: EXAPP_HANDLERS_A },
+            { type: "code", title: "exapp.handlers-b.yml", code: EXAPP_HANDLERS_B },
+            { type: "link", href: "https://github.com/michaelmunson/x.sh/tree/main/docs/examples/app", text: "View source on GitHub", external: true },
+            { type: "h3", text: "Typical workflows" },
+            { type: "ul", items: [
+                "**Dotfiles scripts** — `x -i` for personal utilities, `x --ln` for PATH access.",
+                "**Monorepo tasks** — root `x.yml` for `build`, `test`, `lint`; no global install needed.",
+                "**Team CLI tool** — commit `&lt;tool&gt;.x.yml` to the repo; teammates run `x tool subcmd` from any subdirectory.",
+                "**Complex internal CLI** — global app in `~/.x.sh/apps/` with `$.import` for large handler sets.",
+            ]},
+        ],
+    },
+    {
         id: "validation-help",
         title: "Validation & Help",
         subtitle: "How x keeps apps correct and self-documenting.",
@@ -518,27 +539,6 @@ ollama run llama2 "$PROMPT"` },
                 ["Haskell", "haskell", ""],
                 ["PowerShell", "powershell", ""],
                 ["Kotlin", "kotlin", ""],
-            ]},
-        ],
-    },
-    {
-        id: "examples",
-        title: "Examples",
-        subtitle: "Real-world references in the repository.",
-        blocks: [
-            { type: "h3", text: "Comprehensive example app (`exapp`)" },
-            { type: "p", text: "The repository includes a full-featured sample app that exercises every synopsis form, YAML anchors, `$.import` handler splits, and all built-in helpers." },
-            { type: "link", href: "https://github.com/michaelmunson/x.sh/blob/main/docs/examples/app/exapp.x.yml", text: "View exapp.x.yml on GitHub", external: true },
-            { type: "code", code: `# After cloning the repo:
-x exapp --help
-x exapp demo opts --dry-run --out /tmp/out --kind=alpha
-x exapp demo reflect my-label` },
-            { type: "h3", text: "Typical workflows" },
-            { type: "ul", items: [
-                "**Dotfiles scripts** — `x -i` for personal utilities, `x --ln` for PATH access.",
-                "**Monorepo tasks** — root `x.yml` for `build`, `test`, `lint`; no global install needed.",
-                "**Team CLI tool** — commit `&lt;tool&gt;.x.yml` to the repo; teammates run `x tool subcmd` from any subdirectory.",
-                "**Complex internal CLI** — global app in `~/.x.sh/apps/` with `$.import` for large handler sets.",
             ]},
         ],
     },

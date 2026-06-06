@@ -4,14 +4,14 @@
   "description": "x.sh documentation site (GitHub Pages)",
   "scripts": {
     "start": "parcel",
-    "build": "parcel build --public-url ./",
-    "build:gh-pages": "parcel build --public-url /x.sh/"
+    "build": "parcel build --public-url ./"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
+    "@parcel/transformer-yaml": "^2.16.4",
     "parcel": "^2.16.4"
   },
   "dependencies": {

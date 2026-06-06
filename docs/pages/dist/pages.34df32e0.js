@@ -735,7 +735,10 @@ var _sectionPage = require("./views/SectionPage");
 var _sectionPageDefault = parcelHelpers.interopDefault(_sectionPage);
 var _notFoundPage = require("./views/NotFoundPage");
 var _notFoundPageDefault = parcelHelpers.interopDefault(_notFoundPage);
-const BASE_PATH = '/x.sh';
+const BASE_PATH = (()=>{
+    const match = location.pathname.match(/^(\/x\.sh)(?:\/|$)/);
+    return match ? match[1] : "";
+})();
 function App() {
     const shell = (0, _oxidizer.createProps)({
         path: (0, _oxidizerRouter.getPathname)(),
@@ -807,7 +810,7 @@ function App() {
     }, "x.sh on GitHub")))));
 }
 
-},{"oxidizer":"hnuU9","oxidizer-router":"6kk03","./layout/Sidebar":"hNbmf","./views/HomePage":"e9AAl","./views/SectionPage":"3AN0D","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT","./views/NotFoundPage":"b6FlI"}],"hnuU9":[function(require,module,exports,__globalThis) {
+},{"oxidizer":"hnuU9","oxidizer-router":"6kk03","./layout/Sidebar":"hNbmf","./views/HomePage":"e9AAl","./views/SectionPage":"3AN0D","./views/NotFoundPage":"b6FlI","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"hnuU9":[function(require,module,exports,__globalThis) {
 "use strict";
 var __createBinding = this && this.__createBinding || (Object.create ? function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -3286,11 +3289,12 @@ function Sidebar(shell) {
     });
 }
 
-},{"oxidizer":"hnuU9","oxidizer-router":"6kk03","../content":"hqNCP","../components":"ip12w","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT","../App":"4Ye6C"}],"hqNCP":[function(require,module,exports,__globalThis) {
+},{"oxidizer":"hnuU9","oxidizer-router":"6kk03","../content":"hqNCP","../components":"ip12w","../App":"4Ye6C","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"hqNCP":[function(require,module,exports,__globalThis) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "NAV_ITEMS", ()=>NAV_ITEMS);
 parcelHelpers.export(exports, "SECTIONS", ()=>SECTIONS);
+var _examples = require("./examples");
 const NAV_ITEMS = [
     {
         id: "overview",
@@ -3353,6 +3357,11 @@ const NAV_ITEMS = [
         group: "Apps"
     },
     {
+        id: "examples",
+        label: "Examples",
+        group: "Apps"
+    },
+    {
         id: "configuration",
         label: "Configuration",
         group: "Advanced"
@@ -3365,11 +3374,6 @@ const NAV_ITEMS = [
     {
         id: "languages",
         label: "Supported Languages",
-        group: "Advanced"
-    },
-    {
-        id: "examples",
-        label: "Examples",
         group: "Advanced"
     },
     {
@@ -4267,6 +4271,55 @@ echo "\${colors[0]}"`
         ]
     },
     {
+        id: "examples",
+        title: "Examples",
+        subtitle: "Real-world references in the repository.",
+        blocks: [
+            {
+                type: "h3",
+                text: "Comprehensive example app (`exapp`)"
+            },
+            {
+                type: "p",
+                text: "The app definition imports handlers from two sidecar files:"
+            },
+            {
+                type: "code",
+                title: "exapp.x.yml",
+                code: (0, _examples.EXAPP_X)
+            },
+            {
+                type: "code",
+                title: "exapp.handlers-a.yml",
+                code: (0, _examples.EXAPP_HANDLERS_A)
+            },
+            {
+                type: "code",
+                title: "exapp.handlers-b.yml",
+                code: (0, _examples.EXAPP_HANDLERS_B)
+            },
+            {
+                type: "link",
+                href: "https://github.com/michaelmunson/x.sh/tree/main/docs/examples/app",
+                text: "View source on GitHub",
+                external: true
+            },
+            {
+                type: "h3",
+                text: "Typical workflows"
+            },
+            {
+                type: "ul",
+                items: [
+                    "**Dotfiles scripts** \u2014 `x -i` for personal utilities, `x --ln` for PATH access.",
+                    "**Monorepo tasks** \u2014 root `x.yml` for `build`, `test`, `lint`; no global install needed.",
+                    "**Team CLI tool** \u2014 commit `&lt;tool&gt;.x.yml` to the repo; teammates run `x tool subcmd` from any subdirectory.",
+                    "**Complex internal CLI** \u2014 global app in `~/.x.sh/apps/` with `$.import` for large handler sets."
+                ]
+            }
+        ]
+    },
+    {
         id: "validation-help",
         title: "Validation & Help",
         subtitle: "How x keeps apps correct and self-documenting.",
@@ -4567,47 +4620,6 @@ ollama run llama2 "$PROMPT"`
         ]
     },
     {
-        id: "examples",
-        title: "Examples",
-        subtitle: "Real-world references in the repository.",
-        blocks: [
-            {
-                type: "h3",
-                text: "Comprehensive example app (`exapp`)"
-            },
-            {
-                type: "p",
-                text: "The repository includes a full-featured sample app that exercises every synopsis form, YAML anchors, `$.import` handler splits, and all built-in helpers."
-            },
-            {
-                type: "link",
-                href: "https://github.com/michaelmunson/x.sh/blob/main/docs/examples/app/exapp.x.yml",
-                text: "View exapp.x.yml on GitHub",
-                external: true
-            },
-            {
-                type: "code",
-                code: `# After cloning the repo:
-x exapp --help
-x exapp demo opts --dry-run --out /tmp/out --kind=alpha
-x exapp demo reflect my-label`
-            },
-            {
-                type: "h3",
-                text: "Typical workflows"
-            },
-            {
-                type: "ul",
-                items: [
-                    "**Dotfiles scripts** \u2014 `x -i` for personal utilities, `x --ln` for PATH access.",
-                    "**Monorepo tasks** \u2014 root `x.yml` for `build`, `test`, `lint`; no global install needed.",
-                    "**Team CLI tool** \u2014 commit `&lt;tool&gt;.x.yml` to the repo; teammates run `x tool subcmd` from any subdirectory.",
-                    "**Complex internal CLI** \u2014 global app in `~/.x.sh/apps/` with `$.import` for large handler sets."
-                ]
-            }
-        ]
-    },
-    {
         id: "faq",
         title: "FAQ",
         subtitle: "Common questions and troubleshooting.",
@@ -4674,7 +4686,7 @@ x exapp demo reflect my-label`
     }
 ];
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"jnFvT":[function(require,module,exports,__globalThis) {
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT","./examples":"8FCOW"}],"jnFvT":[function(require,module,exports,__globalThis) {
 exports.interopDefault = function(a) {
     return a && a.__esModule ? a : {
         default: a
@@ -4704,7 +4716,240 @@ exports.export = function(dest, destName, get) {
     });
 };
 
-},{}],"ip12w":[function(require,module,exports,__globalThis) {
+},{}],"8FCOW":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "EXAPP_X", ()=>EXAPP_X);
+parcelHelpers.export(exports, "EXAPP_HANDLERS_A", ()=>EXAPP_HANDLERS_A);
+parcelHelpers.export(exports, "EXAPP_HANDLERS_B", ()=>EXAPP_HANDLERS_B);
+const EXAPP_X = `
+# Comprehensive sample app for the \`x\` app framework (\`x exapp \u{2026}\`).
+# Demonstrates: metadata, root options/arguments, nested commands, YAML anchors,
+# every synopsis form from the cheat-sheet, and split \`$.import\` handler files.
+
+name: exapp
+version: 0.1.0
+description: >-
+  Exercise app \u{2014} exercises options, positionals, nesting, validation,
+  \`$.import\`, and bash helpers (\`x-opt\`, \`x-arg\`, \`x-opts\`, \`x-args\`, \`x-run\`, \`x-usage\`).
+
+options:
+  - "[-v | --version]"
+  - "[-g | --global <note=''>]"
+
+arguments:
+  - "[<topic='overview'>]"
+
+commands:
+  demo:
+    description: nested demos (each subcommand highlights different DSL pieces)
+
+    commands:
+      opts:
+        description: >-
+          Option forms \u{2014} bool pair, value, defaulted value, repeating values,
+          enum choice, \`=\` default, requires-chain, and a required bare flag.
+        options:
+          - "[-n | --dry-run]"
+          - "[-o | --out <path>]"
+          - "[-c | --count <n='1'>]"
+          - "[-D | --define <kv> ...]"
+          - "[--kind={alpha|beta|gamma}]"
+          - "[--label=<text='demo'>]"
+          - "[--src=<path> [--dst=<path>]]"
+          - "[--default={yes|no}]"
+          - "--commit"
+
+      args:
+        description: >-
+          Positional forms \u{2014} required, optional, optional-with-default,
+          and greedy repeat (must be last).
+        arguments:
+          - "<one> [<two>] [<three='3'>] [<rest>...]"
+
+      pick:
+        description: required choice \u{2014} \`(alt1|alt2|alt3)\` becomes positional name \`choice\`
+        arguments:
+          - "(north|south|east|west)"
+
+      tail:
+        description: optional repeating positional \`[<items>...]\`
+        arguments:
+          - "[<items>...]"
+
+      group:
+        description: >-
+          Non-leaf group \u{2014} invoke \`x exapp demo group\` with no subcommand to see auto-help.
+        commands:
+          alpha:
+            description: nested leaf \u{3B1} \u{2014} shares options via YAML anchor (see \`reflect\`)
+            options: &demo_verbose
+              - "[-V | --verbose]"
+            arguments:
+              - "<msg>"
+          beta:
+            description: nested leaf \u{3B2} \u{2014} same shared options as \`alpha\`
+            options: *demo_verbose
+            arguments:
+              - "<msg>"
+
+      reflect:
+        description: dump parsed options/args via \`x-opts\` / \`x-args\` (and \`x-run\`)
+        options: *demo_verbose
+        arguments:
+          - "[<label='state'>]"
+
+      sparse:
+        description: optional repeat with a default (see also \`tail\` for plain \`[<items>...]\`)
+        arguments:
+          - "[<parts='*'>...]"
+
+      usage-tip:
+        description: >-
+          One-line handler \u{2014} forwards to x-usage (same idea as README create \u{2192} x-usage create).
+
+      io:
+        description: interactive builtins
+        commands:
+          read:
+            description: read a line of text
+          confirm:
+            description: confirm a yes/no question
+          select:
+            description: select an option from a list
+          multiselect:
+            description: select an option from a list
+
+$.import:
+  - ./exapp.handlers-a.yml
+  - ./exapp.handlers-b.yml
+`;
+const EXAPP_HANDLERS_A = `
+# Handlers merged via \`$.import\` (first file). Keys are dotted command paths.
+
+"":
+  |
+    topic=$(x-arg topic)
+    note=$(x-opt global)
+    echo "exapp \u{2014} topic=\${topic:-overview}  global-note=\${note:-\u{2205}}"
+    echo "Try:  x exapp --help"
+    echo "       x exapp demo --help"
+
+demo.opts:
+  |
+    echo "dry-run=$(x-opt dry-run)"
+    echo "out=$(x-opt out)"
+    echo "count=$(x-opt count)"
+    mapfile -t defs < <(x-opt define)
+    printf 'define[%s]
+' "\${defs[@]:-}"
+    echo "kind=$(x-opt kind)"
+    echo "label=$(x-opt label)"
+    echo "src=$(x-opt src)"
+    echo "dst=$(x-opt dst)"
+    echo "commit=$(x-opt commit)"
+
+demo.args:
+  |
+    echo "one=$(x-arg one)"
+    echo "two=$(x-arg two)"
+    echo "three=$(x-arg three)"
+    mapfile -t rest < <(x-arg rest)
+    printf 'rest[%s]
+' "\${rest[@]:-}"
+
+demo.pick:
+  |
+    echo "direction=$(x-arg choice)"
+
+demo.tail:
+  |
+    mapfile -t items < <(x-arg items)
+    if ((\${#items[@]})); then
+      printf 'items: %s
+' "\${items[@]}"
+    else
+      echo "(no items)"
+    fi
+
+demo.sparse:
+  |
+    mapfile -t parts < <(x-arg parts)
+    echo "parts=\${parts[*]}"
+
+demo.usage-tip: x-usage demo.opts
+`;
+const EXAPP_HANDLERS_B = `
+# Second import file \u{2014} merged keys must not duplicate the first import.
+
+demo.group.alpha:
+  |
+    msg=$(x-arg msg)
+    if [[ $(x-opt verbose) == true ]]; then
+      echo "[verbose] alpha \u{2190} $msg"
+    else
+      echo "alpha \u{2190} $msg"
+    fi
+
+demo.group.beta:
+  |
+    msg=$(x-arg msg)
+    if [[ $(x-opt verbose) == true ]]; then
+      echo "[verbose] beta \u{2190} $msg"
+    else
+      echo "beta \u{2190} $msg"
+    fi
+
+demo.reflect:
+  |
+    declare -A opts args
+    x-opts opts
+    x-args args
+    echo "--- x-opts ($(x-arg label)) ---"
+    for k in "\${!opts[@]}"; do echo "  $k=\${opts[$k]}"; done | sort
+    echo "--- x-args ---"
+    for k in "\${!args[@]}"; do echo "  $k=\${args[$k]}"; done | sort
+    echo "--- x-run ---"
+    x-run echo "ran nested echo via x-run"
+
+# IO commands
+demo.io.read: |
+  answer=$(x-io-read "What is your favorite color?")
+  if [ "$answer" != "blue" ]; then
+    echo "Wrong answer"
+    exit 1
+  else
+    echo "Correct!"
+  fi
+
+demo.io.confirm: |
+  answer=$(x-io-confirm "Are you sure you want to submit?" --default no)
+  echo "Submit = $answer"
+  answer=$(x-io-confirm "Are you sure you want to delete?" --default yes)
+  echo "Delete = $answer"
+
+demo.io.select: |
+  x-io-select "Choose a color" \
+    "red=Red" \
+    "green=Green" \
+    "blue=Blue" \
+    "yellow/orange=Yellow or Orange" \
+    -v color
+  echo "Color = $color"
+
+demo.io.multiselect: |
+  x-io-select --multi "Choose a color" \
+    "red=Red" \
+    "green=Green" \
+    "blue=Blue" \
+    "yellow/orange=Yellow or Orange" \
+    -v colors 
+  
+  echo "First Color = \${colors[0]}"
+  echo "All Colors = \${colors[*]}"
+`;
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"ip12w":[function(require,module,exports,__globalThis) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "renderInline", ()=>(0, _inline.renderInline));

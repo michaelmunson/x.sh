@@ -5,7 +5,11 @@ import HomePage from "./views/HomePage";
 import SectionPage from "./views/SectionPage";
 import NotFoundPage from "./views/NotFoundPage";
 
-export const BASE_PATH = '/x.sh';
+/** GitHub Pages project site uses `/x.sh`; local dev serves from `/`. */
+export const BASE_PATH = (() => {
+    const match = location.pathname.match(/^(\/x\.sh)(?:\/|$)/);
+    return match ? match[1] : "";
+})();
 
 export default function App() {
     const shell = createProps({
