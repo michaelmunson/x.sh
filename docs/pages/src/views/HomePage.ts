@@ -5,6 +5,7 @@ import type { ShellProps } from "../layout/Sidebar";
 import { goTo } from "../layout/Sidebar";
 
 export default function HomePage(shell: ShellProps) {
+    console.log('HomePage', shell.path);
     const groups = [...new Set(NAV_ITEMS.map(n => n.group ?? ""))];
 
     return DIV({ className: "page home-page" },

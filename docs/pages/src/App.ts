@@ -14,10 +14,9 @@ export default function App() {
         routeKey: window.location.search,
     }, [
         createEffect(['path'], $ => {
+            console.log('path', $.path);
+            console.log('path starts with base path', $.path.startsWith(BASE_PATH));
             if (!$.path.startsWith(BASE_PATH)) {
-                console.log('redirecting to', BASE_PATH, $.path);
-                $.path = BASE_PATH + $.path;
-                console.log('redirected to', $.path);
                 navigate(BASE_PATH + $.path);
             }
         })
@@ -45,12 +44,14 @@ export default function App() {
             ),
             Router({
                 "/": () => HomePage(shell),
-                "/x.sh": () => HomePage(shell),
                 "/docs": {
                     ":sectionId": () => SectionPage(shell),
                 },
-                "/x.sh/docs": {
-                    ":sectionId": () => SectionPage(shell),
+                "/x.sh": {
+                    "index": () => HomePage(shell),
+                    "/docs": {
+                        ":sectionId": () => SectionPage(shell),
+                    }
                 },
                 "*": () => NotFoundPage(shell),
             }),

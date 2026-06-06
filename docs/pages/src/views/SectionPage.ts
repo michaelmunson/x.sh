@@ -7,6 +7,7 @@ import { goTo } from "../layout/Sidebar";
 import NotFoundPage from "./NotFoundPage";
 
 export default function SectionPage(shell: ShellProps) {
+    console.log('SectionPage', shell.path);
     const { sectionId } = getParams();
     const section = SECTIONS.find(s => s.id === sectionId);
 

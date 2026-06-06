@@ -745,12 +745,9 @@ function App() {
         (0, _oxidizer.createEffect)([
             'path'
         ], ($)=>{
-            if (!$.path.startsWith(BASE_PATH)) {
-                console.log('redirecting to', BASE_PATH, $.path);
-                $.path = BASE_PATH + $.path;
-                console.log('redirected to', $.path);
-                (0, _oxidizerRouter.navigate)(BASE_PATH + $.path);
-            }
+            console.log('path', $.path);
+            console.log('path starts with base path', $.path.startsWith(BASE_PATH));
+            if (!$.path.startsWith(BASE_PATH)) (0, _oxidizerRouter.navigate)(BASE_PATH + $.path);
         })
     ]);
     window.addEventListener("popstate", ()=>(0, _sidebar.syncRoute)(shell));
@@ -780,12 +777,14 @@ function App() {
         className: "topbar-title"
     }, "x.sh docs")), (0, _oxidizerRouterDefault.default)({
         "/": ()=>(0, _homePageDefault.default)(shell),
-        "/x.sh": ()=>(0, _homePageDefault.default)(shell),
         "/docs": {
             ":sectionId": ()=>(0, _sectionPageDefault.default)(shell)
         },
-        "/x.sh/docs": {
-            ":sectionId": ()=>(0, _sectionPageDefault.default)(shell)
+        "/x.sh": {
+            "index": ()=>(0, _homePageDefault.default)(shell),
+            "/docs": {
+                ":sectionId": ()=>(0, _sectionPageDefault.default)(shell)
+            }
         },
         "*": ()=>(0, _notFoundPageDefault.default)(shell)
     }), (0, _oxidizer.DIV)({
@@ -808,7 +807,7 @@ function App() {
     }, "x.sh on GitHub")))));
 }
 
-},{"oxidizer":"hnuU9","oxidizer-router":"6kk03","./layout/Sidebar":"hNbmf","./views/HomePage":"e9AAl","./views/SectionPage":"3AN0D","./views/NotFoundPage":"b6FlI","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"hnuU9":[function(require,module,exports,__globalThis) {
+},{"oxidizer":"hnuU9","oxidizer-router":"6kk03","./layout/Sidebar":"hNbmf","./views/HomePage":"e9AAl","./views/SectionPage":"3AN0D","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT","./views/NotFoundPage":"b6FlI"}],"hnuU9":[function(require,module,exports,__globalThis) {
 "use strict";
 var __createBinding = this && this.__createBinding || (Object.create ? function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -4994,6 +4993,7 @@ var _content = require("../content");
 var _components = require("../components");
 var _sidebar = require("../layout/Sidebar");
 function HomePage(shell) {
+    console.log('HomePage', shell.path);
     const groups = [
         ...new Set((0, _content.NAV_ITEMS).map((n)=>n.group ?? ""))
     ];
@@ -5061,6 +5061,7 @@ var _sidebar = require("../layout/Sidebar");
 var _notFoundPage = require("./NotFoundPage");
 var _notFoundPageDefault = parcelHelpers.interopDefault(_notFoundPage);
 function SectionPage(shell) {
+    console.log('SectionPage', shell.path);
     const { sectionId } = (0, _oxidizerRouter.getParams)();
     const section = (0, _content.SECTIONS).find((s)=>s.id === sectionId);
     if (!section) return (0, _notFoundPageDefault.default)(shell);
