@@ -41,7 +41,7 @@ jobs:
 
       - name: Build site
         working-directory: docs/pages
-        run: npm run build:gh-pages
+        run: npm run build
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
