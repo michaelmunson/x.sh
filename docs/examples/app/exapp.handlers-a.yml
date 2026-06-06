@@ -20,6 +20,18 @@ demo.opts:
     echo "src=$(x-opt src)"
     echo "dst=$(x-opt dst)"
     echo "commit=$(x-opt commit)"
+    echo "force=$(x-opt force)"
+    echo "fmt=$(x-opt fmt)"
+    echo "format=$(x-opt format)"
+    echo "quiet=$(x-opt quiet)"
+    echo "verbose=$(x-opt verbose)"
+    mapfile -t tags < <(x-opt tag)
+    printf 'tag[%s]\n' "${tags[@]:-}"
+
+demo.mode:
+  |
+    echo "action=$(x-arg action)"
+    echo "speed=$(x-arg speed)"
 
 demo.args:
   |

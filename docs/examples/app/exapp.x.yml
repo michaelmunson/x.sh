@@ -34,6 +34,10 @@ commands:
           - "[--src=<path> [--dst=<path>]]"
           - "[--default={yes|no}]"
           - "--commit"
+          - "(-f | --force)"
+          - "(--fmt | --format)"
+          - "(-q | --quiet | -v | --verbose)"
+          - "[--tag <label>]..."
 
       args:
         description: >-
@@ -46,6 +50,13 @@ commands:
         description: required choice — `(alt1|alt2|alt3)` becomes positional name `choice`
         arguments:
           - "(north|south|east|west)"
+
+      mode:
+        description: >-
+          Positional choice in angle brackets — `<action={…}>` and
+          optional `[<speed={…}='default'>]`.
+        arguments:
+          - "<action={read|write|delete}> [<speed={fast|slow}='fast'>]"
 
       tail:
         description: optional repeating positional `[<items>...]`
@@ -94,6 +105,14 @@ commands:
             description: select an option from a list
           multiselect:
             description: select an option from a list
+
+      style:
+        description: terminal styling and TUI control builtins
+        commands:
+          prt:
+            description: styled print via x-prt (--style)
+          tui:
+            description: alternate buffer demo via x-tui
 
 $.import:
   - ./exapp.handlers-a.yml
