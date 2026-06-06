@@ -147,15 +147,6 @@
           <li><strong>Project-local commands</strong> in <code>./x.yml</code> let you easily define project specific scripts and commands.</li>
           <li><strong>Apps</strong> (<code>&lt;name&gt;.x.yml</code>) turn YAML into validated CLIs with options, arguments, nested subcommands, and bash handlers. Before any bash runs, x parses and validates the user's input.</li>
         </ul>
-        <h3>Script/App Resolution Order</h3>
-        <fieldset>
-          <legend></legend>
-          <pre><code>1. ./x.yml          → project-local inline script (CWD only)
-2. ./&lt;name&gt;.x.yml    → local app (CWD, then parent dirs)
-3. ~/.x.sh/apps/     → global app
-4. ~/.x.sh/scripts/  → installed global script</code></pre>
-        </fieldset><br>
-        <aside><strong>Tip:</strong> Use <code>x --src &lt;name&gt;</code> to print the absolute path of a script or app file without executing it, it is handy for piping into editors or CI.</aside>
       </section>
     </details>
     <details name="detail" id="installation">
@@ -282,12 +273,20 @@ program = &quot;bash</code></pre>
           <pre><code>&lt;program&gt; -c &#x27;&lt;script body&gt;&#x27; x &lt;remaining-args…&gt;</code></pre>
         </fieldset>
         <p>Positional parameters in the script body (<code>$1</code>, <code>$2</code>, …) refer to arguments after the command name.</p>
+        <h3>Script/App Resolution Order</h3>
+        <p>When you run <code>x &lt;name&gt; [args…]</code>, x walks a fixed resolution chain. The first match will be executed.</p>
+        <ol>
+          <li><code>./x.yml</code> &rarr; project-local inline script (CWD only)</li>
+          <li><code>./&lt;name&gt;.x.yml</code> &rarr; local app (CWD, then parent dirs)</li>
+          <li><code>~/.x.sh/apps/</code> &rarr; global app</li>
+          <li><code>~/.x.sh/scripts/</code> &rarr; installed global script</li>
+        </ol>
       </section>
     </details>
     <details name="detail" id="commands">
       <summary>Commands</summary>
       <section>
-        <h3><code>x --init [name] [script]</code> / <code>x -i</code></h3>
+        <h3><code>x --init | -i [name] [script]</code></h3>
         <p>Create a new global script or re-open an existing one in your editor.</p>
         <ul>
           <li><code>x -i</code>: fully interactive (name, description, language, editor).</li>
@@ -296,7 +295,7 @@ program = &quot;bash</code></pre>
         </ul>
         <aside><strong>Note:</strong> Script names must be non-empty and contain only letters, numbers, and dashes.</aside>
         <h3><code>x &lt;script_name&gt; [args…]</code></h3>
-        <p>Execute a command using the resolution order described in Architecture. Arguments are forwarded verbatim.</p>
+        <p>Execute a command using the resolution order described in <a href="#architecture">Architecture</a>. Arguments are forwarded verbatim.</p>
         <h3><code>x --ls</code> / <code>x -l</code></h3>
         <p>List all global scripts in a table with description, program, groups, and activity timestamps.</p>
         <h3><code>x --delete &lt;name&gt;</code> / <code>x -d</code></h3>
@@ -315,8 +314,6 @@ x -d --ln my-script       # remove the symlink</code></pre>
         <p>Create a new app YAML file. Scope flags control where the file is written; without them, x prompts interactively.</p>
         <h3><code>x --config</code></h3>
         <p>Interactive configuration for default script language and LLM provider. See the Configuration section.</p>
-        <h3><code>x --ai</code> and <code>x -i --ai [name]</code></h3>
-        <p>LLM-powered command and script generation. Requires <code>~/.x.sh/config/llm.sh</code>. See AI Integration.</p>
       </section>
     </details>
     <section id="scripts">
@@ -488,9 +485,39 @@ $:
             <summary>Synopsis DSL</summary>
             <section>
           <p>Every string in <code>options</code> and <code>arguments</code> arrays is a <strong>synopsis</strong> that x parses into a structured CLI spec. All constraints are enforced before handlers run.</p>
+          <p>All <code>[optional]</code> forms have bare <code>(required)</code> equivalents</p>
+          <h3>Arguments</h3>
           <table>
-            <thead><tr><th>Synopsis</th><th>Meaning</th></tr></thead>
-            <tbody><tr><td><code>&lt;name&gt;</code></td><td>Required positional</td></tr><tr><td><code>[&lt;name&gt;]</code></td><td>Optional positional</td></tr><tr><td><code>[&lt;name='val'&gt;]</code></td><td>Optional positional with default literal</td></tr><tr><td><code>&lt;name&gt;...</code> / <code>[&lt;name&gt;...]</code></td><td>Repeating positional (greedy, must be last)</td></tr><tr><td><code>[-s | --long]</code></td><td>Optional bool flag (alias pair)</td></tr><tr><td><code>[-s | --long &lt;arg&gt;]</code></td><td>Flag with one required value</td></tr><tr><td><code>[-s | --long &lt;arg='v'&gt;]</code></td><td>Flag value with default</td></tr><tr><td><code>[-s | --long &lt;arg&gt; ...]</code></td><td>Flag value repeats</td></tr><tr><td><code>[--long={a|b|c}]</code></td><td>Choice from set</td></tr><tr><td><code>[--long=&lt;arg='v'&gt;]</code></td><td><code>=</code> form with default value</td></tr><tr><td><code>[--input=&lt;a&gt; [--output=&lt;b&gt;]]</code></td><td>Nesting = dependency (<code>--output</code> requires <code>--input</code>)</td></tr><tr><td><code>(a|b|c)</code></td><td>Required choice (becomes positional <code>choice</code>)</td></tr><tr><td><code>--long</code></td><td>Required option (bare, no brackets)</td></tr></tbody>
+            <thead><tr><th>Synopsis</th><th>Meaning</th><th>Example</th></tr></thead>
+            <tbody>
+              <tr><td><code>&lt;name&gt;</code></td><td>Required positional</td><td><code>x app file.txt</code></td></tr>
+              <tr><td><code>[&lt;name&gt;]</code></td><td>Optional positional</td><td><code>x app</code> or <code>x app file.txt</code></td></tr>
+              <tr><td><code>[&lt;name='val'&gt;]</code></td><td>Optional with default</td><td><code>x app</code> or <code>x app myfile.txt</code></td></tr>
+              <tr><td><code>&lt;name&gt;...</code></td><td>Required repeating</td><td><code>x app f1.txt f2.txt</code></td></tr>
+              <tr><td><code>[&lt;name&gt;...]</code></td><td>Optional repeating</td><td><code>x app</code> or <code>x app f1.txt f2.txt</code></td></tr>
+              <tr><td><code>&lt;name={a|b|c}&gt;</code></td><td>Required, value from set</td><td><code>x app write</code></td></tr>
+              <tr><td><code>[&lt;name={a|b|c}&gt;]</code></td><td>Optional, value from set</td><td><code>x app</code> or <code>x app fast</code></td></tr>
+              <tr><td><code>(a|b|c)</code></td><td>Required choice (positional <code>choice</code>)</td><td><code>x app north</code></td></tr>
+            </tbody>
+          </table>
+          <h3>Options</h3>
+          <table>
+            <thead><tr><th>Synopsis</th><th>Meaning</th><th>Example</th></tr></thead>
+            <tbody>
+              <tr><td><code>--long</code></td><td>Required bool flag</td><td><code>x app --long</code></td></tr>
+              <tr><td><code>(-l | --long)</code></td><td>Required bool, alias pair</td><td><code>x app -l</code></td></tr>
+              <tr><td><code>(--long | --short)</code></td><td>Required mutually exclusive</td><td><code>x app --long</code> or <code>x app --short</code></td></tr>
+              <tr><td><code>(-l | --long | -s | --short)</code></td><td>Required mutex with aliases</td><td><code>x app -l</code> or <code>x app -s</code></td></tr>
+              <tr><td><code>[-l | --long]</code></td><td>Optional bool flag</td><td><code>x app -l</code></td></tr>
+              <tr><td><code>[-l | --long &lt;arg&gt;]</code></td><td>Flag with required value</td><td><code>x app -l ./dist</code></td></tr>
+              <tr><td><code>[-l | --long &lt;arg='v'&gt;]</code></td><td>Flag with default value</td><td><code>x app</code> or <code>x app --long ./dist</code></td></tr>
+              <tr><td><code>[-l | --long &lt;arg&gt; ...]</code></td><td>Value repeats</td><td><code>x app --long "a" "b"</code></td></tr>
+              <tr><td><code>[-l | --long &lt;arg&gt;]...</code></td><td>Flag repeats</td><td><code>x app --long abc --long xyz</code></td></tr>
+              <tr><td><code>[--long=&lt;arg&gt;]</code></td><td>Value via <code>=</code></td><td><code>x app --long=./dist</code></td></tr>
+              <tr><td><code>[--long=&lt;arg='v'&gt;]</code></td><td><code>=</code> form with default</td><td><code>x app</code> or <code>x app --long=./dist</code></td></tr>
+              <tr><td><code>[--long={a|b|c}]</code></td><td>Value from set</td><td><code>x app --long=a</code></td></tr>
+              <tr><td><code>[--input=&lt;a&gt; [--output=&lt;b&gt;]]</code></td><td><code>--output</code> requires <code>--input</code></td><td><code>x app --input=foo --output=bar</code></td></tr>
+            </tbody>
           </table>
           <h3>Validation guarantees</h3>
           <ul>
@@ -498,6 +525,7 @@ $:
             <li>Defaults are applied when optional values are omitted.</li>
             <li>Choice values must be members of the declared set.</li>
             <li><code>requires:</code> chains from nested bracket groups are enforced.</li>
+            <li>Mutually exclusive option groups require exactly one member.</li>
             <li>Repeating positionals must be the last argument in the list.</li>
             <li>Unknown options are rejected with a clear error.</li>
           </ul>
@@ -511,7 +539,7 @@ $:
           <p>x prepends a small bash preamble to each handler so you can read parsed values without manual environment-variable wrangling. All helpers are available in the handler's scope and exported for <code>x-run</code> subprocesses.</p>
           <table>
             <thead><tr><th>Builtin</th><th>Behavior</th></tr></thead>
-            <tbody><tr><td><code>x-opt &lt;name&gt;</code></td><td>Print option value. Bool flags → <code>true</code>. Repeats join with newline.</td></tr><tr><td><code>x-arg &lt;name&gt;</code></td><td>Print positional argument value.</td></tr><tr><td><code>x-opts &lt;assoc-name&gt;</code></td><td>Populate a caller-named bash associative array with all options.</td></tr><tr><td><code>x-args &lt;assoc-name&gt;</code></td><td>Populate a caller-named bash associative array with all arguments.</td></tr><tr><td><code>x-run &lt;cmd&gt; [args…]</code></td><td>Run a command with <code>x-*</code> helpers still in scope.</td></tr><tr><td><code>x-usage &lt;cmd-path&gt;</code></td><td>Print auto-generated help (e.g. <code>x-usage create.file</code>).</td></tr><tr><td><code>x-io-read …</code></td><td>Prompt for a line. <code>-v</code> / <code>--var</code> assigns to a global scalar.</td></tr><tr><td><code>x-io-confirm …</code></td><td>Yes/no prompt (<code>--default yes|no</code>). <code>-v</code> assigns <code>true</code>/<code>false</code>.</td></tr><tr><td><code>x-io-select …</code></td><td>Menu of <code>id=label</code> pairs. <code>--multi</code> for multiple. <code>-v</code> assigns result.</td></tr></tbody>
+            <tbody><tr><td><code>x-opt &lt;name&gt;</code></td><td>Print option value. Bool flags → <code>true</code>. Repeats join with newline.</td></tr><tr><td><code>x-arg &lt;name&gt;</code></td><td>Print positional argument value.</td></tr><tr><td><code>x-opts &lt;assoc-name&gt;</code></td><td>Populate a caller-named bash associative array with all options.</td></tr><tr><td><code>x-args &lt;assoc-name&gt;</code></td><td>Populate a caller-named bash associative array with all arguments.</td></tr><tr><td><code>x-run &lt;cmd&gt; [args…]</code></td><td>Run a command with <code>x-*</code> helpers still in scope.</td></tr><tr><td><code>x-usage &lt;cmd-path&gt;</code></td><td>Print auto-generated help (e.g. <code>x-usage create.file</code>).</td></tr><tr><td><code>x-io-read …</code></td><td>Prompt for a line. <code>-v</code> / <code>--var</code> assigns to a global scalar.</td></tr><tr><td><code>x-io-confirm …</code></td><td>Yes/no prompt (<code>--default yes|no</code>). <code>-v</code> assigns <code>true</code>/<code>false</code>.</td></tr><tr><td><code>x-io-select …</code></td><td>Menu of <code>id=label</code> pairs. <code>--multi</code> for multiple. <code>-v</code> assigns result.</td></tr><tr><td><code>x-prt …</code></td><td>Styled print via ANSI SGR. <code>(-s|--style) &lt;style&gt;</code> sets comma-separated styles; sticky until next <code>--style</code>.</td></tr><tr><td><code>x-tui …</code></td><td>Terminal control via ANSI escapes (<code>--init</code>, <code>--exit</code>, <code>--clear</code>, cursor moves, etc.).</td></tr></tbody>
           </table>
           <h3>Reading options and arguments</h3>
         <fieldset>
@@ -622,6 +650,10 @@ commands:
           - &quot;[--src=&lt;path&gt; [--dst=&lt;path&gt;]]&quot;
           - &quot;[--default={yes|no}]&quot;
           - &quot;--commit&quot;
+          - &quot;(-f | --force)&quot;
+          - &quot;(--fmt | --format)&quot;
+          - &quot;(-q | --quiet | -v | --verbose)&quot;
+          - &quot;[--tag &lt;label&gt;]...&quot;
 
       args:
         description: &gt;-
@@ -634,6 +666,11 @@ commands:
         description: required choice; `(alt1|alt2|alt3)` becomes positional name `choice`
         arguments:
           - &quot;(north|south|east|west)&quot;
+
+      mode:
+        description: positional choice in angle brackets
+        arguments:
+          - &quot;&lt;action={read|write|delete}&gt; [&lt;speed={fast|slow}='fast'&gt;]&quot;
 
       tail:
         description: optional repeating positional `[&lt;items&gt;...]`
@@ -910,7 +947,7 @@ ollama run llama2 &quot;$PROMPT&quot;</code></pre>
     </details>
   </main>
   <footer>
-    <p><a href="https://github.com/michaelmunson/x.sh">github.com/michaelmunson/x.sh</a></p>
+    <p>Repository: <a href="https://github.com/michaelmunson/x.sh">github.com/michaelmunson/x.sh</a></p>
   </footer>
 </body>
 

@@ -1,0 +1,116 @@
+{
+  "name": "xsh-vscode-ext",
+  "displayName": "x.sh",
+  "description": "Syntax highlighting and linting for x.sh app definition files (*.x.yml)",
+  "version": "0.0.1",
+  "publisher": "your-publisher-name",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters"
+  ],
+  "keywords": [
+    "yaml",
+    "x.sh",
+    "cli",
+    "syntax",
+    "highlighting",
+    "linting"
+  ],
+  "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "xsh",
+        "aliases": [
+          "x.sh",
+          "x app",
+          "xsh"
+        ],
+        "extensions": [
+          ".x.yml",
+          ".cli.yaml",
+          ".cli.yml"
+        ],
+        "filenames": [],
+        "firstLine": "^#\\s*(x[-_]?sh|x[-_]?app|xsh|cli[-_]?script|metadata)",
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "xsh",
+        "scopeName": "source.xsh",
+        "path": "./syntaxes/xsh.tmLanguage.json",
+        "embeddedLanguages": {
+          "meta.embedded.block.shell": "shellscript",
+          "meta.embedded.line.shell": "shellscript"
+        }
+      }
+    ],
+    "jsonValidation": [
+      {
+        "fileMatch": [
+          "*.x.yml",
+          "*.cli.yaml",
+          "*.cli.yml"
+        ],
+        "url": "./schemas/xsh.schema.json"
+      }
+    ],
+    "configuration": {
+      "title": "x.sh",
+      "properties": {
+        "xsh.lint.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable x.sh app linting"
+        },
+        "xsh.lint.warnOnMissingHandlers": {
+          "type": "boolean",
+          "default": true,
+          "description": "Report when a leaf command has no corresponding $ handler"
+        },
+        "xsh.lint.warnOnUnreferencedHandlers": {
+          "type": "boolean",
+          "default": true,
+          "description": "Report when a $ handler key has no matching command"
+        },
+        "xsh.lint.requireDescription": {
+          "type": "boolean",
+          "default": false,
+          "description": "Require a description on all commands"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "lint": "eslint src",
+    "build": "npm install && npm run compile && npm run package",
+    "install-cursor-extension": "cursor --install-extension xsh-vscode-ext-0.0.1.vsix",
+    "install-vscode-extension": "code --install-extension xsh-vscode-ext-0.0.1.vsix",
+    "deploy": "npm run build && npm run install-cursor-extension"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20.19.42",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^2.32.0",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "js-yaml": "^4.2.0"
+  }
+}

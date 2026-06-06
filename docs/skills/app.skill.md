@@ -144,28 +144,38 @@ Synopsis strings live in `options:` and `arguments:` (per command or at root).
 Each entry is one fragment; use a list for multiple items or a single string for
 a combined positional spec.
 
+All `[optional]` forms have bare `(required)` equivalents — drop the brackets (or use parenthesised option groups where shown).
+
+### Arguments
+
+| Synopsis | Meaning | Example |
+|----------|---------|---------|
+| `<name>` | Required positional | `x app file.txt` |
+| `[<name>]` | Optional positional | `x app` or `x app file.txt` |
+| `[<name='val'>]` | Optional with default | `x app` or `x app myfile.txt` |
+| `<name>...` | Required repeating (greedy; last) | `x app f1.txt f2.txt` |
+| `[<name>...]` | Optional repeating | `x app` or `x app f1.txt f2.txt` |
+| `<name={a\|b\|c}>` | Required, value from set | `x app write` |
+| `[<name={a\|b\|c}>]` | Optional, value from set | `x app` or `x app fast` |
+| `(north\|south\|…)` | Required choice; arg name is `choice` | `x app north` |
+
 ### Options
 
-| Synopsis | Meaning |
-|----------|---------|
-| `[-s \| --long]` | optional bool flag |
-| `[-s \| --long <arg>]` | flag with required value |
-| `[-s \| --long <arg='v'>]` | flag value with default when flag is given |
-| `[-s \| --long <arg> ...]` | repeating flag values |
-| `[--long={a\|b\|c}]` | choice from set |
-| `[--long=<arg='v'>]` | `=` form with default |
-| `[--input=<a> [--output=<b>]]` | `--output` requires `--input` (`requires:` chain) |
-| `--long` | **required** option (no brackets) |
-
-### Positional arguments
-
-| Synopsis | Meaning |
-|----------|---------|
-| `<name>` | required positional |
-| `[<name>]` | optional positional |
-| `[<name='val'>]` | optional with default |
-| `<name>...` / `[<name>...]` | repeating (greedy; must be last positional) |
-| `(north\|south\|east\|west)` | required choice; arg name is `choice` |
+| Synopsis | Meaning | Example |
+|----------|---------|---------|
+| `--long` | Required bool flag | `x app --long` |
+| `(-l \| --long)` | Required bool, alias pair | `x app -l` |
+| `(--long \| --short)` | Required mutually exclusive | `x app --long` or `x app --short` |
+| `(-l \| --long \| -s \| --short)` | Required mutex with aliases | `x app -l` or `x app -s` |
+| `[-s \| --long]` | Optional bool flag | `x app -l` |
+| `[-s \| --long <arg>]` | Flag with required value | `x app -l ./dist` |
+| `[-s \| --long <arg='v'>]` | Flag value with default | `x app` or `x app --long ./dist` |
+| `[-s \| --long <arg> ...]` | Repeating values for one flag | `x app --long "a" "b"` |
+| `[-s \| --long <arg>]...` | Flag repeats | `x app --long abc --long xyz` |
+| `[--long=<arg>]` | Value via `=` | `x app --long=./dist` |
+| `[--long=<arg='v'>]` | `=` form with default | `x app` or `x app --long=./dist` |
+| `[--long={a\|b\|c}]` | Value from set | `x app --long=a` |
+| `[--input=<a> [--output=<b>]]` | `--output` requires `--input` | `x app --input=foo --output=bar` |
 
 ### YAML tips
 
@@ -190,6 +200,8 @@ Injected via bash preamble before each handler body:
 | `x-io-read …` | Prompt for a line; `-v NAME` assigns global scalar |
 | `x-io-confirm …` | Yes/no; `--default yes\|no` (default `no`) |
 | `x-io-select …` | Menu of `id=label` pairs; `--multi` for indexed array |
+| `x-prt …` | Styled print; `(-s\|--style) <style>` with comma-separated names (`red`, `bold`, `bg-white`, …) |
+| `x-tui …` | Terminal control (`--init`, `--exit`, `--clear`, cursor moves, …) |
 
 ### Reading values
 

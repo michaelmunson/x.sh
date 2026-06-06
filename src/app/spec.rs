@@ -54,6 +54,16 @@ impl OptionDef {
     }
 }
 
+/// Mutually exclusive option group — exactly one member must be provided when
+/// `required` is true (e.g. `(--long | --short)`).
+#[derive(Debug, Clone)]
+pub struct OptionGroupDef {
+    /// Canonical names of member options (long if present, else short char).
+    pub members: Vec<String>,
+    /// When true, exactly one member must appear on the command line.
+    pub required: bool,
+}
+
 /// A single positional argument definition.
 #[derive(Debug, Clone)]
 pub struct ArgDef {
@@ -76,6 +86,7 @@ pub struct Command {
     pub name: String,
     pub description: Option<String>,
     pub options: Vec<OptionDef>,
+    pub option_groups: Vec<OptionGroupDef>,
     pub arguments: Vec<ArgDef>,
     pub subcommands: BTreeMap<String, Command>,
 }
@@ -86,6 +97,7 @@ impl Command {
             name: name.into(),
             description: None,
             options: Vec::new(),
+            option_groups: Vec::new(),
             arguments: Vec::new(),
             subcommands: BTreeMap::new(),
         }

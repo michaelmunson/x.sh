@@ -63,6 +63,7 @@ pub fn parse(app: &App, argv: &[String]) -> Result<Parsed> {
     let mut options = options;
     apply_option_defaults(cmd, &mut options);
     enforce_required_options(cmd, &options)?;
+    enforce_option_groups(cmd, &options)?;
     enforce_requires(cmd, &options)?;
 
     let arguments = bind_arguments(cmd, positionals)?;
@@ -240,6 +241,47 @@ fn enforce_requires(cmd: &Command, options: &BTreeMap<String, Vec<String>>) -> R
                     req
                 );
             }
+        }
+    }
+    Ok(())
+}
+
+fn enforce_option_groups(cmd: &Command, options: &BTreeMap<String, Vec<String>>) -> Result<()> {
+    for group in &cmd.option_groups {
+        let present: Vec<&str> = group
+            .members
+            .iter()
+            .filter(|m| options.contains_key(m.as_str()))
+            .map(|m| m.as_str())
+            .collect();
+
+        if group.required {
+            if present.is_empty() {
+                let names: Vec<String> = group
+                    .members
+                    .iter()
+                    .map(|m| format!("`--{}`", m))
+                    .collect();
+                bail!(
+                    "required mutually exclusive options: pick one of {}",
+                    names.join(", ")
+                );
+            }
+            if present.len() > 1 {
+                let names: Vec<String> = present.iter().map(|m| format!("`--{}`", m)).collect();
+                bail!(
+                    "mutually exclusive options: pick one of {}; got {}",
+                    group.members.iter().map(|m| format!("`--{}`", m)).collect::<Vec<_>>().join(", "),
+                    names.join(" and ")
+                );
+            }
+        } else if present.len() > 1 {
+            let names: Vec<String> = present.iter().map(|m| format!("`--{}`", m)).collect();
+            bail!(
+                "mutually exclusive options: pick one of {}; got {}",
+                group.members.iter().map(|m| format!("`--{}`", m)).collect::<Vec<_>>().join(", "),
+                names.join(" and ")
+            );
         }
     }
     Ok(())
@@ -567,5 +609,83 @@ arguments:
             &[],
         );
         assert!(err.contains("missing required argument"));
+    }
+
+    #[test]
+    fn required_mutex_option_group_exactly_one() {
+        let yaml = r#"
+name: t
+options:
+  - "(--long | --short)"
+"$":
+  "": echo
+"#;
+        let p = parse_argv(yaml, &["--long"]);
+        assert_eq!(p.options.get("long").map(|v| v[0].as_str()), Some("true"));
+        let p = parse_argv(yaml, &["--short"]);
+        assert_eq!(p.options.get("short").map(|v| v[0].as_str()), Some("true"));
+    }
+
+    #[test]
+    fn required_mutex_missing_errors() {
+        let err = parse_err(
+            r#"
+name: t
+options:
+  - "(--long | --short)"
+"$":
+  "": echo
+"#,
+            &[],
+        );
+        assert!(err.contains("mutually exclusive"));
+    }
+
+    #[test]
+    fn required_mutex_both_present_errors() {
+        let err = parse_err(
+            r#"
+name: t
+options:
+  - "(--long | --short)"
+"$":
+  "": echo
+"#,
+            &["--long", "--short"],
+        );
+        assert!(err.contains("mutually exclusive"));
+    }
+
+    #[test]
+    fn flag_level_repeat_accumulates() {
+        let p = parse_argv(
+            r#"
+name: t
+options:
+  - "[--tag <label>]..."
+"$":
+  "": echo
+"#,
+            &["--tag", "a", "--tag", "b"],
+        );
+        assert_eq!(
+            p.options.get("tag").map(|v| v.as_slice()),
+            Some(&["a".to_string(), "b".to_string()][..])
+        );
+    }
+
+    #[test]
+    fn positional_choice_in_angle_brackets() {
+        let p = parse_argv(
+            r#"
+name: t
+arguments:
+  - "<mode={read|write}>"
+"$":
+  "": echo
+"#,
+            &["write"],
+        );
+        assert_eq!(p.arguments.get("mode").map(|v| v[0].as_str()), Some("write"));
     }
 }

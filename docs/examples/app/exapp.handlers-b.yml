@@ -65,3 +65,17 @@ demo.io.multiselect: |
   
   echo "First Color = ${colors[0]}"
   echo "All Colors = ${colors[*]}"
+
+demo.style.prt: |
+  x-prt \
+    --style red,underline,bg-white \
+    "Hello" \
+    --style blue,bg-yellow \
+    " World"
+  echo
+
+demo.style.tui: |
+  x-tui --init --clear
+  x-tui --home
+  x-prt --style green,bold "exapp TUI demo"
+  x-tui --exit

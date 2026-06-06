@@ -11,6 +11,8 @@
 #   x-io-read [-v|--var NAME] [...]           prompt text; `-v NAME` assigns to global shell var
 #   x-io-confirm [-v|--var NAME] [...]       yes/no; `-v NAME` assigns `true` or `false`
 #   x-io-select [-v|--var NAME] [...]       pick id=label; `-v` assigns (string or indexed array when --multi)
+#   x-prt [(-s|--style) <style>] [<text>...]  styled print via ANSI SGR codes
+#   x-tui [--init|--exit|--clear|...] [<text>...]  terminal control via ANSI escape sequences
 #
 # `x` exports the data via env vars:
 #   X_OPT_<name>           value of option (repeats joined with newlines)
@@ -214,4 +216,170 @@ x-io-select() {
   return 0
 }
 
-export -f x-opt x-arg x-opts x-args x-run x-usage x-io-read x-io-confirm x-io-select
+# Map one style token to an SGR numeric code. Prints code to stdout; return 1 if unknown.
+_x_style_token_to_code() {
+  case "$1" in
+    reset | normal) printf '%s' 0 ;;
+    bold) printf '%s' 1 ;;
+    dim | faint) printf '%s' 2 ;;
+    italic) printf '%s' 3 ;;
+    underline) printf '%s' 4 ;;
+    blink) printf '%s' 5 ;;
+    inverse | reverse) printf '%s' 7 ;;
+    hidden) printf '%s' 8 ;;
+    strikethrough | strike) printf '%s' 9 ;;
+    black) printf '%s' 30 ;;
+    red) printf '%s' 31 ;;
+    green) printf '%s' 32 ;;
+    yellow) printf '%s' 33 ;;
+    blue) printf '%s' 34 ;;
+    magenta) printf '%s' 35 ;;
+    cyan) printf '%s' 36 ;;
+    white) printf '%s' 37 ;;
+    default) printf '%s' 39 ;;
+    bright-black) printf '%s' 90 ;;
+    bright-red) printf '%s' 91 ;;
+    bright-green) printf '%s' 92 ;;
+    bright-yellow) printf '%s' 93 ;;
+    bright-blue) printf '%s' 94 ;;
+    bright-magenta) printf '%s' 95 ;;
+    bright-cyan) printf '%s' 96 ;;
+    bright-white) printf '%s' 97 ;;
+    bg-black) printf '%s' 40 ;;
+    bg-red) printf '%s' 41 ;;
+    bg-green) printf '%s' 42 ;;
+    bg-yellow) printf '%s' 43 ;;
+    bg-blue) printf '%s' 44 ;;
+    bg-magenta) printf '%s' 45 ;;
+    bg-cyan) printf '%s' 46 ;;
+    bg-white) printf '%s' 47 ;;
+    bg-default) printf '%s' 49 ;;
+    bg-bright-black) printf '%s' 100 ;;
+    bg-bright-red) printf '%s' 101 ;;
+    bg-bright-green) printf '%s' 102 ;;
+    bg-bright-yellow) printf '%s' 103 ;;
+    bg-bright-blue) printf '%s' 104 ;;
+    bg-bright-magenta) printf '%s' 105 ;;
+    bg-bright-cyan) printf '%s' 106 ;;
+    bg-bright-white) printf '%s' 107 ;;
+    *) return 1 ;;
+  esac
+}
+
+# Convert comma-separated style names to an opening SGR sequence (e.g. \033[1;31m).
+_x_style_to_sgr() {
+  local style_csv=$1
+  local -a codes=()
+  local token code IFS=,
+  for token in $style_csv; do
+    token="${token#"${token%%[![:space:]]*}"}"
+    token="${token%"${token##*[![:space:]]}"}"
+    [[ -z "$token" ]] && continue
+    code=$(_x_style_token_to_code "$token") || {
+      printf '%s\n' "x-prt: unknown style: $token" >&2
+      return 2
+    }
+    codes+=("$code")
+  done
+  if ((${#codes[@]} == 0)); then
+    printf '\033[0m'
+    return 0
+  fi
+  local IFS=';'
+  printf '\033[%sm' "${codes[*]}"
+}
+
+x-prt() {
+  local sgr=
+  while (($#)); do
+    case "$1" in
+      -s | --style)
+        [[ -n "${2:-}" ]] || {
+          printf '%s\n' "usage: x-prt [(-s|--style) <style>] [<text> ...]" >&2
+          return 2
+        }
+        sgr=$(_x_style_to_sgr "$2") || return $?
+        shift 2
+        ;;
+      -s=* | --style=*)
+        sgr=$(_x_style_to_sgr "${1#*=}") || return $?
+        shift
+        ;;
+      *)
+        if [[ -n "$sgr" ]]; then
+          printf '%b%s\033[0m' "$sgr" "$1"
+        else
+          printf '%s' "$1"
+        fi
+        shift
+        ;;
+    esac
+  done
+}
+
+x-tui() {
+  while (($# > 0)); do
+    case "$1" in
+      --init) printf '\033[?1049h\033[H\033[?25l'; shift ;;
+      --exit) printf '\033[?1049l\033[?25h'; shift ;;
+      --clear) printf '\033[2J'; shift ;;
+      --clear-line) printf '\033[2K'; shift ;;
+      --home) printf '\033[H'; shift ;;
+      --hide) printf '\033[?25l'; shift ;;
+      --show) printf '\033[?25h'; shift ;;
+      --save) printf '\033[s'; shift ;;
+      --restore) printf '\033[u'; shift ;;
+      --move)
+        [[ -n "${2:-}" ]] || {
+          printf '%s\n' "x-tui: --move: expected row,col" >&2
+          return 2
+        }
+        local row col IFS=,
+        read -r row col <<<"$2"
+        [[ -n "$row" && -n "$col" && "$row" =~ ^[0-9]+$ && "$col" =~ ^[0-9]+$ ]] || {
+          printf '%s\n' "x-tui: --move: expected row,col integers" >&2
+          return 2
+        }
+        printf '\033[%d;%dH' "$row" "$col"
+        shift 2
+        ;;
+      --up)
+        [[ -n "${2:-}" && "$2" =~ ^[0-9]+$ ]] || {
+          printf '%s\n' "x-tui: --up: expected count" >&2
+          return 2
+        }
+        printf '\033[%dA' "$2"
+        shift 2
+        ;;
+      --down)
+        [[ -n "${2:-}" && "$2" =~ ^[0-9]+$ ]] || {
+          printf '%s\n' "x-tui: --down: expected count" >&2
+          return 2
+        }
+        printf '\033[%dB' "$2"
+        shift 2
+        ;;
+      --right)
+        [[ -n "${2:-}" && "$2" =~ ^[0-9]+$ ]] || {
+          printf '%s\n' "x-tui: --right: expected count" >&2
+          return 2
+        }
+        printf '\033[%dC' "$2"
+        shift 2
+        ;;
+      --left)
+        [[ -n "${2:-}" && "$2" =~ ^[0-9]+$ ]] || {
+          printf '%s\n' "x-tui: --left: expected count" >&2
+          return 2
+        }
+        printf '\033[%dD' "$2"
+        shift 2
+        ;;
+      --no-wrap) printf '\033[?7l'; shift ;;
+      --wrap) printf '\033[?7h'; shift ;;
+      *) printf '%s' "$1"; shift ;;
+    esac
+  done
+}
+
+export -f x-opt x-arg x-opts x-args x-run x-usage x-io-read x-io-confirm x-io-select x-prt x-tui

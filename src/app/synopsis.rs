@@ -3,32 +3,29 @@
 //! The grammar is small and closed; rather than pull in a parser-combinator
 //! crate we tokenise into characters and recurse on bracketed groups.
 //!
-//! ## Forms recognised
+//! ## Positional arguments
 //!
-//! Positional arguments:
+//! - `<name>` — required positional
+//! - `[<name>]` — optional positional
+//! - `[<name='val'>]` — optional positional with default
+//! - `<name>...` / `[<name>...]` — repeating positional
+//! - `<name={a|b|c}>` / `[<name={a|b|c}>]` — value from set
+//! - `(a|b|c)` — required choice (becomes positional `choice`)
 //!
-//! - `<name>`             — required positional
-//! - `[<name>]`           — optional positional
-//! - `[<name='default'>]` — optional positional with default literal
-//! - `<name>...` / `[<name>...]` / `[<name='*'>...]` — repeating
+//! ## Options
 //!
-//! Options:
+//! All `[optional]` forms have bare `(required)` equivalents (drop the brackets).
 //!
-//! - `[-s | --long]`               — optional bool flag (alias pair allowed)
-//! - `[-s | --long <arg>]`         — flag with one required value
-//! - `[-s | --long <arg='val'>]`   — flag value with default
-//! - `[-s | --long <arg> ...]`     — flag value repeats
-//! - `[--long={a|b|c}]`            — choice from a fixed set
-//! - `[--long=<arg='default'>]`    — `=` form, value defaults
-//! - `[--long=<a> [--long2=<b>]]`  — nested bracket = dependency
-//!                                   (`long2` allowed only if `long` set)
-//! - `(a|b|c)`                     — required choice (top level)
-//! - `--long`                      — required flag (no brackets)
-//!
-//! ## Output
-//!
-//! Each top-level entry returns either an [`OptionDef`] or [`ArgDef`]. The
-//! caller (loader) is responsible for wiring these into a [`Command`].
+//! - `[-s | --long]` / `(-l | --long)` — bool flag (optional / required)
+//! - `[-s | --long <arg>]` — flag with value
+//! - `[-s | --long <arg='v'>]` — flag value with default
+//! - `[-s | --long <arg> ...]` — repeating values for one flag use
+//! - `[-s | --long <arg>]...` — repeating flag occurrences
+//! - `[--long={a|b|c}]` / `[--long=<arg>]` / `[--long=<arg='v'>]`
+//! - `[--input=<a> [--output=<b>]]` — nested bracket = dependency
+//! - `(--long | --short)` — required mutually exclusive flags
+//! - `(-l | --long | -s | --short)` — mutex with alias pairs
+//! - `--long` — required bare flag
 //!
 //! [`OptionDef`]: crate::app::spec::OptionDef
 //! [`ArgDef`]: crate::app::spec::ArgDef
@@ -36,7 +33,7 @@
 
 use anyhow::{anyhow, bail, Context, Result};
 
-use crate::app::spec::{ArgDef, OptionDef, ValueKind};
+use crate::app::spec::{ArgDef, OptionDef, OptionGroupDef, ValueKind};
 
 /// One parsed entry from a synopsis string.
 #[derive(Debug, Clone)]
@@ -48,6 +45,8 @@ pub enum SynopsisEntry {
     /// Required choice as positional, e.g. `(render | build | clean)`.
     /// Modeled as an `ArgDef` with `choices` set and `required = true`.
     RequiredChoice(ArgDef),
+    /// Mutually exclusive option group, e.g. `(--long | --short)`.
+    OptionGroup(OptionGroupDef),
 }
 
 /// Parse a single synopsis fragment (one YAML list item or the value of a
@@ -161,20 +160,37 @@ fn parse_token(tok: &str) -> Result<Vec<SynopsisEntry>> {
     if tok.is_empty() {
         return Ok(Vec::new());
     }
-    if let Some(inner) = strip_outer(tok, '[', ']') {
-        parse_optional_group(inner)
-    } else if let Some(inner) = strip_outer(tok, '(', ')') {
-        parse_required_choice(inner)
-    } else if tok.starts_with('<') {
-        // Required positional, possibly with `...`
-        let (inner, repeats) = strip_repeat_suffix(tok);
+
+    let (body, flag_repeats) = strip_repeat_suffix(tok);
+
+    if let Some(inner) = strip_outer(body, '[', ']') {
+        let mut entries = parse_optional_group(inner)?;
+        if flag_repeats {
+            for entry in &mut entries {
+                if let SynopsisEntry::Option(o) = entry {
+                    o.repeats = true;
+                }
+            }
+        }
+        return Ok(entries);
+    }
+
+    if let Some(inner) = strip_outer(body, '(', ')') {
+        if is_option_paren_group(inner) {
+            return parse_paren_option_group(inner);
+        }
+        return parse_required_choice(inner);
+    }
+
+    if body.starts_with('<') {
+        let (inner, inner_repeats) = strip_repeat_suffix(body);
+        let repeats = flag_repeats || inner_repeats;
         let inner = strip_outer(inner, '<', '>')
             .ok_or_else(|| anyhow!("expected `<name>` form, got {:?}", tok))?;
         let arg = parse_arg_inner(inner, true, repeats)?;
         Ok(vec![SynopsisEntry::Argument(arg)])
-    } else if tok.starts_with('-') {
-        // Bare required option (no brackets), e.g. `--input=<file>`
-        let entries = parse_option_chain(tok, /*optional=*/ false)?;
+    } else if body.starts_with('-') {
+        let entries = parse_option_chain(body, /*optional=*/ false)?;
         Ok(entries)
     } else {
         bail!("unrecognised synopsis token: {:?}", tok);
@@ -231,6 +247,87 @@ fn parse_optional_group(inner: &str) -> Result<Vec<SynopsisEntry>> {
 
     // Otherwise treat the whole inner as an option chain (with optional nesting).
     parse_option_chain(inner, /*optional=*/ true)
+}
+
+/// True when every `|`-separated segment in a paren group starts with `-`
+/// (option tokens), distinguishing `(-l | --long)` from `(north | south)`.
+fn is_option_paren_group(inner: &str) -> bool {
+    inner
+        .split('|')
+        .map(|p| p.trim())
+        .filter(|p| !p.is_empty())
+        .all(|seg| seg.starts_with('-'))
+}
+
+/// Collect mutex alternatives from a tokenised option paren group.
+/// Alias pairs (`-l | --long`) stay in one alternative; `--long | --short`
+/// become separate alternatives.
+fn collect_mutex_alternatives(tokens: &[String]) -> Vec<Vec<String>> {
+    let mut alternatives: Vec<Vec<String>> = Vec::new();
+    let mut i = 0usize;
+    while i < tokens.len() {
+        if tokens[i] == "|" {
+            i += 1;
+            continue;
+        }
+        let mut alt = vec![tokens[i].clone()];
+        i += 1;
+        loop {
+            if i < tokens.len() && tokens[i] == "|" {
+                let prev = alt.last().map(|s| s.as_str()).unwrap_or("");
+                if prev.starts_with('-')
+                    && prev.len() == 2
+                    && i + 1 < tokens.len()
+                    && tokens[i + 1].starts_with("--")
+                {
+                    i += 1;
+                    alt.push(tokens[i].clone());
+                    i += 1;
+                    continue;
+                }
+                break;
+            }
+            if i >= tokens.len() || tokens[i] == "|" {
+                break;
+            }
+            alt.push(tokens[i].clone());
+            i += 1;
+        }
+        alternatives.push(alt);
+    }
+    alternatives
+}
+
+/// Parse `(-l | --long)` or `(--long | --short)` parenthesised option forms.
+fn parse_paren_option_group(inner: &str) -> Result<Vec<SynopsisEntry>> {
+    let tokens = tokenize_top(inner)?;
+    let alternatives = collect_mutex_alternatives(&tokens);
+    if alternatives.is_empty() {
+        bail!("empty option group `(…)`");
+    }
+
+    if alternatives.len() == 1 {
+        let opt = parse_single_option(&alternatives[0], /*optional=*/ false)?;
+        return Ok(vec![SynopsisEntry::Option(opt)]);
+    }
+
+    let mut entries = Vec::new();
+    let mut members = Vec::new();
+    for alt_tokens in alternatives {
+        let mut opt = parse_single_option(&alt_tokens, /*optional=*/ false)?;
+        opt.required = false;
+        let name = opt.canonical_name();
+        if name.is_empty() {
+            bail!("option in mutex group has no name");
+        }
+        members.push(name);
+        entries.push(SynopsisEntry::Option(opt));
+    }
+    entries.push(SynopsisEntry::OptionGroup(OptionGroupDef {
+        members,
+        required: true,
+    }));
+    Ok(entries)
 }
 
 /// Parse `(a|b|c)` form as a required positional choice argument.
@@ -299,7 +396,17 @@ fn split_arg_inner(inside: &str) -> Result<(String, Option<String>, Option<Vec<S
         }
     }
 
-    if i < chars.len() && chars[i] == '{' {
+    if i < chars.len() && chars[i] == '=' {
+        i += 1;
+        if i < chars.len() && chars[i] == '{' {
+            let end = find_matching(&chars, i, '{', '}')?;
+            choices = Some(parse_choice_set(&inside[i + 1..end])?);
+            i = end + 1;
+        } else {
+            default = Some(parse_default_literal(&inside[i..])?);
+            return Ok((name, default, choices));
+        }
+    } else if i < chars.len() && chars[i] == '{' {
         let end = find_matching(&chars, i, '{', '}')?;
         choices = Some(parse_choice_set(&inside[i + 1..end])?);
         i = end + 1;
@@ -307,8 +414,7 @@ fn split_arg_inner(inside: &str) -> Result<(String, Option<String>, Option<Vec<S
 
     if i < chars.len() && chars[i] == '=' {
         i += 1;
-        let rest = &inside[i..];
-        default = Some(parse_default_literal(rest)?);
+        default = Some(parse_default_literal(&inside[i..])?);
     }
 
     Ok((name, default, choices))
@@ -748,5 +854,96 @@ mod tests {
     #[test]
     fn empty_fragment_returns_nothing() {
         assert!(parse_fragment("   ").unwrap().is_empty());
+    }
+
+    #[test]
+    fn positional_choice_in_angle_brackets() {
+        let e = parse_fragment("<mode={write|read}>").unwrap();
+        let a = args(&e);
+        assert_eq!(a.len(), 1);
+        assert_eq!(a[0].name, "mode");
+        assert!(a[0].required);
+        assert_eq!(
+            a[0].choices.as_deref(),
+            Some(&["write".into(), "read".into()][..])
+        );
+    }
+
+    #[test]
+    fn optional_positional_choice_with_default() {
+        let e = parse_fragment("[<mode={write|read}='write'>]").unwrap();
+        let a = args(&e);
+        assert_eq!(a.len(), 1);
+        assert_eq!(a[0].name, "mode");
+        assert!(!a[0].required);
+        assert_eq!(a[0].default.as_deref(), Some("write"));
+    }
+
+    #[test]
+    fn required_paren_alias_bool() {
+        let e = parse_fragment("(-l | --long)").unwrap();
+        let o = opt(&e);
+        assert_eq!(o.len(), 1);
+        assert_eq!(o[0].short, Some('l'));
+        assert_eq!(o[0].long.as_deref(), Some("long"));
+        assert!(o[0].required);
+    }
+
+    #[test]
+    fn required_paren_alias_with_value() {
+        let e = parse_fragment("(-l | --long <path>)").unwrap();
+        let o = opt(&e);
+        assert_eq!(o.len(), 1);
+        assert!(o[0].required);
+        match &o[0].takes_value {
+            ValueKind::Required(p) => assert_eq!(p, "path"),
+            _ => panic!("expected required value"),
+        }
+    }
+
+    #[test]
+    fn required_mutex_option_group() {
+        let e = parse_fragment("(--long | --short)").unwrap();
+        let o = opt(&e);
+        assert_eq!(o.len(), 2);
+        assert!(!o[0].required);
+        assert!(!o[1].required);
+        let groups: Vec<_> = e
+            .iter()
+            .filter_map(|ent| match ent {
+                SynopsisEntry::OptionGroup(g) => Some(g.clone()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].members, vec!["long", "short"]);
+        assert!(groups[0].required);
+    }
+
+    #[test]
+    fn required_mutex_with_alias_pairs() {
+        let e = parse_fragment("(-l | --long | -s | --short)").unwrap();
+        let o = opt(&e);
+        assert_eq!(o.len(), 2);
+        assert_eq!(o[0].short, Some('l'));
+        assert_eq!(o[0].long.as_deref(), Some("long"));
+        assert_eq!(o[1].short, Some('s'));
+        assert_eq!(o[1].long.as_deref(), Some("short"));
+    }
+
+    #[test]
+    fn flag_level_repeat() {
+        let e = parse_fragment("[-l | --long <arg>]...").unwrap();
+        let o = opt(&e);
+        assert_eq!(o.len(), 1);
+        assert!(o[0].repeats);
+    }
+
+    #[test]
+    fn positional_choice_still_works() {
+        let e = parse_fragment("(north|south)").unwrap();
+        let a = args(&e);
+        assert_eq!(a.len(), 1);
+        assert_eq!(a[0].name, "choice");
     }
 }

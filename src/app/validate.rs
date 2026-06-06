@@ -150,6 +150,41 @@ fn validate_command(cmd: &Command, path: &str, errors: &mut Vec<ValidationError>
         }
     }
 
+    let defined_options: BTreeSet<String> = cmd
+        .options
+        .iter()
+        .map(|o| o.canonical_name())
+        .collect();
+    let mut group_members: BTreeSet<&str> = BTreeSet::new();
+    for group in &cmd.option_groups {
+        if group.members.len() < 2 {
+            errors.push(ValidationError {
+                path: path.to_string(),
+                message: "option group must have at least two members".into(),
+            });
+        }
+        for member in &group.members {
+            if !defined_options.contains(member) {
+                errors.push(ValidationError {
+                    path: path.to_string(),
+                    message: format!(
+                        "option group references `--{}`, but `--{}` is not defined on this command",
+                        member, member
+                    ),
+                });
+            }
+            if !group_members.insert(member.as_str()) {
+                errors.push(ValidationError {
+                    path: path.to_string(),
+                    message: format!(
+                        "option `--{}` appears in more than one option group",
+                        member
+                    ),
+                });
+            }
+        }
+    }
+
     // Recurse into subcommands.
     for (name, sub) in &cmd.subcommands {
         let next = if path.is_empty() {
@@ -301,6 +336,37 @@ arguments:
 "#,
         );
         assert!(msgs.iter().any(|m| m.contains("duplicate argument `<file>`")));
+    }
+
+    #[test]
+    fn reports_orphan_option_group_member() {
+        use crate::app::spec::{App, Command, OptionDef, OptionGroupDef, ValueKind};
+
+        let mut root = Command::new("t");
+        root.options.push(OptionDef {
+            short: None,
+            long: Some("long".into()),
+            takes_value: ValueKind::None,
+            default: None,
+            choices: None,
+            repeats: false,
+            requires: Vec::new(),
+            required: false,
+            description: None,
+        });
+        root.option_groups.push(OptionGroupDef {
+            members: vec!["long".into(), "ghost".into()],
+            required: true,
+        });
+        let app = App {
+            name: "t".into(),
+            version: None,
+            description: None,
+            root,
+            handlers: [("".to_string(), "echo".into())].into_iter().collect(),
+        };
+        let msgs = validate(&app).unwrap_err();
+        assert!(msgs.iter().any(|m| m.message.contains("option group references `--ghost`")));
     }
 
     #[test]

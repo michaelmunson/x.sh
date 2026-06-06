@@ -1,0 +1,19 @@
+name: style
+version: 0.0.1
+description: style builtin test fixture
+
+commands:
+  prt:
+    description: styled print test
+  clear:
+    description: x-tui --clear test
+  bad:
+    description: unknown style token test
+
+"$":
+  prt: |
+    x-prt --style red "Hi"
+  clear: |
+    x-tui --clear
+  bad: |
+    x-prt --style not-a-color "x" || exit 1

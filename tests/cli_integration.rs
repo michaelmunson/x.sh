@@ -162,3 +162,45 @@ fn fixture_minimal_app_verbose_greet() {
         .success()
         .stdout("verbose hi Ada\n");
 }
+
+#[test]
+fn fixture_style_app_prt_emits_sgr() {
+    let dir = tempfile::tempdir().unwrap();
+    let fixture = manifest_dir().join("tests/fixtures/style.x.yml");
+    fs::copy(fixture, dir.path().join("style.x.yml")).unwrap();
+
+    x_cmd()
+        .current_dir(dir.path())
+        .args(["style", "prt"])
+        .assert()
+        .success()
+        .stdout("\x1b[31mHi\x1b[0m");
+}
+
+#[test]
+fn fixture_style_app_tui_clear_emits_escape() {
+    let dir = tempfile::tempdir().unwrap();
+    let fixture = manifest_dir().join("tests/fixtures/style.x.yml");
+    fs::copy(fixture, dir.path().join("style.x.yml")).unwrap();
+
+    x_cmd()
+        .current_dir(dir.path())
+        .args(["style", "clear"])
+        .assert()
+        .success()
+        .stdout("\x1b[2J");
+}
+
+#[test]
+fn fixture_style_app_unknown_style_fails() {
+    let dir = tempfile::tempdir().unwrap();
+    let fixture = manifest_dir().join("tests/fixtures/style.x.yml");
+    fs::copy(fixture, dir.path().join("style.x.yml")).unwrap();
+
+    x_cmd()
+        .current_dir(dir.path())
+        .args(["style", "bad"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("unknown style"));
+}
