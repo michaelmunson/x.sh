@@ -322,3 +322,250 @@ fn bind_arguments(
 
     Ok(out)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::loader;
+
+    fn app(yaml: &str) -> App {
+        loader::parse(yaml, std::path::Path::new("test.x.yml")).unwrap()
+    }
+
+    fn argv(args: &[&str]) -> Vec<String> {
+        args.iter().map(|s| s.to_string()).collect()
+    }
+
+    fn parse_argv(yaml: &str, args: &[&str]) -> Parsed {
+        parse(&app(yaml), &argv(args)).unwrap()
+    }
+
+    fn parse_err(yaml: &str, args: &[&str]) -> String {
+        parse(&app(yaml), &argv(args))
+            .unwrap_err()
+            .to_string()
+    }
+
+    const FULL_SPEC: &str = r#"
+name: cli
+options:
+  - "[-v | --verbose]"
+  - "[-o | --out <path>]"
+  - "[-c | --count <n='1'>]"
+  - "[-D | --define <kv> ...]"
+  - "[--kind={alpha|beta|gamma}]"
+  - "[--label=<text='demo'>]"
+  - "[--src=<path> [--dst=<path>]]"
+  - "--commit"
+arguments:
+  - "<one> [<two>] [<three='3'>] [<rest>...]"
+commands:
+  pick:
+    arguments:
+      - "(north|south|east|west)"
+  group:
+    commands:
+      alpha:
+        options:
+          - "[-V | --verbose]"
+        arguments:
+          - "<msg>"
+"$":
+  "": echo root
+  pick: echo pick
+  group.alpha: echo alpha
+"#;
+
+    #[test]
+    fn walks_nested_subcommands() {
+        let p = parse_argv(FULL_SPEC, &["group", "alpha", "hi"]);
+        assert_eq!(p.command_path, vec!["group", "alpha"]);
+        assert_eq!(p.arguments.get("msg").map(|v| v[0].as_str()), Some("hi"));
+    }
+
+    #[test]
+    fn help_at_root_before_subcommand() {
+        let p = parse_argv(FULL_SPEC, &["--help"]);
+        assert!(p.help);
+        assert!(p.command_path.is_empty());
+    }
+
+    #[test]
+    fn help_after_entering_subcommand() {
+        let p = parse_argv(FULL_SPEC, &["group", "-h"]);
+        assert!(p.help);
+        assert_eq!(p.command_path, vec!["group"]);
+    }
+
+    #[test]
+    fn long_bool_flag() {
+        let p = parse_argv(FULL_SPEC, &["one", "--commit", "--verbose"]);
+        assert_eq!(p.options.get("verbose").map(|v| v[0].as_str()), Some("true"));
+    }
+
+    #[test]
+    fn long_flag_with_separate_value() {
+        let p = parse_argv(FULL_SPEC, &["one", "--commit", "--out", "out.txt"]);
+        assert_eq!(p.options.get("out").map(|v| v[0].as_str()), Some("out.txt"));
+    }
+
+    #[test]
+    fn long_flag_eq_form() {
+        let p = parse_argv(FULL_SPEC, &["one", "--commit", "--label=custom"]);
+        assert_eq!(p.options.get("label").map(|v| v[0].as_str()), Some("custom"));
+    }
+
+    #[test]
+    fn short_bool_flag() {
+        let p = parse_argv(FULL_SPEC, &["one", "--commit", "-v"]);
+        assert_eq!(p.options.get("verbose").map(|v| v[0].as_str()), Some("true"));
+    }
+
+    #[test]
+    fn short_flag_with_separate_value() {
+        let p = parse_argv(FULL_SPEC, &["one", "--commit", "-o", "a.txt"]);
+        assert_eq!(p.options.get("out").map(|v| v[0].as_str()), Some("a.txt"));
+    }
+
+    #[test]
+    fn short_flag_attached_value() {
+        let p = parse_argv(FULL_SPEC, &["one", "--commit", "-oout.txt"]);
+        assert_eq!(p.options.get("out").map(|v| v[0].as_str()), Some("out.txt"));
+    }
+
+    #[test]
+    fn option_default_applied_when_omitted() {
+        let p = parse_argv(FULL_SPEC, &["one", "--commit"]);
+        assert_eq!(p.options.get("count").map(|v| v[0].as_str()), Some("1"));
+        assert_eq!(p.options.get("label").map(|v| v[0].as_str()), Some("demo"));
+    }
+
+    #[test]
+    fn repeating_option_accumulates() {
+        let p = parse_argv(FULL_SPEC, &["one", "--commit", "-D", "a=1", "-D", "b=2"]);
+        assert_eq!(
+            p.options.get("define").map(|v| v.as_slice()),
+            Some(&["a=1".to_string(), "b=2".to_string()][..])
+        );
+    }
+
+    #[test]
+    fn required_bare_option_must_be_present() {
+        let err = parse_err(FULL_SPEC, &["one"]);
+        assert!(err.contains("required option `--commit`"));
+    }
+
+    #[test]
+    fn requires_chain_satisfied() {
+        let p = parse_argv(FULL_SPEC, &["one", "--commit", "--src", "a", "--dst", "b"]);
+        assert_eq!(p.options.get("src").map(|v| v[0].as_str()), Some("a"));
+        assert_eq!(p.options.get("dst").map(|v| v[0].as_str()), Some("b"));
+    }
+
+    #[test]
+    fn requires_chain_missing_dependency() {
+        let err = parse_err(FULL_SPEC, &["one", "--commit", "--dst", "b"]);
+        assert!(err.contains("requires `--src`"));
+    }
+
+    #[test]
+    fn invalid_option_choice() {
+        let err = parse_err(FULL_SPEC, &["one", "--commit", "--kind", "delta"]);
+        assert!(err.contains("must be one of"));
+    }
+
+    #[test]
+    fn positional_required_and_optional_default() {
+        let p = parse_argv(FULL_SPEC, &["first", "second", "--commit"]);
+        assert_eq!(p.arguments.get("one").map(|v| v[0].as_str()), Some("first"));
+        assert_eq!(p.arguments.get("two").map(|v| v[0].as_str()), Some("second"));
+        assert_eq!(p.arguments.get("three").map(|v| v[0].as_str()), Some("3"));
+    }
+
+    #[test]
+    fn repeating_positional_greedy() {
+        let p = parse_argv(FULL_SPEC, &["a", "b", "c", "d", "e", "--commit"]);
+        assert_eq!(p.arguments.get("one").map(|v| v[0].as_str()), Some("a"));
+        assert_eq!(p.arguments.get("two").map(|v| v[0].as_str()), Some("b"));
+        assert_eq!(p.arguments.get("three").map(|v| v[0].as_str()), Some("c"));
+        assert_eq!(
+            p.arguments.get("rest").map(|v| v.as_slice()),
+            Some(&["d".to_string(), "e".to_string()][..])
+        );
+    }
+
+    #[test]
+    fn required_choice_positional() {
+        let p = parse_argv(FULL_SPEC, &["pick", "north"]);
+        assert_eq!(p.command_path, vec!["pick"]);
+        assert_eq!(p.arguments.get("choice").map(|v| v[0].as_str()), Some("north"));
+    }
+
+    #[test]
+    fn invalid_required_choice() {
+        let err = parse_err(FULL_SPEC, &["pick", "up"]);
+        assert!(err.contains("must be one of"));
+    }
+
+    #[test]
+    fn double_dash_stops_option_parsing() {
+        let p = parse_argv(
+            r#"
+name: t
+arguments:
+  - "<one> [<two>]"
+"$":
+  "": echo
+"#,
+            &["--", "--not-an-option", "tail"],
+        );
+        assert!(p.options.is_empty());
+        assert_eq!(
+            p.arguments.get("one").map(|v| v[0].as_str()),
+            Some("--not-an-option")
+        );
+        assert_eq!(p.arguments.get("two").map(|v| v[0].as_str()), Some("tail"));
+    }
+
+    #[test]
+    fn unknown_long_option_errors() {
+        let err = parse_err(FULL_SPEC, &["one", "--commit", "--nope"]);
+        assert!(err.contains("unknown option"));
+    }
+
+    #[test]
+    fn bool_flag_rejects_inline_value() {
+        let err = parse_err(FULL_SPEC, &["one", "--commit", "--verbose=yes"]);
+        assert!(err.contains("does not take a value"));
+    }
+
+    #[test]
+    fn extra_positional_errors() {
+        let err = parse_err(
+            r#"
+name: t
+arguments:
+  - "<one>"
+"$":
+  "": echo
+"#,
+            &["a", "b"],
+        );
+        assert!(err.contains("unexpected extra arguments"));
+    }
+
+    #[test]
+    fn missing_required_positional_errors() {
+        let err = parse_err(
+            r#"
+name: t
+arguments:
+  - "<file>"
+"$":
+  "": echo
+"#,
+            &[],
+        );
+        assert!(err.contains("missing required argument"));
+    }
+}

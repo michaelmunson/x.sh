@@ -9,5 +9,5 @@
 node_modules/
 .parcel-cache/
 
-/target
+target/
 Cargo.lock

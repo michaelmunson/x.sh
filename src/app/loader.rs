@@ -295,4 +295,61 @@ name: x
         .unwrap_err();
         assert!(err.to_string().contains("cannot use both"));
     }
+
+    #[test]
+    fn derives_name_from_filename() {
+        let app = parse("version: 0.1.0\n", Path::new("widget.x.yml")).unwrap();
+        assert_eq!(app.name, "widget");
+    }
+
+    #[test]
+    fn loads_dollar_import_relative_to_app_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let handlers = dir.path().join("handlers.yml");
+        std::fs::write(&handlers, "run: echo imported\n").unwrap();
+        let app_file = dir.path().join("app.x.yml");
+        std::fs::write(
+            &app_file,
+            r#"
+name: imported-app
+"$.import": "./handlers.yml"
+"#,
+        )
+        .unwrap();
+        let app = load(&app_file).unwrap();
+        assert_eq!(
+            app.handlers.get("run").map(String::as_str),
+            Some("echo imported")
+        );
+    }
+
+    #[test]
+    fn rejects_duplicate_handler_key_in_import_merge() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("a.yml"), "run: echo a\n").unwrap();
+        std::fs::write(dir.path().join("b.yml"), "run: echo b\n").unwrap();
+        let app_file = dir.path().join("app.x.yml");
+        std::fs::write(
+            &app_file,
+            r#"
+name: dup
+"$.import":
+  - "./a.yml"
+  - "./b.yml"
+"#,
+        )
+        .unwrap();
+        let err = load(&app_file).unwrap_err();
+        assert!(err.to_string().contains("duplicate handler key"));
+    }
+
+    #[test]
+    fn loads_exapp_example_from_repo() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("docs/examples/app/exapp.x.yml");
+        let app = load(&path).unwrap();
+        assert_eq!(app.name, "exapp");
+        assert!(app.handlers.contains_key("demo.opts"));
+        assert!(app.root.subcommands.contains_key("demo"));
+    }
 }

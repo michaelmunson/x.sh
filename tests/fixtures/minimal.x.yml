@@ -1,0 +1,16 @@
+name: minimal
+description: tiny fixture app for integration tests
+options:
+  - "[-v | --verbose]"
+commands:
+  greet:
+    description: say hello
+    arguments:
+      - "<name>"
+"$":
+  greet: |
+    if [[ $(x-opt verbose) == true ]]; then
+      echo "verbose hi $(x-arg name)"
+    else
+      echo "hi $(x-arg name)"
+    fi
