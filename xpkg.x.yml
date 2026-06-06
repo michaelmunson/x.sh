@@ -1,28 +1,76 @@
 
 # documentation: https://github.com/michaelmunson/x.sh/blob/main/README.md#app-framework
 # examples:      https://github.com/michaelmunson/x.sh/blob/main/docs/examples/app/exapp.x.yml
-
 name: xpkg
 version: 0.0.0
 description: x package meta app
+language: bash
 
 commands:
   build:
     description: build the binary/docs
+    commands:
+      bin:
+        description: build the binary
+      tool:
+        description: build the tools
+        # arguments: "<tool=(a|b)>..."
+        options:
+          - '[--cursor]'
+          - '[--vscode]'
+          - '[--compile]'
   test:
     description: run the tests
+    arguments: "[<test>]"
     options:
       - '[--complete]'
       - '[--integration]'
+      - '[--test <test>]'
+  
+  random:
+    options:
+      - '[--foo <arg> ...]'
+      - '[--bar <arg>]'
 
 $:
   build: |
+    x xpkg build bin
+    x xpkg build tool
+  build.tool: |
+    pushd tools/xsh-vscode-ext
+    if [ "$(x-opt "compile")" = "true" ]; then
+      npm run compile
+    else
+      npm install
+      npm run compile
+      npm run package
+      if [ "$(x-opt "cursor")" = "true" ]; then
+        npm run install-cursor-extension
+      elif [ "$(x-opt "vscode")" = "true" ]; then
+        npm run install-vscode-extension
+      else
+        echo "No extension selected, skipping installation"
+      fi
+    fi
+    popd
+  build.bin: |
     cargo build --release
+
   test: |
-    if [ "$(x-opt "complete")" = "true" ]; then
+    if [ -n "$(x-arg test)" ]; then
+      cargo test $(x-arg test)
+    elif [ "$(x-opt "test")" = "true" ]; then
+      cargo test --test $TEST
+    elif [ "$(x-opt "complete")" = "true" ]; then
       cargo test complete:: # this is a test for the complete module
     elif [ "$(x-opt "integration")" = "true" ]; then
       cargo test cli_integration::complete # this is a test for the integration tests
     else
       cargo test --bin x # this is a test for the x binary
     fi
+
+  random: |
+    FOO=$(x-opt foo)
+    for F in $FOO; do
+      echo "$F ABC"
+    done

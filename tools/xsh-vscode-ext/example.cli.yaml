@@ -1,0 +1,41 @@
+# metadata
+name: my-app
+version: 0.0.0
+description: an example x.sh app
+
+# top-level options (apply to the root command)
+options:
+  - "[-v | --version]"
+
+# top-level arguments
+arguments:
+  - "[<topic='overview'>]"
+
+# nested commands; each may have its own options/arguments/commands
+commands:
+  build:
+    description: build the project
+    options:
+      - "[--input=<file> [--output=<dir>]]"
+      - "[--mode={fast|safe|deep}]"
+    arguments:
+      - "<assets>..."
+
+  create:
+    description: create things
+    commands:
+      file:
+        description: create a file
+        arguments: "<path> [<content='empty'>]"
+      folder:
+        arguments: "<path>"
+
+# bash handlers, keyed by dotted command path
+$:
+  build: |
+    echo "mode=$(x-opt mode), assets=$(x-arg assets)"
+  create: x-usage create        # default: print help when called bare
+  create.file: |
+    echo "creating $(x-arg path) with $(x-arg content)"
+  create.folder: |
+    mkdir -p "$(x-arg path)"

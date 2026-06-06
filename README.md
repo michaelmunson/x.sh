@@ -414,24 +414,42 @@ as the inline `$:` block (a flat map of `<dotted.path>: <bash body>`).
 
 ### Synopsis cheat-sheet
 
-| Synopsis                              | Meaning                                                           |
-|---------------------------------------|-------------------------------------------------------------------|
-| `<name>`                              | required positional                                                |
-| `[<name>]`                            | optional positional                                                |
-| `[<name='val'>]`                      | optional positional with default literal                           |
-| `<name>...` / `[<name>...]`           | repeating positional                                               |
-| `[-s \| --long]`                      | optional bool flag (alias pair)                                    |
-| `[-s \| --long <arg>]`                | flag with one required value                                       |
-| `[-s \| --long <arg='v'>]`            | flag value with default                                            |
-| `[-s \| --long <arg> ...]`            | flag value repeats                                                 |
-| `[--long={a\|b\|c}]`                  | choice from set                                                    |
-| `[--long=<arg='v'>]`                  | `=` form, value defaults                                           |
-| `[--input=<a> [--output=<b>]]`        | nesting = dependency: `--output` requires `--input`                |
-| `(a\|b\|c)`                           | required choice (top-level)                                        |
-| `--long`                              | required option (bare, no brackets)                                |
+All `[optional]` forms have bare `(required)` equivalents — drop the brackets (or use parenthesised option groups where shown).
 
-`x` enforces all of the above before any bash runs: required args, defaults,
-choice membership, `requires:` chains, repeats, and unknown options.
+#### Arguments
+
+| Synopsis | Meaning | Example |
+|----------|---------|---------|
+| `<name>` | Required positional | `x app file.txt` |
+| `[<name>]` | Optional positional | `x app` or `x app file.txt` |
+| `[<name='val'>]` | Optional positional with default | `x app` or `x app myfile.txt` |
+| `<name>...` | Required repeating positional | `x app file1.txt file2.txt` |
+| `[<name>...]` | Optional repeating positional | `x app` or `x app file1.txt file2.txt` |
+| `<name={a\|b\|c}>` | Required positional, value from set | `x app write` |
+| `[<name={a\|b\|c}>]` | Optional positional, value from set | `x app` or `x app fast` |
+| `(a\|b\|c)` | Required choice (becomes positional `choice`) | `x app north` |
+
+#### Options
+
+| Synopsis | Meaning | Example |
+|----------|---------|---------|
+| `--long` | Required bool flag | `x app --long` |
+| `(-l \| --long)` | Required bool flag, alias pair | `x app -l` |
+| `(--long \| --short)` | Required mutually exclusive flags | `x app --long` or `x app --short` |
+| `(-l \| --long \| -s \| --short)` | Required mutex with alias pairs | `x app -l` or `x app -s` |
+| `[-l \| --long]` | Optional bool flag, alias pair | `x app -l` |
+| `[-l \| --long <arg>]` | Optional flag with required value | `x app -l ./dist` |
+| `[-l \| --long <arg='v'>]` | Optional flag with default value | `x app` or `x app --long ./dist` |
+| `[-l \| --long <arg> ...]` | Optional flag, value repeats | `x app --long "a" "b"` |
+| `[-l \| --long <arg>]...` | Optional flag repeats | `x app --long abc --long xyz` |
+| `[--long=<arg>]` | Optional flag, value via `=` | `x app --long=./dist` |
+| `[--long=<arg='v'>]` | Optional flag, `=` form with default | `x app` or `x app --long=./dist` |
+| `[--long={a\|b\|c}]` | Optional flag, value from set | `x app --long=a` |
+| `[--input=<a> [--output=<b>]]` | Dependent flag (`--output` requires `--input`) | `x app --input=foo.txt --output=bar.txt` |
+
+`x` enforces all of the above before any bash runs: required args and options, defaults,
+choice membership, `requires:` chains, mutually exclusive option groups, repeats, and
+unknown options.
 
 ### Built-in helpers (in scope inside every handler)
 
@@ -449,6 +467,8 @@ parsed values without manual env-var wrangling.
 | `x-io-read …`                   | Prompt for a line (default prompt `?`). Optional `-v NAME`, `--var NAME`, or `--var=NAME` assigns the answer to a global scalar instead of stdout. |
 | `x-io-confirm …`                | Yes/no (`--default yes` / `--default no`, default `no`). With `-v` / `--var`, assigns `true` or `false` to a global scalar instead of stdout. |
 | `x-io-select …`                 | Menu of `id=label` options (`--multi`, optional `--search` no-op, `--no-search`). With `-v` / `--var`, assigns a global indexed array if `--multi`, else a single id string (same order as without `-v`). Otherwise prints one id per line when `--multi`. |
+| `x-prt …`                       | Styled print via ANSI SGR codes. `(-s\|--style) <style>` sets comma-separated styles (e.g. `red,underline,bg-white`); style is sticky until the next `--style`. No implicit newline. |
+| `x-tui …`                       | Terminal control via ANSI escape sequences (`--init`, `--exit`, `--clear`, cursor moves, etc.). Unrecognized args print as literal text. |
 
 With `-v`, results are stored in the **caller's** global shell variable (not stdout): scalars for `x-io-read`, `x-io-confirm`, and single select; an indexed array for `x-io-select --multi`.
 
@@ -458,6 +478,21 @@ echo "$name"
 
 x-io-select --multi -v colors "Choose a color" "red=Red" "green=Green" "blue=Blue"
 echo "${colors[0]}"
+```
+
+Terminal styling:
+
+```bash
+x-prt \
+  --style red,underline,bg-white \
+  "Hello" \
+  --style blue,bg-yellow \
+  " World"
+echo
+
+x-tui --init --clear --home
+x-prt --style green,bold "TUI demo"
+x-tui --exit
 ```
 
 The assoc-array helpers use bash namerefs (`declare -n`), so the call site is:

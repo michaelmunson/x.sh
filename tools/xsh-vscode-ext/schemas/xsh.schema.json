@@ -1,0 +1,133 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "xsh-app-schema",
+  "title": "x.sh App",
+  "description": "Schema for x.sh app definition files (*.x.yml)",
+  "type": "object",
+  "required": ["name"],
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The name of the x.sh app",
+      "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$"
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic version of the app",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[a-zA-Z0-9.]+)?$"
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of the app"
+    },
+    "options": {
+      "$ref": "#/definitions/optionsList",
+      "description": "Top-level options for the root command"
+    },
+    "arguments": {
+      "$ref": "#/definitions/argumentsValue",
+      "description": "Top-level positional arguments for the root command"
+    },
+    "commands": {
+      "$ref": "#/definitions/commandsMap",
+      "description": "Subcommand definitions"
+    },
+    "$": {
+      "$ref": "#/definitions/handlersMap",
+      "description": "Bash handler scripts keyed by dotted command path"
+    },
+    "$.import": {
+      "$ref": "#/definitions/importValue",
+      "description": "External handler YAML files to import"
+    }
+  },
+  "definitions": {
+    "optionsList": {
+      "type": "array",
+      "description": "A list of option expression strings",
+      "items": {
+        "type": "string",
+        "description": "Option expression, e.g. '[-v | --verbose]' or '[--output=<dir>]'"
+      }
+    },
+    "argumentsValue": {
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "Inline argument expression string"
+        },
+        {
+          "type": "array",
+          "description": "List of argument expression strings",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "importValue": {
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "Path to a handler YAML file"
+        },
+        {
+          "type": "array",
+          "description": "Paths to handler YAML files",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "commandsMap": {
+      "type": "object",
+      "description": "Map of command names to command definitions",
+      "patternProperties": {
+        "^[a-zA-Z][a-zA-Z0-9_-]*$": {
+          "$ref": "#/definitions/commandDefinition"
+        }
+      },
+      "additionalProperties": false
+    },
+    "commandDefinition": {
+      "type": "object",
+      "description": "Definition of a single command",
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of the command"
+        },
+        "options": {
+          "$ref": "#/definitions/optionsList",
+          "description": "Options accepted by this command"
+        },
+        "arguments": {
+          "$ref": "#/definitions/argumentsValue",
+          "description": "Positional arguments accepted by this command"
+        },
+        "commands": {
+          "$ref": "#/definitions/commandsMap",
+          "description": "Nested subcommands"
+        }
+      }
+    },
+    "handlersMap": {
+      "type": "object",
+      "description": "Map of dotted command paths to bash scripts or built-in directives",
+      "patternProperties": {
+        "^[a-zA-Z0-9_.-]*$": {
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "Inline bash script or x-* built-in directive"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -28,7 +28,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{anyhow, bail, Context, Result};
 use serde::Deserialize;
 
-use crate::app::spec::{App, ArgDef, Command, OptionDef};
+use crate::app::spec::{App, ArgDef, Command, OptionDef, OptionGroupDef};
 use crate::app::synopsis::{self, SynopsisEntry};
 
 #[derive(Debug, Deserialize)]
@@ -183,6 +183,7 @@ fn apply_entries_to_command(cmd: &mut Command, entries: Vec<SynopsisEntry>) -> R
             SynopsisEntry::Option(o) => push_option(cmd, o)?,
             SynopsisEntry::Argument(a) => push_arg(cmd, a)?,
             SynopsisEntry::RequiredChoice(a) => push_arg(cmd, a)?,
+            SynopsisEntry::OptionGroup(g) => push_option_group(cmd, g)?,
         }
     }
     Ok(())
@@ -195,6 +196,11 @@ fn push_option(cmd: &mut Command, opt: OptionDef) -> Result<()> {
 
 fn push_arg(cmd: &mut Command, arg: ArgDef) -> Result<()> {
     cmd.arguments.push(arg);
+    Ok(())
+}
+
+fn push_option_group(cmd: &mut Command, group: OptionGroupDef) -> Result<()> {
+    cmd.option_groups.push(group);
     Ok(())
 }
 
