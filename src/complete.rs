@@ -221,14 +221,18 @@ complete -F _x x
 "#;
 
 const ZSH_COMPLETION: &str = r#"#compdef x
+
 _x() {
     local -a completions
-    completions=("${(@f)$(x __complete zsh "${words[@]}" $CURRENT)}")
+    completions=("${(@f)$(command x __complete zsh "${words[@]}" $CURRENT 2>/dev/null)}")
     if (( ${#completions} )); then
         compadd -a completions
     fi
 }
-_x "$@"
+
+if (( $+functions[compdef] )); then
+    compdef _x x
+fi
 "#;
 
 #[cfg(test)]
@@ -339,6 +343,13 @@ deploy:
             .unwrap();
             assert_eq!(test_sub, vec!["integration", "unit"]);
         });
+    }
+
+    #[test]
+    fn zsh_completion_script_does_not_invoke_on_load() {
+        let script = ZSH_COMPLETION;
+        assert!(!script.contains(r#"_x "$@""#));
+        assert!(script.contains("compdef _x x"));
     }
 
     #[test]

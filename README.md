@@ -70,7 +70,6 @@ x __complete bash > ~/.local/share/bash-completion/completions/x
 ```
 
 **Zsh** (add to `~/.zshrc`):
-
 ```bash
 source <(x __complete zsh)
 ```
