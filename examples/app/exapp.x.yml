@@ -1,0 +1,100 @@
+# Comprehensive sample app for the `x` app framework (`x exapp …`).
+# Demonstrates: metadata, root options/arguments, nested commands, YAML anchors,
+# every synopsis form from the cheat-sheet, and split `$.import` handler files.
+
+name: exapp
+version: 0.1.0
+description: >-
+  Exercise app — exercises options, positionals, nesting, validation,
+  `$.import`, and bash helpers (`x-opt`, `x-arg`, `x-opts`, `x-args`, `x-run`, `x-usage`).
+
+options:
+  - "[-v | --version]"
+  - "[-g | --global <note=''>]"
+
+arguments:
+  - "[<topic='overview'>]"
+
+commands:
+  demo:
+    description: nested demos (each subcommand highlights different DSL pieces)
+
+    commands:
+      opts:
+        description: >-
+          Option forms — bool pair, value, defaulted value, repeating values,
+          enum choice, `=` default, requires-chain, and a required bare flag.
+        options:
+          - "[-n | --dry-run]"
+          - "[-o | --out <path>]"
+          - "[-c | --count <n='1'>]"
+          - "[-D | --define <kv> ...]"
+          - "[--kind={alpha|beta|gamma}]"
+          - "[--label=<text='demo'>]"
+          - "[--src=<path> [--dst=<path>]]"
+          - "[--default={yes|no}]"
+          - "--commit"
+
+      args:
+        description: >-
+          Positional forms — required, optional, optional-with-default,
+          and greedy repeat (must be last).
+        arguments:
+          - "<one> [<two>] [<three='3'>] [<rest>...]"
+
+      pick:
+        description: required choice — `(alt1|alt2|alt3)` becomes positional name `choice`
+        arguments:
+          - "(north|south|east|west)"
+
+      tail:
+        description: optional repeating positional `[<items>...]`
+        arguments:
+          - "[<items>...]"
+
+      group:
+        description: >-
+          Non-leaf group — invoke `x exapp demo group` with no subcommand to see auto-help.
+        commands:
+          alpha:
+            description: nested leaf α — shares options via YAML anchor (see `reflect`)
+            options: &demo_verbose
+              - "[-V | --verbose]"
+            arguments:
+              - "<msg>"
+          beta:
+            description: nested leaf β — same shared options as `alpha`
+            options: *demo_verbose
+            arguments:
+              - "<msg>"
+
+      reflect:
+        description: dump parsed options/args via `x-opts` / `x-args` (and `x-run`)
+        options: *demo_verbose
+        arguments:
+          - "[<label='state'>]"
+
+      sparse:
+        description: optional repeat with a default (see also `tail` for plain `[<items>...]`)
+        arguments:
+          - "[<parts='*'>...]"
+
+      usage-tip:
+        description: >-
+          One-line handler — forwards to x-usage (same idea as README create → x-usage create).
+
+      io:
+        description: interactive builtins
+        commands:
+          read:
+            description: read a line of text
+          confirm:
+            description: confirm a yes/no question
+          select:
+            description: select an option from a list
+          multiselect:
+            description: select an option from a list
+
+$.import:
+  - ./exapp.handlers-a.yml
+  - ./exapp.handlers-b.yml

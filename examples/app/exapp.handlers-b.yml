@@ -1,0 +1,67 @@
+# Second import file — merged keys must not duplicate the first import.
+
+demo.group.alpha:
+  |
+    msg=$(x-arg msg)
+    if [[ $(x-opt verbose) == true ]]; then
+      echo "[verbose] alpha ← $msg"
+    else
+      echo "alpha ← $msg"
+    fi
+
+demo.group.beta:
+  |
+    msg=$(x-arg msg)
+    if [[ $(x-opt verbose) == true ]]; then
+      echo "[verbose] beta ← $msg"
+    else
+      echo "beta ← $msg"
+    fi
+
+demo.reflect:
+  |
+    declare -A opts args
+    x-opts opts
+    x-args args
+    echo "--- x-opts ($(x-arg label)) ---"
+    for k in "${!opts[@]}"; do echo "  $k=${opts[$k]}"; done | sort
+    echo "--- x-args ---"
+    for k in "${!args[@]}"; do echo "  $k=${args[$k]}"; done | sort
+    echo "--- x-run ---"
+    x-run echo "ran nested echo via x-run"
+
+# IO commands
+demo.io.read: |
+  answer=$(x-io-read "What is your favorite color?")
+  if [ "$answer" != "blue" ]; then
+    echo "Wrong answer"
+    exit 1
+  else
+    echo "Correct!"
+  fi
+
+demo.io.confirm: |
+  answer=$(x-io-confirm "Are you sure you want to submit?" --default no)
+  echo "Submit = $answer"
+  answer=$(x-io-confirm "Are you sure you want to delete?" --default yes)
+  echo "Delete = $answer"
+
+demo.io.select: |
+  x-io-select "Choose a color" \
+    "red=Red" \
+    "green=Green" \
+    "blue=Blue" \
+    "yellow/orange=Yellow or Orange" \
+    -v color
+  echo "Color = $color"
+
+demo.io.multiselect: |
+  x-io-select --multi "Choose a color" \
+    "red=Red" \
+    "green=Green" \
+    "blue=Blue" \
+    "yellow/orange=Yellow or Orange" \
+    -v colors 
+  
+  echo "First Color = ${colors[0]}"
+  echo "All Colors = ${colors[*]}"

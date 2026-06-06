@@ -1,0 +1,50 @@
+# Handlers merged via `$.import` (first file). Keys are dotted command paths.
+
+"":
+  |
+    topic=$(x-arg topic)
+    note=$(x-opt global)
+    echo "exapp — topic=${topic:-overview}  global-note=${note:-∅}"
+    echo "Try:  x exapp --help"
+    echo "       x exapp demo --help"
+
+demo.opts:
+  |
+    echo "dry-run=$(x-opt dry-run)"
+    echo "out=$(x-opt out)"
+    echo "count=$(x-opt count)"
+    mapfile -t defs < <(x-opt define)
+    printf 'define[%s]\n' "${defs[@]:-}"
+    echo "kind=$(x-opt kind)"
+    echo "label=$(x-opt label)"
+    echo "src=$(x-opt src)"
+    echo "dst=$(x-opt dst)"
+    echo "commit=$(x-opt commit)"
+
+demo.args:
+  |
+    echo "one=$(x-arg one)"
+    echo "two=$(x-arg two)"
+    echo "three=$(x-arg three)"
+    mapfile -t rest < <(x-arg rest)
+    printf 'rest[%s]\n' "${rest[@]:-}"
+
+demo.pick:
+  |
+    echo "direction=$(x-arg choice)"
+
+demo.tail:
+  |
+    mapfile -t items < <(x-arg items)
+    if ((${#items[@]})); then
+      printf 'items: %s\n' "${items[@]}"
+    else
+      echo "(no items)"
+    fi
+
+demo.sparse:
+  |
+    mapfile -t parts < <(x-arg parts)
+    echo "parts=${parts[*]}"
+
+demo.usage-tip: x-usage demo.opts

@@ -1,0 +1,8 @@
+.ignore/
+*.ignore.*
+*.ignore
+*.internal.*
+*.internal
+*.classified.*
+*.classified
+
