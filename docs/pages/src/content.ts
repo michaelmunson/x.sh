@@ -419,7 +419,7 @@ echo "\${colors[0]}"` },
     },
     {
         id: "examples",
-        title: "Examples",
+        title: "App Examples",
         subtitle: "Real-world references in the repository.",
         blocks: [
             { type: "h3", text: "Comprehensive example app (`exapp`)" },

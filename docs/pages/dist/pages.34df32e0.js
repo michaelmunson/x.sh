@@ -4272,7 +4272,7 @@ echo "\${colors[0]}"`
     },
     {
         id: "examples",
-        title: "Examples",
+        title: "App Examples",
         subtitle: "Real-world references in the repository.",
         blocks: [
             {
