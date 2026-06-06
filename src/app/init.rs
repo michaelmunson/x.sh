@@ -122,8 +122,8 @@ fn prompt_scope() -> Result<Scope> {
 fn seed_template(name: &str) -> String {
     format!(
         r#"
-# documentation: https://github.com/michaelmunson/scripting/blob/main/x/README.md#app-framework
-# examples:      https://github.com/michaelmunson/scripting/blob/main/x/examples/app/exapp.x.yml
+# documentation: https://github.com/michaelmunson/x.sh/blob/main/README.md#app-framework
+# examples:      https://github.com/michaelmunson/x.sh/blob/main/examples/app/exapp.x.yml
 
 name: {name}
 version: 0.0.0

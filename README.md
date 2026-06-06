@@ -517,4 +517,4 @@ or hand-edited file fails fast with a readable error.
 
 
 ## Examples
-- [example app](https://github.com/michaelmunson/scripting/blob/main/x/examples/app/exapp.x.yml)
+- [example app](https://github.com/michaelmunson/x.sh/blob/main/examples/app/exapp.x.yml)
