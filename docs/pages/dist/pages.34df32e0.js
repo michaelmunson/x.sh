@@ -207,11 +207,11 @@
       });
     }
   }
-})({"3dtlh":[function(require,module,exports,__globalThis) {
+})({"keXaH":[function(require,module,exports,__globalThis) {
 var global = arguments[3];
 var HMR_HOST = null;
 var HMR_PORT = null;
-var HMR_SERVER_PORT = 1234;
+var HMR_SERVER_PORT = 36713;
 var HMR_SECURE = false;
 var HMR_ENV_HASH = "439701173a9199ea";
 var HMR_USE_SSE = false;
@@ -4179,7 +4179,7 @@ $:
             },
             {
                 type: "p",
-                text: "Standard YAML anchors and aliases work for sharing option sets across commands \u2014 see the [example app](https://github.com/michaelmunson/x.sh/blob/main/examples/app/exapp.x.yml) for `&demo_verbose` / `*demo_verbose` usage."
+                text: "Standard YAML anchors and aliases work for sharing option sets across commands \u2014 see the [example app](https://github.com/michaelmunson/x.sh/blob/main/docs/examples/app/exapp.x.yml) for `&demo_verbose` / `*demo_verbose` usage."
             }
         ]
     },
@@ -4603,7 +4603,7 @@ ollama run llama2 "$PROMPT"`
             },
             {
                 type: "link",
-                href: "https://github.com/michaelmunson/x.sh/blob/main/examples/app/exapp.x.yml",
+                href: "https://github.com/michaelmunson/x.sh/blob/main/docs/examples/app/exapp.x.yml",
                 text: "View exapp.x.yml on GitHub",
                 external: true
             },
@@ -5125,6 +5125,6 @@ function NotFoundPage(shell) {
     }, "Back to Home")));
 }
 
-},{"oxidizer":"hnuU9","../layout/Sidebar":"hNbmf","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}]},["3dtlh","gH3Lb"], "gH3Lb", "parcelRequire56c8", {})
+},{"oxidizer":"hnuU9","../layout/Sidebar":"hNbmf","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}]},["keXaH","gH3Lb"], "gH3Lb", "parcelRequire56c8", {})
 
 //# sourceMappingURL=pages.34df32e0.js.map

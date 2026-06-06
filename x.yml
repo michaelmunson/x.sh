@@ -1,3 +1,4 @@
-install: bash install.sh
-build: cargo build --release
-test: cargo test --bin x
+build: |
+  x xpkg build
+test: |
+  x xpkg test
