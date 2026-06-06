@@ -19,7 +19,7 @@ use config::XConfig;
 
 #[derive(Parser)]
 #[command(name = "x")]
-#[command(about = "Create and run bash functions as commands")]
+#[command(about = "Create and run bash functions as commands\n\nSkills          https://github.com/michaelmunson/x.sh/tree/main/docs/skills\nExamples        https://github.com/michaelmunson/x.sh/tree/main/docs/examples\nDocumentation   https://michaelmunson.github.io/x.sh/")]
 #[command(arg_required_else_help = false)]
 pub(crate) struct Cli {
     /// Initialize or create a script (opens your editor)
