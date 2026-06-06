@@ -44,12 +44,19 @@ The linter runs on every open, change, and save. Checks mirror the x.sh runtime 
 
 Files matching `*.x.yml` are automatically recognized (primary format).
 
+The root task file `x.yml` is recognized separately (**x.sh script** language): top-level
+command keys map to inline scripts, and nested groups use `$` (not root `$:`) as the
+default when invoked without a subcommand.
+
 Legacy `*.cli.yaml` / `*.cli.yml` extensions are also supported.
 
-You can also add a magic first line to any YAML file:
+Any YAML file with `# x.sh` as the first line is treated like `x.yml` (local
+scripts / handler imports), not as an app definition:
 
 ```
-# x-sh
+# x.sh
+build: |
+  npm run build
 ```
 
 ## Settings

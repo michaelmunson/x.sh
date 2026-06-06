@@ -1,8 +1,7 @@
 {
-  "name": "x.sh",
+  "name": "x.sh app",
   "scopeName": "source.xsh",
   "fileTypes": [
-    "x.yml",
     "cli.yaml",
     "cli.yml"
   ],

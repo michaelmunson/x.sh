@@ -1,7 +1,7 @@
 {
   "name": "xsh-vscode-ext",
   "displayName": "x.sh",
-  "description": "Syntax highlighting and linting for x.sh app definition files (*.x.yml)",
+  "description": "Syntax highlighting and linting for x.sh app definition files (*.x.yml, x.yml)",
   "version": "0.0.1",
   "publisher": "your-publisher-name",
   "engines": {
@@ -24,15 +24,18 @@
     "type": "git",
     "url": ""
   },
-  "activationEvents": [],
+  "activationEvents": [
+    "onLanguage:xsh",
+    "onLanguage:xsh-local",
+    "onLanguage:yaml"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "languages": [
       {
         "id": "xsh",
         "aliases": [
-          "x.sh",
-          "x app",
+          "x.sh app",
           "xsh"
         ],
         "extensions": [
@@ -40,8 +43,18 @@
           ".cli.yaml",
           ".cli.yml"
         ],
-        "filenames": [],
-        "firstLine": "^#\\s*(x[-_]?sh|x[-_]?app|xsh|cli[-_]?script|metadata)",
+        "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "xsh-local",
+        "aliases": [
+          "x.sh script",
+          "x.yml"
+        ],
+        "filenames": [
+          "x.yml"
+        ],
+        "firstLine": "^#\\s*x\\.sh",
         "configuration": "./language-configuration.json"
       }
     ],
@@ -50,6 +63,15 @@
         "language": "xsh",
         "scopeName": "source.xsh",
         "path": "./syntaxes/xsh.tmLanguage.json",
+        "embeddedLanguages": {
+          "meta.embedded.block.shell": "shellscript",
+          "meta.embedded.line.shell": "shellscript"
+        }
+      },
+      {
+        "language": "xsh-local",
+        "scopeName": "source.xsh.local",
+        "path": "./syntaxes/xsh-local.tmLanguage.json",
         "embeddedLanguages": {
           "meta.embedded.block.shell": "shellscript",
           "meta.embedded.line.shell": "shellscript"

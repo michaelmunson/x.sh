@@ -1,0 +1,128 @@
+{
+  "name": "x.sh script",
+  "scopeName": "source.xsh.local",
+  "fileTypes": [
+    "x.yml"
+  ],
+  "patterns": [
+    { "include": "#local-script-block" },
+    { "include": "#local-block-scalar" },
+    { "include": "#local-dollar-inline" },
+    { "include": "#local-dollar-block" },
+    { "include": "#local-script-inline" },
+    { "include": "#local-command-map" },
+    { "include": "source.yaml" },
+    { "include": "#yaml-fallback" }
+  ],
+  "repository": {
+    "local-command-map": {
+      "begin": "^(\\s*)([a-zA-Z][a-zA-Z0-9._-]*)(:)\\s*$",
+      "beginCaptures": {
+        "2": { "name": "entity.name.function.command.xsh-local" },
+        "3": { "name": "punctuation.separator.key-value.mapping.yaml" }
+      },
+      "end": "^(?!\\1\\s)",
+      "patterns": [
+        { "include": "#local-script-block" },
+        { "include": "#local-block-scalar" },
+        { "include": "#local-dollar-inline" },
+        { "include": "#local-dollar-block" },
+        { "include": "#local-script-inline" },
+        { "include": "#local-command-map" },
+        { "include": "source.yaml" }
+      ]
+    },
+
+    "local-block-scalar": {
+      "begin": "^(\\s+)(\\||>)\\s*$",
+      "beginCaptures": {
+        "2": { "name": "keyword.control.flow.block-scalar.literal.yaml" }
+      },
+      "end": "^(?!\\1\\s|\\s*$)",
+      "contentName": "meta.embedded.block.shell",
+      "patterns": [
+        { "include": "source.shell" }
+      ]
+    },
+
+    "local-dollar-inline": {
+      "match": "^(\\s+)(\\$)(:)\\s+(.+)$",
+      "captures": {
+        "2": { "name": "keyword.other.default-script.xsh-local" },
+        "3": { "name": "punctuation.separator.key-value.mapping.yaml" },
+        "4": {
+          "contentName": "meta.embedded.line.shell",
+          "patterns": [
+            { "include": "source.shell" }
+          ]
+        }
+      }
+    },
+
+    "local-dollar-block": {
+      "begin": "^(\\s+)(\\$)(:)\\s+(\\||>)\\s*$",
+      "beginCaptures": {
+        "2": { "name": "keyword.other.default-script.xsh-local" },
+        "3": { "name": "punctuation.separator.key-value.mapping.yaml" },
+        "4": { "name": "keyword.control.flow.block-scalar.literal.yaml" }
+      },
+      "end": "^(?!\\1\\s|\\s*$)",
+      "contentName": "meta.embedded.block.shell",
+      "patterns": [
+        { "include": "source.shell" }
+      ]
+    },
+
+    "local-script-block": {
+      "begin": "^(\\s*)([a-zA-Z][a-zA-Z0-9._-]*)(:)\\s+(\\||>)\\s*$",
+      "beginCaptures": {
+        "2": { "name": "entity.name.function.command.xsh-local" },
+        "3": { "name": "punctuation.separator.key-value.mapping.yaml" },
+        "4": { "name": "keyword.control.flow.block-scalar.literal.yaml" }
+      },
+      "end": "^(?!\\1\\s|\\s*$)",
+      "contentName": "meta.embedded.block.shell",
+      "patterns": [
+        { "include": "source.shell" }
+      ]
+    },
+
+    "local-script-inline": {
+      "match": "^(\\s*)([a-zA-Z][a-zA-Z0-9._-]*)(:)\\s+(.+)$",
+      "captures": {
+        "2": { "name": "entity.name.function.command.xsh-local" },
+        "3": { "name": "punctuation.separator.key-value.mapping.yaml" },
+        "4": {
+          "contentName": "meta.embedded.line.shell",
+          "patterns": [
+            { "include": "source.shell" }
+          ]
+        }
+      }
+    },
+
+    "yaml-fallback": {
+      "patterns": [
+        {
+          "match": "#.*$",
+          "name": "comment.line.number-sign.yaml"
+        },
+        {
+          "match": "^([a-zA-Z_][a-zA-Z0-9._-]*)(:)",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.yaml" },
+            "2": { "name": "punctuation.separator.key-value.mapping.yaml" }
+          }
+        },
+        {
+          "match": "\"[^\"\\\\]*(?:\\\\.[^\"\\\\]*)*\"",
+          "name": "string.quoted.double.yaml"
+        },
+        {
+          "match": "'[^']*'",
+          "name": "string.quoted.single.yaml"
+        }
+      ]
+    }
+  }
+}

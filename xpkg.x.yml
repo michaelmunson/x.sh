@@ -74,6 +74,4 @@ $:
     for F in $FOO; do
       echo "$F ABC"
     done
-
-  fish: |
     

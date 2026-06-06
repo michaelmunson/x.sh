@@ -35,6 +35,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.activate = activate;
 exports.deactivate = deactivate;
+const path = __importStar(require("path"));
 const vscode = __importStar(require("vscode"));
 const yaml = __importStar(require("js-yaml"));
 function stripRepeatSuffix(s) {
@@ -82,6 +83,32 @@ function collectMutexAlternatives(tokens) {
     return alternatives;
 }
 const DIAG = 'x.sh';
+/** `# x.sh` first line — keep in sync with xsh-local firstLine in package.json. */
+const XSH_LOCAL_FIRST_LINE = /^#\s*x\.sh\b/i;
+function hasLocalFirstLine(document) {
+    return document.lineCount > 0 && XSH_LOCAL_FIRST_LINE.test(document.lineAt(0).text);
+}
+function isLocalXyml(document) {
+    if (document.languageId === 'xsh-local') {
+        return true;
+    }
+    if (path.basename(document.fileName) === 'x.yml') {
+        return true;
+    }
+    if (hasLocalFirstLine(document)) {
+        return true;
+    }
+    return false;
+}
+function isXshDocument(document) {
+    if (document.languageId === 'xsh' || document.languageId === 'xsh-local') {
+        return true;
+    }
+    if (document.languageId === 'yaml' && hasLocalFirstLine(document)) {
+        return true;
+    }
+    return false;
+}
 // ─── Extension Lifecycle ──────────────────────────────────────────────────────
 let diagnosticCollection;
 function activate(context) {
@@ -94,14 +121,14 @@ function activate(context) {
     statusBar.tooltip = 'x.sh extension active';
     context.subscriptions.push(statusBar);
     vscode.window.onDidChangeActiveTextEditor(editor => {
-        if (editor?.document.languageId === 'xsh') {
+        if (editor && isXshDocument(editor.document)) {
             statusBar.show();
         }
         else {
             statusBar.hide();
         }
     });
-    if (vscode.window.activeTextEditor?.document.languageId === 'xsh') {
+    if (vscode.window.activeTextEditor && isXshDocument(vscode.window.activeTextEditor.document)) {
         statusBar.show();
     }
     console.log('x.sh extension activated');
@@ -111,7 +138,7 @@ function deactivate() {
 }
 // ─── Linting ─────────────────────────────────────────────────────────────────
 function lintDocument(document) {
-    if (document.languageId !== 'xsh')
+    if (!isXshDocument(document))
         return;
     const config = vscode.workspace.getConfiguration('xsh.lint');
     if (!config.get('enabled', true)) {
@@ -137,36 +164,42 @@ function lintDocument(document) {
         diagnosticCollection.set(document.uri, diagnostics);
         return;
     }
-    if (!parsed.name) {
+    if (isLocalXyml(document)) {
+        lintLocalXyml(document, parsed, diagnostics);
+        diagnosticCollection.set(document.uri, diagnostics);
+        return;
+    }
+    const parsedApp = parsed;
+    if (!parsedApp.name) {
         diagnostics.push(new vscode.Diagnostic(new vscode.Range(0, 0, 0, 0), `${DIAG}: missing required field "name"`, vscode.DiagnosticSeverity.Error));
     }
-    if (parsed.name && !/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(parsed.name)) {
+    if (parsedApp.name && !/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(parsedApp.name)) {
         const nameLine = findKeyLine(document, 'name');
         diagnostics.push(new vscode.Diagnostic(lineRange(document, nameLine), `${DIAG}: "name" must start with a letter and contain only letters, digits, hyphens, and underscores`, vscode.DiagnosticSeverity.Error));
     }
-    if (parsed.version && !/^\d+\.\d+\.\d+/.test(parsed.version)) {
+    if (parsedApp.version && !/^\d+\.\d+\.\d+/.test(parsedApp.version)) {
         const verLine = findKeyLine(document, 'version');
         diagnostics.push(new vscode.Diagnostic(lineRange(document, verLine), `${DIAG}: "version" should use semantic versioning (e.g. 1.0.0)`, vscode.DiagnosticSeverity.Warning));
     }
-    if (parsed.$ && parsed['$.import']) {
+    if (parsedApp.$ && parsedApp['$.import']) {
         const line = findKeyLine(document, '$') || findKeyLine(document, '$.import');
         diagnostics.push(new vscode.Diagnostic(lineRange(document, line), `${DIAG}: cannot use both "$:" and "$.import:" in the same app file`, vscode.DiagnosticSeverity.Error));
     }
     const allPaths = new Set(['']);
-    if (parsed.commands) {
-        collectAllPaths(parsed.commands, '', allPaths);
+    if (parsedApp.commands) {
+        collectAllPaths(parsedApp.commands, '', allPaths);
     }
     const leafPaths = new Set();
-    if (!parsed.commands || Object.keys(parsed.commands).length === 0) {
+    if (!parsedApp.commands || Object.keys(parsedApp.commands).length === 0) {
         leafPaths.add('');
     }
     else {
-        collectLeafPaths(parsed.commands, '', leafPaths);
+        collectLeafPaths(parsedApp.commands, '', leafPaths);
     }
-    const handlerKeys = new Set(Object.keys(parsed.$ ?? {}));
-    if (parsed.$) {
+    const handlerKeys = new Set(Object.keys(parsedApp.$ ?? {}));
+    if (parsedApp.$) {
         const seen = new Set();
-        for (const key of Object.keys(parsed.$)) {
+        for (const key of Object.keys(parsedApp.$)) {
             if (seen.has(key)) {
                 const handlerLine = findHandlerKeyLine(document, key);
                 diagnostics.push(new vscode.Diagnostic(lineRange(document, handlerLine), `${DIAG}: duplicate handler key in "$:" block: "${key}"`, vscode.DiagnosticSeverity.Error));
@@ -191,17 +224,101 @@ function lintDocument(document) {
         }
     }
     if (config.get('requireDescription', false)) {
-        lintDescriptions(document, parsed.commands ?? {}, '', diagnostics);
+        lintDescriptions(document, parsedApp.commands ?? {}, '', diagnostics);
     }
-    validateCommandScope(document, '', parsed.options ?? [], normalizeArguments(parsed.arguments), diagnostics);
-    if (parsed.commands) {
-        lintCommandScopes(document, parsed.commands, '', diagnostics);
+    validateCommandScope(document, '', parsedApp.options ?? [], normalizeArguments(parsedApp.arguments), diagnostics);
+    if (parsedApp.commands) {
+        lintCommandScopes(document, parsedApp.commands, '', diagnostics);
     }
-    lintHandlerValues(document, parsed.$ ?? {}, diagnostics);
+    lintHandlerValues(document, parsedApp.$ ?? {}, diagnostics);
     diagnosticCollection.set(document.uri, diagnostics);
 }
 function displayPath(path) {
     return path === '' ? '$' : path;
+}
+// ─── Local x.yml linting (see src/local_x.rs) ────────────────────────────────
+const LOCAL_APP_ONLY_KEYS = ['commands', 'options', 'arguments', '$.import'];
+function lintLocalXyml(document, parsed, diagnostics) {
+    for (const key of LOCAL_APP_ONLY_KEYS) {
+        if (key in parsed) {
+            const line = findKeyLine(document, key);
+            diagnostics.push(new vscode.Diagnostic(lineRange(document, line), `${DIAG}: "${key}" belongs in a *.x.yml app file — x.yml uses top-level command keys with inline scripts`, vscode.DiagnosticSeverity.Warning));
+        }
+    }
+    if ('$' in parsed && parsed.$ !== null && typeof parsed.$ === 'object' && !Array.isArray(parsed.$)) {
+        const line = findKeyLine(document, '$');
+        diagnostics.push(new vscode.Diagnostic(lineRange(document, line), `${DIAG}: root "$:" is for *.x.yml apps — in x.yml use "$" only as a nested default under a command group`, vscode.DiagnosticSeverity.Warning));
+    }
+    for (const [name, entry] of Object.entries(parsed)) {
+        if (!/^[a-zA-Z][a-zA-Z0-9._-]*$/.test(name)) {
+            const line = findLocalKeyLine(document, name);
+            diagnostics.push(new vscode.Diagnostic(lineRange(document, line), `${DIAG}: command name "${name}" should start with a letter and contain only letters, digits, hyphens, and underscores`, vscode.DiagnosticSeverity.Error));
+        }
+        lintLocalEntry(document, name, entry, diagnostics);
+    }
+}
+function lintLocalEntry(document, commandPath, entry, diagnostics) {
+    if (typeof entry === 'string') {
+        if (!entry.trim()) {
+            const line = findLocalKeyLine(document, commandPath.split('.').pop() ?? commandPath);
+            diagnostics.push(new vscode.Diagnostic(lineRange(document, line), `${DIAG}: script for "${commandPath}" is empty`, vscode.DiagnosticSeverity.Warning));
+        }
+        return;
+    }
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+        const line = findLocalKeyLine(document, commandPath.split('.').pop() ?? commandPath);
+        diagnostics.push(new vscode.Diagnostic(lineRange(document, line), `${DIAG}: "${commandPath}" must be a script string or a nested command map`, vscode.DiagnosticSeverity.Error));
+        return;
+    }
+    const map = entry;
+    const subcommands = Object.keys(map).filter(k => k !== '$');
+    if (subcommands.length > 0 && !('$' in map)) {
+        const line = findLocalKeyLine(document, commandPath.split('.').pop() ?? commandPath);
+        diagnostics.push(new vscode.Diagnostic(lineRange(document, line), `${DIAG}: "${commandPath}" has subcommands but no "$" default — add "$:" so "x ${commandPath}" works without a subcommand`, vscode.DiagnosticSeverity.Error));
+    }
+    for (const [key, value] of Object.entries(map)) {
+        const childPath = key === '$' ? commandPath : `${commandPath}.${key}`;
+        if (key !== '$' && !/^[a-zA-Z][a-zA-Z0-9._-]*$/.test(key)) {
+            const line = findNestedLocalKeyLine(document, commandPath.split('.').pop() ?? commandPath, key);
+            diagnostics.push(new vscode.Diagnostic(lineRange(document, line), `${DIAG}: subcommand name "${key}" should start with a letter and contain only letters, digits, hyphens, and underscores`, vscode.DiagnosticSeverity.Error));
+        }
+        lintLocalEntry(document, childPath, value, diagnostics);
+    }
+}
+function findLocalKeyLine(document, key) {
+    const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(`^${escaped}\\s*:`);
+    for (let i = 0; i < document.lineCount; i++) {
+        if (re.test(document.lineAt(i).text.trim())) {
+            return i;
+        }
+    }
+    return 0;
+}
+function findNestedLocalKeyLine(document, parentKey, childKey) {
+    const parentEscaped = parentKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const childEscaped = childKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const parentRe = new RegExp(`^${parentEscaped}\\s*:`);
+    let parentLine = -1;
+    for (let i = 0; i < document.lineCount; i++) {
+        if (parentRe.test(document.lineAt(i).text.trim())) {
+            parentLine = i;
+            break;
+        }
+    }
+    if (parentLine < 0) {
+        return findLocalKeyLine(document, childKey);
+    }
+    const childRe = new RegExp(`^\\s+${childEscaped}\\s*:`);
+    for (let i = parentLine + 1; i < document.lineCount; i++) {
+        if (childRe.test(document.lineAt(i).text)) {
+            return i;
+        }
+        if (/^\S/.test(document.lineAt(i).text)) {
+            break;
+        }
+    }
+    return findLocalKeyLine(document, childKey);
 }
 // ─── Command path collection ─────────────────────────────────────────────────
 function collectAllPaths(commands, prefix, out) {
