@@ -2,6 +2,8 @@
 
 A useful cli tool that helps you manage your scripts
 
+[More Documentation Here](https://michaelmunson.github.io/x.sh/)
+
 ## Table of Contents
 
 - [Installation](#installation)
