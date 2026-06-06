@@ -3,10 +3,10 @@
 # Installation script for 'x' CLI tool
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/michaelmunson/scripting/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/michaelmunson/x.sh/main/install.sh | bash
 #
 # Or download and run:
-#   wget https://raw.githubusercontent.com/michaelmunson/scripting/main/install.sh
+#   wget https://raw.githubusercontent.com/michaelmunson/x.sh/main/install.sh
 #   bash install.sh
 #
 # Requirements:
