@@ -115,6 +115,27 @@ fn exapp_invalid_choice_exits_with_error() {
 }
 
 #[test]
+fn complete_xpkg_build_subcommand() {
+    x_cmd()
+        .current_dir(manifest_dir())
+        .args(["__complete", "bash", "x", "xpkg", "bu", "2"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("build"));
+}
+
+#[test]
+fn complete_xpkg_nested_build_subcommands() {
+    x_cmd()
+        .current_dir(manifest_dir())
+        .args(["__complete", "bash", "x", "xpkg", "build", "", "3"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("docs"))
+        .stdout(predicate::str::contains("bin"));
+}
+
+#[test]
 fn fixture_minimal_app_greet() {
     let dir = tempfile::tempdir().unwrap();
     let fixture = manifest_dir().join("tests/fixtures/minimal.x.yml");

@@ -18,6 +18,9 @@ commands:
         description: build the binary
   test:
     description: run the tests
+    options:
+      - '[--complete]'
+      - '[--integration]'
 
 $:
   build: |
@@ -35,4 +38,10 @@ $:
   build.bin: |
     cargo build --release
   test: |
-    cargo test --bin x
+    if [ "$(x-opt "complete")" = "true" ]; then
+      cargo test complete:: # this is a test for the complete module
+    elif [ "$(x-opt "integration")" = "true" ]; then
+      cargo test cli_integration::complete # this is a test for the integration tests
+    else
+      cargo test --bin x # this is a test for the x binary
+    fi

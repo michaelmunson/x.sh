@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use crate::metadata::{ScriptMetadata, ActivityMetadata};
+use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 
@@ -150,6 +151,92 @@ impl XConfig {
     
     /// Find a script file by name, trying exact match first, then files where the name (without extension) matches
     /// Returns the full filename if found, or None if not found
+    /// App names discovered in resolution order: CWD ancestors (nearest wins), then global.
+    pub fn list_app_names(&self) -> Result<Vec<String>> {
+        let mut seen = HashSet::new();
+        let mut names = Vec::new();
+        let cwd = std::env::current_dir().context("Could not get current directory")?;
+
+        for dir in cwd.ancestors() {
+            let Ok(entries) = fs::read_dir(dir) else {
+                continue;
+            };
+            let mut dir_names: Vec<String> = entries
+                .filter_map(|entry| {
+                    let entry = entry.ok()?;
+                    let path = entry.path();
+                    if !path.is_file() {
+                        return None;
+                    }
+                    let file_name = path.file_name()?.to_str()?;
+                    file_name
+                        .strip_suffix(".x.yml")
+                        .map(|name| name.to_string())
+                })
+                .collect();
+            dir_names.sort();
+            for name in dir_names {
+                if seen.insert(name.clone()) {
+                    names.push(name);
+                }
+            }
+        }
+
+        if self.apps_dir.is_dir() {
+            let mut global_names: Vec<String> = fs::read_dir(&self.apps_dir)
+                .context("Failed to read apps directory")?
+                .filter_map(|entry| {
+                    let entry = entry.ok()?;
+                    let path = entry.path();
+                    if !path.is_file() {
+                        return None;
+                    }
+                    let file_name = path.file_name()?.to_str()?;
+                    file_name
+                        .strip_suffix(".x.yml")
+                        .map(|name| name.to_string())
+                })
+                .collect();
+            global_names.sort();
+            for name in global_names {
+                if seen.insert(name.clone()) {
+                    names.push(name);
+                }
+            }
+        }
+
+        Ok(names)
+    }
+
+    /// Global script display names (basename without extension), sorted.
+    pub fn list_script_names(&self) -> Result<Vec<String>> {
+        if !self.scripts_dir.exists() {
+            return Ok(Vec::new());
+        }
+
+        let mut names: Vec<String> = fs::read_dir(&self.scripts_dir)
+            .context("Failed to read scripts directory")?
+            .filter_map(|entry| {
+                let entry = entry.ok()?;
+                let path = entry.path();
+                if !path.is_file() {
+                    return None;
+                }
+                let file_name = path.file_name()?.to_str()?;
+                let display_name = if let Some(dot_pos) = file_name.rfind('.') {
+                    &file_name[..dot_pos]
+                } else {
+                    file_name
+                };
+                Some(display_name.to_string())
+            })
+            .collect();
+
+        names.sort();
+        names.dedup();
+        Ok(names)
+    }
+
     pub fn find_script(&self, name: &str) -> Result<Option<String>> {
         if !self.scripts_dir.exists() {
             return Ok(None);

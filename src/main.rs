@@ -2,6 +2,7 @@ mod app;
 mod make;
 mod config;
 mod configure;
+mod complete;
 mod execute;
 mod local_x;
 mod link;
@@ -20,7 +21,7 @@ use config::XConfig;
 #[command(name = "x")]
 #[command(about = "Create and run bash functions as commands")]
 #[command(arg_required_else_help = false)]
-struct Cli {
+pub(crate) struct Cli {
     /// Initialize or create a script (opens your editor)
     #[arg(short = 'i', long = "init")]
     init: bool,
@@ -78,6 +79,10 @@ fn main() -> Result<()> {
     if raw_args.len() >= 2 && raw_args[1] == "__io" {
         let rest: Vec<String> = raw_args.iter().skip(2).cloned().collect();
         app::io::run_or_exit(&rest);
+    }
+    if raw_args.len() >= 2 && raw_args[1] == "__complete" {
+        let rest: Vec<String> = raw_args.iter().skip(2).cloned().collect();
+        return complete::run_complete(&rest);
     }
 
     let cli = Cli::parse();

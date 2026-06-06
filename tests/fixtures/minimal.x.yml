@@ -1,10 +1,10 @@
 name: minimal
 description: tiny fixture app for integration tests
-options:
-  - "[-v | --verbose]"
 commands:
   greet:
     description: say hello
+    options:
+      - "[-v | --verbose]"
     arguments:
       - "<name>"
 "$":

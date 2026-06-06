@@ -58,6 +58,23 @@ The binary will be at `target/release/x`. You can:
 - Create an alias in your shell configuration
 - Use it directly with the full path
 
+### Shell completion
+
+Tab completion follows the same command resolution order as runtime (`x.yml` → apps → global scripts), including nested subcommands.
+
+**Bash:**
+
+```bash
+mkdir -p ~/.local/share/bash-completion/completions
+x __complete bash > ~/.local/share/bash-completion/completions/x
+```
+
+**Zsh** (add to `~/.zshrc`):
+
+```bash
+source <(x __complete zsh)
+```
+
 ## Quick Start
 
 1. **Create your first script:**
