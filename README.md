@@ -16,13 +16,13 @@ A useful cli tool that helps you manage your scripts
 
 ### Option 1: Automated Installation Script
 ```bash
-curl -fsSL https://raw.githubusercontent.com/michaelmunson/scripting/main/x/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/michaelmunson/x.sh/main/install.sh | bash
 ```
 
 Or download and run manually:
 
 ```bash
-wget https://raw.githubusercontent.com/michaelmunson/scripting/main/x/install.sh
+wget https://raw.githubusercontent.com/michaelmunson/x.sh/main/install.sh
 bash install.sh
 ```
 
