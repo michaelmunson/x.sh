@@ -3400,9 +3400,8 @@ const SECTIONS = [
                 type: "ul",
                 items: [
                     "**Global scripts** live in `~/.x.sh/scripts/` with per-script metadata (description, language, groups) and usage tracking.",
-                    "**Project-local commands** in `./x.yml` let you version-control task runners alongside your repo \u2014 no install step required for teammates.",
-                    "**Apps** (`&lt;name&gt;.x.yml`) turn YAML into validated CLIs with options, arguments, nested subcommands, and bash handlers \u2014 before any bash runs, x parses and validates the user's input.",
-                    "**AI helpers** (`x --ai`, `x -i --ai`) generate shell commands and scripts when you configure an LLM provider."
+                    "**Project-local commands** in `./x.yml` let you easily define project specific scripts and commands.",
+                    "**Apps** (`&lt;name&gt;.x.yml`) turn YAML into validated CLIs with options, arguments, nested subcommands, and bash handlers \u2014 before any bash runs, x parses and validates the user's input."
                 ]
             },
             {

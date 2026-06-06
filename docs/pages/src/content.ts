@@ -44,9 +44,8 @@ export const SECTIONS: DocSection[] = [
             { type: "h3", text: "What makes x different" },
             { type: "ul", items: [
                 "**Global scripts** live in `~/.x.sh/scripts/` with per-script metadata (description, language, groups) and usage tracking.",
-                "**Project-local commands** in `./x.yml` let you version-control task runners alongside your repo — no install step required for teammates.",
+                "**Project-local commands** in `./x.yml` let you easily define project specific scripts and commands.",
                 "**Apps** (`&lt;name&gt;.x.yml`) turn YAML into validated CLIs with options, arguments, nested subcommands, and bash handlers — before any bash runs, x parses and validates the user's input.",
-                "**AI helpers** (`x --ai`, `x -i --ai`) generate shell commands and scripts when you configure an LLM provider.",
             ]},
             { type: "h3", text: "Three ways to run a command" },
             { type: "code", title: "Resolution order when you run `x &lt;name&gt; …`", code: `1. ./x.yml          → project-local inline script (CWD only)
