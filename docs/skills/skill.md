@@ -50,7 +50,6 @@ x --ln <name> [alias]     # symlink into ~/.local/bin/
 x -d --ln <name>          # remove symlink only
 x --src <name>            # print absolute path to app or script file
 x --config                # default language + LLM provider
-x --ai                    # LLM one-shot shell command (requires LLM config)
 x -i --app [--local|--global] [name]   # create/edit app YAML
 ```
 
