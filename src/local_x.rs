@@ -8,27 +8,80 @@ use std::process::{Command, Stdio};
 
 use crate::config::XConfig;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
-enum LocalEntry {
+pub(crate) enum LocalEntry {
     Script(String),
     Map(HashMap<String, LocalEntry>),
 }
 
-/// If `x.yml` exists in the current directory and defines [name], resolve and run it and exit.
-/// Returns `Ok(false)` when there is no local definition (caller should fall back to global scripts).
-/// On success (script ran), this process exits and does not return.
-pub fn try_run_local(config: &XConfig, name: &str, args: &[String]) -> Result<bool> {
+fn load_root() -> Result<Option<HashMap<String, LocalEntry>>> {
     let cwd = std::env::current_dir().context("Could not get current directory")?;
     let yml_path = cwd.join("x.yml");
     if !yml_path.exists() {
-        return Ok(false);
+        return Ok(None);
     }
 
     let content = fs::read_to_string(&yml_path)
         .with_context(|| format!("Failed to read {}", yml_path.display()))?;
     let root: HashMap<String, LocalEntry> = serde_yaml::from_str(&content)
         .with_context(|| format!("Failed to parse {}", yml_path.display()))?;
+    Ok(Some(root))
+}
+
+/// Top-level command names from `./x.yml` in the current directory.
+pub fn list_top_level_commands() -> Result<Vec<String>> {
+    let Some(root) = load_root()? else {
+        return Ok(Vec::new());
+    };
+    let mut names: Vec<String> = root.keys().cloned().collect();
+    names.sort();
+    Ok(names)
+}
+
+/// Look up a top-level entry in `./x.yml`.
+pub fn resolve_local_entry(name: &str) -> Result<Option<LocalEntry>> {
+    let Some(root) = load_root()? else {
+        return Ok(None);
+    };
+    Ok(root.get(name).cloned())
+}
+
+/// Subcommand keys at this entry's level (excludes `$`).
+pub fn list_subcommands(entry: &LocalEntry) -> Vec<String> {
+    match entry {
+        LocalEntry::Script(_) => Vec::new(),
+        LocalEntry::Map(m) => {
+            let mut names: Vec<String> = m
+                .keys()
+                .filter(|k| k.as_str() != "$")
+                .cloned()
+                .collect();
+            names.sort();
+            names
+        }
+    }
+}
+
+/// Walk [args] through nested map entries; returns the entry at that depth.
+pub fn descend_local_entry<'a>(entry: &'a LocalEntry, args: &[&str]) -> Option<&'a LocalEntry> {
+    let mut current = entry;
+    for arg in args {
+        match current {
+            LocalEntry::Script(_) => return None,
+            LocalEntry::Map(m) => current = m.get(*arg)?,
+        }
+    }
+    Some(current)
+}
+
+/// If `x.yml` exists in the current directory and defines [name], resolve and run it and exit.
+/// Returns `Ok(false)` when there is no local definition (caller should fall back to global scripts).
+/// On success (script ran), this process exits and does not return.
+pub fn try_run_local(config: &XConfig, name: &str, args: &[String]) -> Result<bool> {
+    let Some(root) = load_root()? else {
+        return Ok(false);
+    };
 
     let Some(entry) = root.get(name) else {
         return Ok(false);

@@ -141,10 +141,31 @@ verify_installation() {
         echo ""
         echo "You can now use '$BINARY_NAME' from anywhere in your terminal."
         echo "Try running: $BINARY_NAME --help"
+        suggest_shell_completion
     else
         warn "Installation completed, but '$BINARY_NAME' is not in PATH."
         warn "Make sure $INSTALL_DIR is in your PATH and restart your terminal."
     fi
+}
+
+suggest_shell_completion() {
+    echo ""
+    info "Shell tab completion (optional):"
+    case "${SHELL##*/}" in
+        bash)
+            local comp_dir="${HOME}/.local/share/bash-completion/completions"
+            echo "  mkdir -p \"$comp_dir\""
+            echo "  $BINARY_NAME __complete bash > \"$comp_dir/$BINARY_NAME\""
+            ;;
+        zsh)
+            echo "  Add to ~/.zshrc:"
+            echo "    source <($BINARY_NAME __complete zsh)"
+            ;;
+        *)
+            echo "  Bash: $BINARY_NAME __complete bash > ~/.local/share/bash-completion/completions/$BINARY_NAME"
+            echo "  Zsh:  source <($BINARY_NAME __complete zsh)"
+            ;;
+    esac
 }
 
 main() {
