@@ -1,0 +1,178 @@
+{
+  "name": "x.sh",
+  "scopeName": "source.xsh",
+  "fileTypes": [
+    "x.yml",
+    "cli.yaml",
+    "cli.yml"
+  ],
+  "patterns": [
+    { "include": "#handlers-block" },
+    { "include": "source.yaml" },
+    { "include": "#yaml-fallback" }
+  ],
+  "repository": {
+    "comment": {
+      "match": "#.*$",
+      "name": "comment.line.number-sign.xsh"
+    },
+
+    "handlers-block": {
+      "begin": "^(\"\\$\"|\\$)(:)\\s*$",
+      "beginCaptures": {
+        "1": { "name": "entity.other.attribute-name.yaml" },
+        "2": { "name": "punctuation.separator.key-value.mapping.yaml" }
+      },
+      "end": "^(?=\\S)",
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#handler-block-literal" },
+        { "include": "#handler-inline-quoted" },
+        { "include": "#handler-inline" },
+        { "include": "source.yaml" }
+      ]
+    },
+
+    "handler-inline-quoted": {
+      "match": "^(\\s+)(\"[^\"]*\"|'[^']*'|[a-zA-Z][a-zA-Z0-9._-]*)(:)\\s+(\"[^\"]*\"|'[^']*')\\s*$",
+      "captures": {
+        "2": { "name": "entity.other.attribute-name.yaml" },
+        "3": { "name": "punctuation.separator.key-value.mapping.yaml" },
+        "4": {
+          "contentName": "meta.embedded.line.shell",
+          "patterns": [
+            { "include": "#x-template-vars" },
+            { "include": "source.shell" }
+          ]
+        }
+      }
+    },
+
+    "handler-inline": {
+      "match": "^(\\s+)(\"[^\"]*\"|'[^']*'|[a-zA-Z][a-zA-Z0-9._-]*)(:)\\s+(.*)$",
+      "captures": {
+        "2": { "name": "entity.other.attribute-name.yaml" },
+        "3": { "name": "punctuation.separator.key-value.mapping.yaml" },
+        "4": {
+          "contentName": "meta.embedded.line.shell",
+          "patterns": [
+            { "include": "#x-builtin-directive" },
+            { "include": "#x-template-vars" },
+            { "include": "source.shell" }
+          ]
+        }
+      }
+    },
+
+    "handler-block-literal": {
+      "begin": "^(\\s+)(\"[^\"]*\"|'[^']*'|[a-zA-Z][a-zA-Z0-9._-]*)(:)\\s+(\\||>)\\s*$",
+      "beginCaptures": {
+        "2": { "name": "entity.other.attribute-name.yaml" },
+        "3": { "name": "punctuation.separator.key-value.mapping.yaml" },
+        "4": { "name": "keyword.control.flow.block-scalar.literal.yaml" }
+      },
+      "end": "^(?!\\1\\s|\\s*$)",
+      "contentName": "meta.embedded.block.shell",
+      "patterns": [
+        { "include": "#x-builtin-directive" },
+        { "include": "#x-template-vars" },
+        { "include": "source.shell" }
+      ]
+    },
+
+    "x-builtin-directive": {
+      "match": "\\bx-(?:opt|arg|opts|args|usage|run|help|prt|tui|io-(?:read|confirm|select))\\b",
+      "name": "support.function.x-builtin.xsh"
+    },
+
+    "yaml-fallback": {
+      "patterns": [
+        {
+          "match": "#.*$",
+          "name": "comment.line.number-sign.yaml"
+        },
+        {
+          "match": "^([a-zA-Z_][a-zA-Z0-9_-]*)(:)",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.yaml" },
+            "2": { "name": "punctuation.separator.key-value.mapping.yaml" }
+          }
+        },
+        {
+          "match": "\"[^\"\\\\]*(?:\\\\.[^\"\\\\]*)*\"",
+          "name": "string.quoted.double.yaml"
+        },
+        {
+          "match": "'[^']*'",
+          "name": "string.quoted.single.yaml"
+        },
+        {
+          "match": ":\\s+[^\\s#]+",
+          "captures": {
+            "0": {
+              "patterns": [
+                {
+                  "match": "(?<=:\\s+).+",
+                  "name": "string.unquoted.yaml"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+
+    "x-template-vars": {
+      "patterns": [
+        {
+          "match": "\\$\\(\\s*x-opt\\s+[^)]+\\)",
+          "name": "meta.template.x-opt.xsh",
+          "captures": {
+            "0": {
+              "patterns": [
+                {
+                  "match": "x-opt",
+                  "name": "support.function.x-builtin.xsh"
+                },
+                {
+                  "match": "[a-zA-Z][a-zA-Z0-9_-]+",
+                  "name": "variable.parameter.option-name.xsh"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "match": "\\$\\(\\s*x-arg\\s+[^)]+\\)",
+          "name": "meta.template.x-arg.xsh",
+          "captures": {
+            "0": {
+              "patterns": [
+                {
+                  "match": "x-arg",
+                  "name": "support.function.x-builtin.xsh"
+                },
+                {
+                  "match": "[a-zA-Z][a-zA-Z0-9_-]+",
+                  "name": "variable.parameter.argument-name.xsh"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "match": "\\$\\(\\s*x-opts\\s*\\)",
+          "name": "support.function.x-builtin.xsh"
+        },
+        {
+          "match": "\\$\\(\\s*x-args\\s*\\)",
+          "name": "support.function.x-builtin.xsh"
+        },
+        {
+          "match": "\\$\\(\\s*x-run\\s+[^)]+\\)",
+          "name": "support.function.x-builtin.xsh"
+        }
+      ]
+    }
+  }
+}

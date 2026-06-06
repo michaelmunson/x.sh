@@ -98,10 +98,10 @@
     "watch": "tsc -watch -p ./",
     "package": "vsce package",
     "lint": "eslint src",
-    "build": "npm run install && npm run compile",
+    "build": "npm install && npm run compile && npm run package",
     "install-cursor-extension": "cursor --install-extension xsh-vscode-ext-0.0.1.vsix",
     "install-vscode-extension": "code --install-extension xsh-vscode-ext-0.0.1.vsix",
-    "deploy": "npm run build && npm run package && npm run install-cursor-extension"
+    "deploy": "npm run build && npm run install-cursor-extension"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
