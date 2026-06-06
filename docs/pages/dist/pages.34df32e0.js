@@ -207,11 +207,11 @@
       });
     }
   }
-})({"keXaH":[function(require,module,exports,__globalThis) {
+})({"3dtlh":[function(require,module,exports,__globalThis) {
 var global = arguments[3];
 var HMR_HOST = null;
 var HMR_PORT = null;
-var HMR_SERVER_PORT = 36713;
+var HMR_SERVER_PORT = 1234;
 var HMR_SECURE = false;
 var HMR_ENV_HASH = "439701173a9199ea";
 var HMR_USE_SSE = false;
@@ -723,6 +723,7 @@ document.body.append((0, _appDefault.default)());
 },{"./index.css":"irmnC","./App":"4Ye6C","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"irmnC":[function() {},{}],"4Ye6C":[function(require,module,exports,__globalThis) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "BASE_PATH", ()=>BASE_PATH);
 parcelHelpers.export(exports, "default", ()=>App);
 var _oxidizer = require("oxidizer");
 var _oxidizerRouter = require("oxidizer-router");
@@ -734,6 +735,7 @@ var _sectionPage = require("./views/SectionPage");
 var _sectionPageDefault = parcelHelpers.interopDefault(_sectionPage);
 var _notFoundPage = require("./views/NotFoundPage");
 var _notFoundPageDefault = parcelHelpers.interopDefault(_notFoundPage);
+const BASE_PATH = '/x.sh';
 function App() {
     const shell = (0, _oxidizer.createProps)({
         path: (0, _oxidizerRouter.getPathname)(),
@@ -741,12 +743,14 @@ function App() {
         routeKey: window.location.search
     }, [
         (0, _oxidizer.createEffect)([
-            'routeKey'
+            'path'
         ], ($)=>{
-            if ($.routeKey) setTimeout(()=>{
-                const input = document.querySelector('input[type="search"]');
-                if (input) input.focus();
-            }, 100);
+            if (!$.path.startsWith(BASE_PATH)) {
+                console.log('redirecting to', BASE_PATH, $.path);
+                $.path = BASE_PATH + $.path;
+                console.log('redirected to', $.path);
+                (0, _oxidizerRouter.navigate)(BASE_PATH + $.path);
+            }
         })
     ]);
     window.addEventListener("popstate", ()=>(0, _sidebar.syncRoute)(shell));
@@ -776,7 +780,11 @@ function App() {
         className: "topbar-title"
     }, "x.sh docs")), (0, _oxidizerRouterDefault.default)({
         "/": ()=>(0, _homePageDefault.default)(shell),
+        "/x.sh": ()=>(0, _homePageDefault.default)(shell),
         "/docs": {
+            ":sectionId": ()=>(0, _sectionPageDefault.default)(shell)
+        },
+        "/x.sh/docs": {
             ":sectionId": ()=>(0, _sectionPageDefault.default)(shell)
         },
         "*": ()=>(0, _notFoundPageDefault.default)(shell)
@@ -3170,6 +3178,7 @@ var _oxidizer = require("oxidizer");
 var _oxidizerRouter = require("oxidizer-router");
 var _content = require("../content");
 var _components = require("../components");
+var _app = require("../App");
 function activeSection(path) {
     const match = path.match(/^\/docs\/([^/]+)/);
     return match?.[1] ?? "";
@@ -3180,7 +3189,7 @@ function syncRoute(shell) {
 }
 function goTo(path, shell) {
     const { q } = (0, _oxidizerRouter.getSearch)();
-    (0, _oxidizerRouter.navigate)(path, q ? {
+    (0, _oxidizerRouter.navigate)(path.startsWith((0, _app.BASE_PATH)) ? path : (0, _app.BASE_PATH) + path, q ? {
         search: {
             q
         }
@@ -3278,37 +3287,7 @@ function Sidebar(shell) {
     });
 }
 
-},{"oxidizer":"hnuU9","oxidizer-router":"6kk03","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT","../content":"hqNCP","../components":"ip12w"}],"jnFvT":[function(require,module,exports,__globalThis) {
-exports.interopDefault = function(a) {
-    return a && a.__esModule ? a : {
-        default: a
-    };
-};
-exports.defineInteropFlag = function(a) {
-    Object.defineProperty(a, '__esModule', {
-        value: true
-    });
-};
-exports.exportAll = function(source, dest) {
-    Object.keys(source).forEach(function(key) {
-        if (key === 'default' || key === '__esModule' || Object.prototype.hasOwnProperty.call(dest, key)) return;
-        Object.defineProperty(dest, key, {
-            enumerable: true,
-            get: function() {
-                return source[key];
-            }
-        });
-    });
-    return dest;
-};
-exports.export = function(dest, destName, get) {
-    Object.defineProperty(dest, destName, {
-        enumerable: true,
-        get: get
-    });
-};
-
-},{}],"hqNCP":[function(require,module,exports,__globalThis) {
+},{"oxidizer":"hnuU9","oxidizer-router":"6kk03","../content":"hqNCP","../components":"ip12w","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT","../App":"4Ye6C"}],"hqNCP":[function(require,module,exports,__globalThis) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "NAV_ITEMS", ()=>NAV_ITEMS);
@@ -4696,7 +4675,37 @@ x exapp demo reflect my-label`
     }
 ];
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"ip12w":[function(require,module,exports,__globalThis) {
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"jnFvT":[function(require,module,exports,__globalThis) {
+exports.interopDefault = function(a) {
+    return a && a.__esModule ? a : {
+        default: a
+    };
+};
+exports.defineInteropFlag = function(a) {
+    Object.defineProperty(a, '__esModule', {
+        value: true
+    });
+};
+exports.exportAll = function(source, dest) {
+    Object.keys(source).forEach(function(key) {
+        if (key === 'default' || key === '__esModule' || Object.prototype.hasOwnProperty.call(dest, key)) return;
+        Object.defineProperty(dest, key, {
+            enumerable: true,
+            get: function() {
+                return source[key];
+            }
+        });
+    });
+    return dest;
+};
+exports.export = function(dest, destName, get) {
+    Object.defineProperty(dest, destName, {
+        enumerable: true,
+        get: get
+    });
+};
+
+},{}],"ip12w":[function(require,module,exports,__globalThis) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "renderInline", ()=>(0, _inline.renderInline));
@@ -4996,9 +5005,9 @@ function HomePage(shell) {
         className: "hero-title"
     }, (0, _oxidizer.SPAN)({
         className: "hero-x"
-    }, "x"), ".sh Documentation"), (0, _oxidizer.P)({
+    }, "x"), ".sh"), (0, _oxidizer.P)({
         className: "hero-tagline"
-    }, "Script management, project task runners, and YAML-defined CLI apps \u2014 all from one binary."), (0, _oxidizer.DIV)({
+    }, "Script management and CLI App Framework."), (0, _oxidizer.DIV)({
         className: "hero-actions"
     }, (0, _oxidizer.BUTTON)({
         className: "btn btn-primary",
@@ -5125,6 +5134,6 @@ function NotFoundPage(shell) {
     }, "Back to Home")));
 }
 
-},{"oxidizer":"hnuU9","../layout/Sidebar":"hNbmf","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}]},["keXaH","gH3Lb"], "gH3Lb", "parcelRequire56c8", {})
+},{"oxidizer":"hnuU9","../layout/Sidebar":"hNbmf","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}]},["3dtlh","gH3Lb"], "gH3Lb", "parcelRequire56c8", {})
 
 //# sourceMappingURL=pages.34df32e0.js.map

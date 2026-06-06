@@ -2,6 +2,7 @@ import { createProps, createEffect, ASIDE, DIV, NAV, UL, LI, BUTTON, INPUT, A, S
 import { navigate, getPathname, getSearch, setSearch } from "oxidizer-router";
 import { NAV_ITEMS } from "../content";
 import { renderInline } from "../components";
+import { BASE_PATH } from "../App";
 
 export type ShellProps = ReturnType<typeof createProps<{
     path: string;
@@ -21,7 +22,7 @@ export function syncRoute(shell: ShellProps) {
 
 export function goTo(path: string, shell: ShellProps) {
     const { q } = getSearch();
-    navigate(path, q ? { search: { q } } : undefined);
+    navigate(path.startsWith(BASE_PATH) ? path : BASE_PATH + path, q ? { search: { q } } : undefined);
     syncRoute(shell);
     shell.open = false;
 }

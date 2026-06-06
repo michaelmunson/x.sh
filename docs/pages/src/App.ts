@@ -1,9 +1,11 @@
 import { createProps, createEffect, DIV, P, A, BUTTON, SPAN } from "oxidizer";
-import Router, { getPathname } from "oxidizer-router";
+import Router, { getPathname, navigate } from "oxidizer-router";
 import { Sidebar, syncRoute } from "./layout/Sidebar";
 import HomePage from "./views/HomePage";
 import SectionPage from "./views/SectionPage";
 import NotFoundPage from "./views/NotFoundPage";
+
+export const BASE_PATH = '/x.sh';
 
 export default function App() {
     const shell = createProps({
@@ -11,13 +13,13 @@ export default function App() {
         open: false,
         routeKey: window.location.search,
     }, [
-        createEffect(['routeKey'], $ => {
-            if ($.routeKey) setTimeout(() => {
-                const input = document.querySelector('input[type="search"]') as HTMLInputElement;
-                if (input) {
-                    input.focus();
-                }
-            }, 100)
+        createEffect(['path'], $ => {
+            if (!$.path.startsWith(BASE_PATH)) {
+                console.log('redirecting to', BASE_PATH, $.path);
+                $.path = BASE_PATH + $.path;
+                console.log('redirected to', $.path);
+                navigate(BASE_PATH + $.path);
+            }
         })
     ]);
 
@@ -43,7 +45,11 @@ export default function App() {
             ),
             Router({
                 "/": () => HomePage(shell),
+                "/x.sh": () => HomePage(shell),
                 "/docs": {
+                    ":sectionId": () => SectionPage(shell),
+                },
+                "/x.sh/docs": {
                     ":sectionId": () => SectionPage(shell),
                 },
                 "*": () => NotFoundPage(shell),

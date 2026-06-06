@@ -11,10 +11,10 @@ export default function HomePage(shell: ShellProps) {
         DIV({ className: "hero" },
             H1({ className: "hero-title" },
                 SPAN({ className: "hero-x" }, "x"),
-                ".sh Documentation"
+                ".sh"
             ),
             P({ className: "hero-tagline" },
-                "Script management, project task runners, and YAML-defined CLI apps — all from one binary."
+                "Script management and CLI App Framework."
             ),
             DIV({ className: "hero-actions" },
                 BUTTON({
