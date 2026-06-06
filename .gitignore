@@ -6,3 +6,5 @@
 *.classified.*
 *.classified
 
+node_modules/
+.parcel-cache/
