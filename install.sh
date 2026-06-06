@@ -27,7 +27,7 @@ INSTALL_DIR="${HOME}/.local/bin"
 TEMP_DIR=$(mktemp -d)
 
 IN_REPO=false
-if [ -d ".git" ] && [ -f "x/Cargo.toml" ]; then
+if [ -d ".git" ] && [ -f "Cargo.toml" ]; then
     IN_REPO=true
 fi
 
@@ -92,14 +92,14 @@ build_binary() {
         BUILD_DIR="$TEMP_DIR/repo"
     fi
     
-    cd "$BUILD_DIR/x" || error "Failed to enter project directory (x/)"
+    cd "$BUILD_DIR" || error "Failed to enter project directory (./)"
     
     info "Building $BINARY_NAME (this may take a few minutes on first run)..."
     if ! cargo build --release; then
         error "Build failed. Please check the error messages above."
     fi
     
-    BINARY_PATH="$BUILD_DIR/x/target/release/$BINARY_NAME"
+    BINARY_PATH="$BUILD_DIR/target/release/$BINARY_NAME"
     
     if [ ! -f "$BINARY_PATH" ]; then
         error "Binary not found at expected location: $BINARY_PATH"
