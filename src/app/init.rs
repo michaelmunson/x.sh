@@ -123,7 +123,7 @@ fn seed_template(name: &str) -> String {
     format!(
         r#"
 # documentation: https://github.com/michaelmunson/x.sh/blob/main/README.md#app-framework
-# examples:      https://github.com/michaelmunson/x.sh/blob/main/examples/app/exapp.x.yml
+# examples:      https://github.com/michaelmunson/x.sh/blob/main/docs/examples/app/exapp.x.yml
 
 name: {name}
 version: 0.0.0

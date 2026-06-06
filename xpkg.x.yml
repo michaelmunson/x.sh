@@ -1,0 +1,37 @@
+
+# documentation: https://github.com/michaelmunson/x.sh/blob/main/README.md#app-framework
+# examples:      https://github.com/michaelmunson/x.sh/blob/main/docs/examples/app/exapp.x.yml
+
+name: xpkg
+version: 0.0.0
+description: x package meta app
+
+commands:
+  build:
+    description: build the binary/docs
+    commands:
+      docs:
+        description: build the docs
+        options:
+          - '[--start]'
+      bin:
+        description: build the binary
+  test:
+    description: run the tests
+
+$:
+  build: |
+    x xpkg build docs
+    x xpkg build bin
+  build.docs: |
+    pushd docs/pages
+    if [ "$(x-opt "start")" = "true" ]; then
+      npm run start
+    else
+      npm run build
+    fi
+    popd
+  build.bin: |
+    cargo build --release
+  test: |
+    cargo test --bin x

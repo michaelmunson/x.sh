@@ -367,7 +367,7 @@ $:
                 "Unknown options are rejected with a clear error.",
             ]},
             { type: "h3", text: "YAML anchors" },
-            { type: "p", text: "Standard YAML anchors and aliases work for sharing option sets across commands — see the [example app](https://github.com/michaelmunson/x.sh/blob/main/examples/app/exapp.x.yml) for `&demo_verbose` / `*demo_verbose` usage." },
+            { type: "p", text: "Standard YAML anchors and aliases work for sharing option sets across commands — see the [example app](https://github.com/michaelmunson/x.sh/blob/main/docs/examples/app/exapp.x.yml) for `&demo_verbose` / `*demo_verbose` usage." },
         ],
     },
     {
@@ -528,7 +528,7 @@ ollama run llama2 "$PROMPT"` },
         blocks: [
             { type: "h3", text: "Comprehensive example app (`exapp`)" },
             { type: "p", text: "The repository includes a full-featured sample app that exercises every synopsis form, YAML anchors, `$.import` handler splits, and all built-in helpers." },
-            { type: "link", href: "https://github.com/michaelmunson/x.sh/blob/main/examples/app/exapp.x.yml", text: "View exapp.x.yml on GitHub", external: true },
+            { type: "link", href: "https://github.com/michaelmunson/x.sh/blob/main/docs/examples/app/exapp.x.yml", text: "View exapp.x.yml on GitHub", external: true },
             { type: "code", code: `# After cloning the repo:
 x exapp --help
 x exapp demo opts --dry-run --out /tmp/out --kind=alpha

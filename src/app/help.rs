@@ -167,3 +167,98 @@ fn format_arg(arg: &ArgDef) -> String {
         with_repeat
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::loader;
+    use std::path::Path;
+
+    fn render_yaml(yaml: &str, path: &[&str]) -> String {
+        let app = loader::parse(yaml, Path::new("test.x.yml")).unwrap();
+        let path: Vec<String> = path.iter().map(|s| s.to_string()).collect();
+        render(&app, &path).unwrap()
+    }
+
+    #[test]
+    fn root_help_contains_name_usage_and_version() {
+        let text = render_yaml(
+            r#"
+name: mytool
+version: 1.2.3
+description: does things
+options:
+  - "[-v | --verbose]"
+arguments:
+  - "[<file>]"
+commands:
+  build:
+    description: compile
+"$":
+  "": echo
+  build: echo
+"#,
+            &[],
+        );
+        assert!(text.contains("does things"));
+        assert!(text.contains("Usage: mytool"));
+        assert!(text.contains("[OPTIONS]"));
+        assert!(text.contains("<COMMAND>"));
+        assert!(text.contains("Commands:"));
+        assert!(text.contains("build"));
+        assert!(text.contains("compile"));
+        assert!(text.contains("Options:"));
+        assert!(text.contains("-v, --verbose"));
+        assert!(text.contains("Arguments:"));
+        assert!(text.contains("[<file>]"));
+        assert!(text.contains("Version: 1.2.3"));
+    }
+
+    #[test]
+    fn subcommand_help_lists_options_and_arguments() {
+        let text = render_yaml(
+            r#"
+name: app
+commands:
+  demo:
+    description: demo command
+    options:
+      - "[--mode={fast|safe}]"
+    arguments:
+      - "<name>"
+"$":
+  demo: echo
+"#,
+            &["demo"],
+        );
+        assert!(text.contains("Usage: app demo"));
+        assert!(text.contains("demo command"));
+        assert!(text.contains("--mode {fast|safe}"));
+        assert!(text.contains("<name>"));
+        assert!(!text.contains("Commands:"));
+    }
+
+    #[test]
+    fn option_help_shows_default_and_requires() {
+        let text = render_yaml(
+            r#"
+name: app
+options:
+  - "[--src=<path> [--dst=<path>]]"
+  - "[-c | --count <n='1'>]"
+"$":
+  "": echo
+"#,
+            &[],
+        );
+        assert!(text.contains("(default: 1)"));
+        assert!(text.contains("(requires: --src)"));
+    }
+
+    #[test]
+    fn unknown_subcommand_errors() {
+        let app = loader::parse("name: app\n", Path::new("test.x.yml")).unwrap();
+        let err = render(&app, &["nope".into()]).unwrap_err();
+        assert!(err.to_string().contains("unknown subcommand"));
+    }
+}

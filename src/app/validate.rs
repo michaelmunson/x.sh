@@ -171,3 +171,164 @@ pub fn format_errors(errors: &[ValidationError]) -> String {
     }
     out
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::loader;
+    use std::path::Path;
+
+    fn app(yaml: &str) -> App {
+        loader::parse(yaml, Path::new("test.x.yml")).unwrap()
+    }
+
+    fn err_messages(yaml: &str) -> Vec<String> {
+        let errors = validate(&app(yaml)).unwrap_err();
+        errors.iter().map(|e| e.message.clone()).collect()
+    }
+
+    #[test]
+    fn valid_app_passes() {
+        let app = app(
+            r#"
+name: ok
+commands:
+  run:
+    description: run it
+"$":
+  run: echo ok
+"#,
+        );
+        assert!(validate(&app).is_ok());
+    }
+
+    #[test]
+    fn reports_missing_leaf_handler() {
+        let msgs = err_messages(
+            r#"
+name: t
+commands:
+  run:
+    description: x
+"#,
+        );
+        assert!(msgs.iter().any(|m| m.contains("no handler")));
+    }
+
+    #[test]
+    fn reports_orphan_handler_key() {
+        let msgs = err_messages(
+            r#"
+name: t
+commands:
+  run:
+    description: x
+"$":
+  run: echo
+  ghost: echo
+"#,
+        );
+        assert!(msgs.iter().any(|m| m.contains("does not match any command")));
+    }
+
+    #[test]
+    fn reports_duplicate_long_option() {
+        let msgs = err_messages(
+            r#"
+name: t
+options:
+  - "[--foo]"
+  - "[--foo]"
+"$":
+  "": echo
+"#,
+        );
+        assert!(msgs.iter().any(|m| m.contains("duplicate option `--foo`")));
+    }
+
+    #[test]
+    fn reports_duplicate_short_option() {
+        let msgs = err_messages(
+            r#"
+name: t
+options:
+  - "[-f]"
+  - "[-f]"
+"$":
+  "": echo
+"#,
+        );
+        assert!(msgs.iter().any(|m| m.contains("duplicate option `-f`")));
+    }
+
+    #[test]
+    fn reports_unknown_requires_target() {
+        use crate::app::spec::{Command, OptionDef, ValueKind};
+
+        let mut root = Command::new("t");
+        root.options.push(OptionDef {
+            short: None,
+            long: Some("dst".into()),
+            takes_value: ValueKind::Required("path".into()),
+            default: None,
+            choices: None,
+            repeats: false,
+            requires: vec!["ghost".into()],
+            required: false,
+            description: None,
+        });
+        let app = App {
+            name: "t".into(),
+            version: None,
+            description: None,
+            root,
+            handlers: [("".to_string(), "echo".into())].into_iter().collect(),
+        };
+        let msgs = validate(&app).unwrap_err();
+        assert!(msgs.iter().any(|m| m.message.contains("requires `--ghost`")));
+    }
+
+    #[test]
+    fn reports_duplicate_argument() {
+        let msgs = err_messages(
+            r#"
+name: t
+arguments:
+  - "<file>"
+  - "<file>"
+"$":
+  "": echo
+"#,
+        );
+        assert!(msgs.iter().any(|m| m.contains("duplicate argument `<file>`")));
+    }
+
+    #[test]
+    fn collects_multiple_errors() {
+        let errors = validate(&app(
+            r#"
+name: t
+commands:
+  a:
+    description: leaf
+  b:
+    description: leaf
+"$":
+  orphan: echo
+"#,
+        ))
+        .unwrap_err();
+        assert!(errors.len() >= 3);
+    }
+
+    #[test]
+    fn format_errors_includes_count() {
+        let errors = vec![ValidationError {
+            path: "run".into(),
+            message: "bad".into(),
+        }];
+        let text = format_errors(&errors);
+        assert!(text.contains("1 error"));
+        assert!(text.contains("[run] bad"));
+    }
+}

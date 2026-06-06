@@ -16,3 +16,8 @@ chrono = "0.4"
 inquire = "0.7"
 comfy-table = "7.1"
 
+[dev-dependencies]
+assert_cmd = "2.0"
+predicates = "3.1"
+tempfile = "3.0"
+

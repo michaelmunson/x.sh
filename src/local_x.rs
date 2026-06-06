@@ -142,4 +142,28 @@ deploy:
         let root = parse("other: echo hi\n");
         assert!(root.get("build").is_none());
     }
+
+    #[test]
+    fn missing_default_subcommand_errors() {
+        let root = parse(
+            r"
+deploy:
+  prod: echo prod
+",
+        );
+        let err = resolve_entry(&root["deploy"], &[]).unwrap_err();
+        assert!(err.to_string().contains("missing default script"));
+    }
+
+    #[test]
+    fn unknown_subcommand_errors() {
+        let root = parse(
+            r"
+deploy:
+  prod: echo prod
+",
+        );
+        let err = resolve_entry(&root["deploy"], &["staging".into()]).unwrap_err();
+        assert!(err.to_string().contains("unknown subcommand"));
+    }
 }

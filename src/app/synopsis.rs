@@ -700,4 +700,53 @@ mod tests {
             Some(&["render".into(), "build".into(), "clean".into()][..])
         );
     }
+
+    #[test]
+    fn bare_required_flag() {
+        let e = parse_fragment("--commit").unwrap();
+        let o = opt(&e);
+        assert_eq!(o.len(), 1);
+        assert_eq!(o[0].long.as_deref(), Some("commit"));
+        assert!(o[0].required);
+    }
+
+    #[test]
+    fn quoted_default_literal() {
+        let e = parse_fragment("[<content='hello world'>]").unwrap();
+        let a = args(&e);
+        assert_eq!(a[0].default.as_deref(), Some("hello world"));
+    }
+
+    #[test]
+    fn multiple_top_level_tokens() {
+        let e = parse_fragment("<path> [<content='empty'>]").unwrap();
+        assert_eq!(e.len(), 2);
+    }
+
+    fn full_error(err: impl std::fmt::Display) -> String {
+        format!("{err:#}")
+    }
+
+    #[test]
+    fn unbalanced_bracket_errors() {
+        let err = parse_fragment("[--foo").unwrap_err();
+        assert!(full_error(&err).contains("unbalanced"));
+    }
+
+    #[test]
+    fn unrecognized_token_errors() {
+        let err = parse_fragment("not-a-spec").unwrap_err();
+        assert!(full_error(&err).contains("unrecognised"));
+    }
+
+    #[test]
+    fn required_choice_needs_two_alternatives() {
+        let err = parse_fragment("(only)").unwrap_err();
+        assert!(full_error(&err).contains("at least two alternatives"));
+    }
+
+    #[test]
+    fn empty_fragment_returns_nothing() {
+        assert!(parse_fragment("   ").unwrap().is_empty());
+    }
 }

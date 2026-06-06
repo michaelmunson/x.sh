@@ -1,0 +1,4 @@
+build: |
+  x xpkg build
+test: |
+  x xpkg test
