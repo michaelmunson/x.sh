@@ -72,6 +72,8 @@ x __complete bash > ~/.local/share/bash-completion/completions/x
 **Zsh** (add to `~/.zshrc`):
 ```bash
 source <(x __complete zsh)
+# or (if that doesn't work)
+source <(x __complete bash)
 ```
 
 ## Quick Start
