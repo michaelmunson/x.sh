@@ -9,13 +9,6 @@ description: x package meta app
 commands:
   build:
     description: build the binary/docs
-    commands:
-      docs:
-        description: build the docs
-        options:
-          - '[--start]'
-      bin:
-        description: build the binary
   test:
     description: run the tests
     options:
@@ -24,18 +17,6 @@ commands:
 
 $:
   build: |
-    x xpkg build docs
-    x xpkg build bin
-  build.docs: |
-    pushd docs/pages
-    npm install
-    if [ "$(x-opt "start")" = "true" ]; then
-      npm run start
-    else
-      npm run build
-    fi
-    popd
-  build.bin: |
     cargo build --release
   test: |
     if [ "$(x-opt "complete")" = "true" ]; then

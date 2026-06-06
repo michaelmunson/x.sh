@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>x.sh</title>
+  <style>
+    body {
+      margin-left: 1em;
+      font-family: 'Trebuchet MS', sans-serif;
+    }
+
+    body, main {
+      display: flex;
+      flex-direction: column;
+      gap: 1em;
+    }
+
+    main {
+      border-top: 1px solid #cacaca;
+      padding-top: 1em;
+      border-bottom: 1px solid #cacaca;
+      padding-bottom: 1em;
+      & > details > summary { font-size: 1.3rem; }
+      & > section {
+        display: flex;
+        flex-direction: column;
+        gap: 1em;
+        & > details {
+        & summary { font-size: 1.3rem; }
+        & > section > details > summary { font-size: 1.2rem; }
+      }
+      }
+    }
+
+    header {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5em;
+      & > h1, p { margin: 0em }
+    }
+    
+    h4, h5, h6, p {
+      margin: 0.5em 0em;
+    }
+
+    h3 + p {
+      margin-top: 0em;
+    }
+
+    h3 + fieldset {
+      margin-top: 0.5em;
+    }
+    
+    h3 {
+      font-size: 1.2rem;
+      margin-bottom: 0em;
+      & code {
+        font-size: 1rem;
+      }
+    }
+
+    fieldset {
+      border-radius: 5px;
+      & legend {
+        padding: 0em .3rem;
+        border: 1px solid #cacaca;
+        border-radius: 5px;
+        font-size: 0.8rem;
+      }
+      & + fieldset {
+        margin-top: 1em;
+      }
+    }
+
+    pre {
+      margin: 0em;
+    }
+
+    details {
+      &[open] {
+        /* margin-bottom: 1em; */
+        & summary {
+          margin-bottom: 0.5em;
+          border-left: 1px solid white;
+          border-radius: 5px;
+        }
+
+        &>summary {
+          font-weight: bold;
+          text-decoration: underline;
+        }
+      }
+
+      &>section {
+        padding: 0.5em 1rem 0.5em 1em;
+        margin-right: 1em;
+        border-left: 2px solid #b7b7b7;
+
+        &>h3:nth-child(1),
+        &>p:nth-child(1),
+        &>ul:nth-child(1),
+        &>ol:nth-child(1) {
+          margin-top: 0;
+        }
+      }
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1em 0;
+      background: #fff;
+    }
+    table th,
+    table td {
+      padding: 0.6em 1em;
+      border: 1px solid #ececec;
+      text-align: left;
+    }
+    table th {
+      font-weight: bold;
+      border-bottom: 2px solid #cacaca;
+      text-align: left;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>x.sh</h1>
+    <p>A personal script manager and lightweight CLI app framework for your shell.</p>
+    <fieldset>
+      <legend>Install</legend>
+        <pre><code>curl -fsSL https://raw.githubusercontent.com/michaelmunson/x.sh/main/install.sh | bash</code></pre>
+    </fieldset>
+  </header>
+  <main>
+    <details name="detail" id="overview">
+      <summary>Overview</summary>
+      <section>
+        <p><strong>x</strong> is a Rust-powered CLI that helps you create, organize, and run scripts across projects. Think of it as a script registry with metadata, editor integration, and optional symlinks into your PATH, plus two YAML-based layers for project commands and full multi-command apps.</p>
+        <h3>What makes x different</h3>
+        <ul>
+          <li><strong>Global scripts</strong> live in <code>~/.x.sh/scripts/</code> with per-script metadata (description, language, groups) and usage tracking.</li>
+          <li><strong>Project-local commands</strong> in <code>./x.yml</code> let you easily define project specific scripts and commands.</li>
+          <li><strong>Apps</strong> (<code>&lt;name&gt;.x.yml</code>) turn YAML into validated CLIs with options, arguments, nested subcommands, and bash handlers. Before any bash runs, x parses and validates the user's input.</li>
+        </ul>
+        <h3>Script/App Resolution Order</h3>
+        <fieldset>
+          <legend></legend>
+          <pre><code>1. ./x.yml          → project-local inline script (CWD only)
+2. ./&lt;name&gt;.x.yml    → local app (CWD, then parent dirs)
+3. ~/.x.sh/apps/     → global app
+4. ~/.x.sh/scripts/  → installed global script</code></pre>
+        </fieldset><br>
+        <aside><strong>Tip:</strong> Use <code>x --src &lt;name&gt;</code> to print the absolute path of a script or app file without executing it, it is handy for piping into editors or CI.</aside>
+      </section>
+    </details>
+    <details name="detail" id="installation">
+      <summary>Installation</summary>
+      <section>
+        <h3>Automated install (recommended)</h3>
+        <p>The install script clones the repo, builds in release mode, and places the binary in <code>~/.local/bin/</code>.</p>
+        <fieldset>
+          <legend></legend>
+          <pre><code>curl -fsSL https://raw.githubusercontent.com/michaelmunson/x.sh/main/install.sh | bash</code></pre>
+        </fieldset>
+        <p>Or download and run manually:</p>
+        <fieldset>
+          <legend></legend>
+          <pre><code>wget https://raw.githubusercontent.com/michaelmunson/x.sh/main/install.sh
+bash install.sh</code></pre>
+        </fieldset>
+        <h4>Requirements</h4>
+        <ul>
+          <li><strong>Rust / Cargo</strong>: the script prompts you to install via rustup if missing.</li>
+          <li><strong>Git</strong>: used to clone the repository (skipped if you run the script from inside the repo).</li>
+          <li>An internet connection for the initial clone and build.</li>
+        </ul>
+        <h4>What the script does</h4>
+        <ol>
+          <li>Checks for Rust/Cargo.</li>
+          <li>Clones <code>github.com/michaelmunson/x.sh</code> (or uses the current directory if already in the repo).</li>
+          <li>Runs <code>cargo build --release</code>.</li>
+          <li>Copies <code>target/release/x</code> to <code>~/.local/bin/x</code>.</li>
+          <li>Verifies the installation by running <code>x --help</code>.</li>
+        </ol>
+        <aside><strong>PATH</strong> Ensure <code>~/.local/bin</code> is on your PATH. Add <code>export PATH="$HOME/.local/bin:$PATH"</code> to <code>~/.bashrc</code>, <code>~/.zshrc</code>, or <code>~/.profile</code>, then restart your shell.</aside>
+        <h3>Manual build</h3>
+        <fieldset>
+          <legend></legend>
+          <pre><code>git clone https://github.com/michaelmunson/x.sh.git
+cd x.sh
+cargo build --release
+# Binary at target/release/x: copy or symlink into your PATH</code></pre>
+        </fieldset>
+        <h3>First-run directory layout</h3>
+        <p>On first use, x creates <code>~/.x.sh/</code> with the following structure:</p>
+        <fieldset>
+          <legend></legend>
+          <pre><code>~/.x.sh/
+├── scripts/          # your global script files
+├── apps/             # global app YAML files (&lt;name&gt;.x.yml)
+├── metadata/         # per-script TOML metadata
+│   └── &lt;name&gt;.toml
+├── config.json       # default_program and other settings
+├── metadata.json     # usage / activity tracking
+└── config/
+    └── llm.sh        # LLM provider script (after x --config)</code></pre>
+        </fieldset>
+      </section>
+    </details>
+    <details name="detail" id="quickstart">
+      <summary>Quick Start</summary>
+      <section>
+        <h3>1. Create your first script</h3>
+        <fieldset>
+          <legend></legend>
+          <pre><code>x --init hello-world
+# or: x -i hello-world</code></pre>
+        </fieldset>
+        <p>Interactive prompts ask for the script name (alphanumeric + dashes), an optional description, and a programming language. Your <code>$EDITOR</code> opens so you can write the script body.</p>
+        <h3>2. Run it</h3>
+        <fieldset>
+          <legend></legend>
+          <pre><code>x hello-world
+x hello-world arg1 arg2   # args pass through to the script</code></pre>
+        </fieldset>
+        <h3>3. List installed scripts</h3>
+        <fieldset>
+          <legend></legend>
+          <pre><code>x --ls
+# or: x -l</code></pre>
+        </fieldset>
+        <p>Shows a formatted table with name, description, language, groups, and last-run timestamps.</p>
+        <h3>4. Add to PATH (optional)</h3>
+        <fieldset>
+          <legend></legend>
+          <pre><code>x --ln hello-world
+# Now run directly: hello-world</code></pre>
+        </fieldset>
+        <h3>5. Project-local commands (optional)</h3>
+        <p>Drop an <code>x.yml</code> in your project root to define repo-specific tasks:</p>
+        <fieldset>
+          <legend>x.yml</legend>
+          <pre><code>test: npm test
+build: |
+  npm run build
+  echo &quot;Built $1&quot;   # $1 = first arg after &#x27;build&#x27;</code></pre>
+        </fieldset>
+        <fieldset>
+          <legend></legend>
+          <pre><code>x test
+x build v1.0.0</code></pre>
+        </fieldset>
+      </section>
+    </details>
+    <details name="detail" id="architecture">
+      <summary>Architecture</summary>
+      <section>
+        <h3>Command resolution flow</h3>
+        <p>When you invoke <code>x &lt;name&gt; [args…]</code>, x walks a fixed resolution chain. The first match wins and the process exits after execution.</p>
+        <h3>Local app discovery</h3>
+        <p>Unlike <code>x.yml</code> (current directory only), <strong>local apps</strong> are discovered by walking from the current working directory up through every parent directory. The nearest <code>&lt;name&gt;.x.yml</code> wins. This lets monorepos keep a shared app at the repo root while you work in subdirectories.</p>
+        <h3>Global script lookup</h3>
+        <p>Scripts in <code>~/.x.sh/scripts/</code> are matched by exact filename first, then by basename without extension, so <code>x c-test</code> finds <code>c-test.c</code> automatically.</p>
+        <h3>Metadata model</h3>
+        <p>Each global script can have a companion TOML file at <code>~/.x.sh/metadata/&lt;name&gt;.toml</code>:</p>
+        <fieldset>
+          <legend></legend>
+          <pre><code>description = &quot;Fetch a URL with curl&quot;
+groups = [&quot;network&quot;, &quot;utils&quot;]
+program = &quot;bash</code></pre>
+        </fieldset>
+        <p>Activity data (created, updated, last_executed) is stored separately in <code>~/.x.sh/metadata.json</code> and shown in <code>x --ls</code>.</p>
+        <h3>Inline script execution</h3>
+        <p>Project-local <code>x.yml</code> entries and certain inline paths run via your configured default program (typically <code>bash</code>):</p>
+        <fieldset>
+          <legend></legend>
+          <pre><code>&lt;program&gt; -c &#x27;&lt;script body&gt;&#x27; x &lt;remaining-args…&gt;</code></pre>
+        </fieldset>
+        <p>Positional parameters in the script body (<code>$1</code>, <code>$2</code>, …) refer to arguments after the command name.</p>
+      </section>
+    </details>
+    <details name="detail" id="commands">
+      <summary>Commands</summary>
+      <section>
+        <h3><code>x --init [name] [script]</code> / <code>x -i</code></h3>
+        <p>Create a new global script or re-open an existing one in your editor.</p>
+        <ul>
+          <li><code>x -i</code>: fully interactive (name, description, language, editor).</li>
+          <li><code>x -i my-script</code>: prompts for metadata, opens editor. If the script exists, you can rename it first; metadata and history follow the new name.</li>
+          <li><code>x -i my-script "echo hello"</code>: creates the script with inline content using the default or existing program.</li>
+        </ul>
+        <aside><strong>Note:</strong> Script names must be non-empty and contain only letters, numbers, and dashes.</aside>
+        <h3><code>x &lt;script_name&gt; [args…]</code></h3>
+        <p>Execute a command using the resolution order described in Architecture. Arguments are forwarded verbatim.</p>
+        <h3><code>x --ls</code> / <code>x -l</code></h3>
+        <p>List all global scripts in a table with description, program, groups, and activity timestamps.</p>
+        <h3><code>x --delete &lt;name&gt;</code> / <code>x -d</code></h3>
+        <p>Remove a global script and its metadata. Does <strong>not</strong> remove symlinks created with <code>x --ln</code>; delete those separately.</p>
+        <h3><code>x --ln &lt;name&gt; [link_name]</code></h3>
+        <p>Symlink a script into <code>~/.local/bin/</code> so you can invoke it without the <code>x</code> prefix.</p>
+        <fieldset>
+          <legend></legend>
+          <pre><code>x --ln my-script          # → ~/.local/bin/my-script
+x --ln my-script alias    # → ~/.local/bin/alias
+x -d --ln my-script       # remove the symlink</code></pre>
+        </fieldset>
+        <h3><code>x --src &lt;name&gt;</code></h3>
+        <p>Print the absolute path of a script or app file. Resolution: local app → global app → global script. <code>x.yml</code> keys are not matched.</p>
+        <h3><code>x -i --app [--local | --global] [&lt;name&gt;]</code></h3>
+        <p>Create a new app YAML file. Scope flags control where the file is written; without them, x prompts interactively.</p>
+        <h3><code>x --config</code></h3>
+        <p>Interactive configuration for default script language and LLM provider. See the Configuration section.</p>
+        <h3><code>x --ai</code> and <code>x -i --ai [name]</code></h3>
+        <p>LLM-powered command and script generation. Requires <code>~/.x.sh/config/llm.sh</code>. See AI Integration.</p>
+      </section>
+    </details>
+    <section id="scripts">
+      <details name="detail">
+        <summary>Scripts</summary>
+        <section>
+          <details id="global-scripts">
+            <summary>Global Scripts</summary>
+            <section>
+          <p>Global scripts are plain files in <code>~/.x.sh/scripts/</code>. Each script is executed with the program stored in its metadata (or the global default from <code>x --config</code>).</p>
+          <h3>Creating and editing</h3>
+          <p><code>x -i</code> is the primary workflow. x opens your <code>$EDITOR</code>, and on save, writes the file and metadata. <br> Re-running <code>x -i &lt;name&gt;</code> on an existing script lets you edit in place or rename.</p>
+          <h3>Passing arguments</h3>
+        <fieldset>
+          <legend></legend>
+          <pre><code># Script: curl-google (bash)
+curl -s &quot;https://google.com$1&quot;
+
+$ x curl-google /search
+# → curl -s &quot;https://google.com/search&quot;</code></pre>
+        </fieldset>
+          <h3>Program / interpreter</h3>
+          <p>The <code>program</code> field in metadata determines how x invokes the file, such as <code>bash</code>, <code>python</code>, <code>node</code>, <code>go run</code>, etc. Set per-script during <code>x -i</code> or rely on the global default.</p>
+          <h3>Groups</h3>
+          <p>Metadata <code>groups</code> are free-form tags for organization. They appear in <code>x --ls</code> output to help you scan large script collections.</p>
+          <h3>Symlinks vs scripts</h3>
+          <p><code>x --ln</code> creates a symlink in <code>~/.local/bin/</code>, not a copy. The symlink points at the script file in <code>~/.x.sh/scripts/</code>, so edits via <code>x -i</code> are reflected immediately.</p>
+            </section>
+          </details>
+          <details id="project-local">
+            <summary>Project-local Scripts</summary>
+            <section>
+          <p>Place a file named <code>x.yml</code> in your <strong>current working directory</strong>. When you run <code>x &lt;name&gt;</code>, x loads it and looks for a top-level key matching <code>&lt;name&gt;</code>. If found, the entry runs; otherwise x falls back to global scripts.</p>
+        <aside><strong>Warning:</strong> Only the CWD is checked for <code>x.yml</code>, not parent directories. Invalid YAML fails immediately; x does not fall back to global scripts on parse errors.</aside>
+          <h3>String entries (inline scripts)</h3>
+        <fieldset>
+          <legend>x.yml</legend>
+          <pre><code>lint: npm run lint
+
+build: |
+  VERSION=&quot;$1&quot;
+  npm run build
+  npm version &quot;$VERSION&quot;
+  git push --tags</code></pre>
+        </fieldset>
+          <p>Extra CLI arguments after the command name become <code>$1</code>, <code>$2</code>, … in the script body.</p>
+          <h3>Mapping entries (nested subcommands)</h3>
+        <fieldset>
+          <legend>Nested commands</legend>
+          <pre><code>deploy:
+  $: |
+    echo &quot;Deploying (default)&quot;
+    x deploy dev
+  dev: npm run deploy:dev
+  prod: npm run deploy:prod
+  test:
+    unit: npx jest unit
+    integration: npx jest integration</code></pre>
+        </fieldset>
+          <ul>
+            <li><code>$</code>: default handler when you run the parent with no further arguments (<code>x deploy</code>).</li>
+            <li>Any other key: nested subcommand; mappings can nest arbitrarily deep.</li>
+            <li><code>x deploy prod</code> → <code>deploy.prod</code></li>
+            <li><code>x deploy test unit</code> → <code>deploy.test.unit</code></li>
+          </ul>
+        <aside><strong>Note:</strong> If a mapping has nested keys but no <code>$</code> handler, invoking the parent alone (e.g. <code>x deploy</code>) produces an error asking you to add <code>$</code> or pass a subcommand.</aside>
+          <h3>Execution details</h3>
+          <p>Local scripts use your configured <strong>default program</strong> (<code>x --config</code> → <code>default_program</code> in <code>~/.x.sh/config.json</code>), typically <code>bash</code>. No per-entry metadata is supported.</p>
+          <h3>Activity tracking</h3>
+          <p>Runs from <code>x.yml</code> are <strong>not</strong> recorded in <code>x --ls</code> activity data; only global scripts are tracked.</p>
+            </section>
+          </details>
+        </section>
+      </details>
+    </section>
+    <section id="app">
+      <details name="detail">
+        <summary>Apps</summary>
+        <section>
+          <details id="app-framework">
+            <summary>Overview</summary>
+            <section>
+          <p>Apps turn a single <code>&lt;name&gt;.x.yml</code> file into a structured CLI with options, positional arguments, nested subcommands, and bash handlers. Unlike <code>x.yml</code> inline scripts, apps get <strong>parse-time validation</strong>: x checks required args, defaults, choice membership, <code>requires:</code> chains, and unknown flags before any handler bash executes.</p>
+          <h3>Where apps live</h3>
+          <ul>
+            <li><strong>Local:</strong> <code>./&lt;name&gt;.x.yml</code> (discovered from CWD up through parents).</li>
+            <li><strong>Global:</strong> <code>~/.x.sh/apps/&lt;name&gt;.x.yml</code>.</li>
+          </ul>
+          <h3>Creating an app</h3>
+        <fieldset>
+          <legend></legend>
+          <pre><code>x -i --app my-app             # prompts for local vs global
+x -i --app --local my-app     # ./my-app.x.yml
+x -i --app --global my-app    # ~/.x.sh/apps/my-app.x.yml</code></pre>
+        </fieldset>
+          <p>After the editor closes, x validates the YAML structure, parses every synopsis string, and checks handler coverage. On failure you can <strong>edit</strong> (re-open) or <strong>revert</strong> (restore prior file or delete the new one).</p>
+          <h3>App vs project-local</h3>
+          <table>
+            <thead><tr><th>Feature</th><th><code>x.yml</code></th><th>App (<code>&lt;name&gt;.x.yml</code>)</th></tr></thead>
+            <tbody><tr><td>Scope</td><td>CWD only</td><td>CWD + parent walk / global</td></tr><tr><td>CLI parsing</td><td>None (raw args as $1…)</td><td>Full synopsis DSL + validation</td></tr><tr><td>Options / flags</td><td>No</td><td>Yes</td></tr><tr><td>Help generation</td><td>No</td><td>Auto <code>-h</code> / <code>--help</code> per command</td></tr><tr><td>Handlers</td><td>Inline YAML strings</td><td>Bash in <code>$:</code> block or <code>$.import</code></td></tr><tr><td>Metadata</td><td>None</td><td>name, version, description</td></tr></tbody>
+          </table>
+          <h3>Handler imports</h3>
+          <p>Large apps can split handlers into external YAML files via <code>$.import</code>. This is mutually exclusive with an inline <code>$:</code> block.</p>
+        <fieldset>
+          <legend></legend>
+          <pre><code>$.import:
+  - ./handlers/build.yml
+  - ./handlers/deploy.yml</code></pre>
+        </fieldset>
+            </section>
+          </details>
+          <details id="app-format">
+            <summary>File Format</summary>
+            <section>
+        <fieldset>
+          <legend>&lt;app&gt;.x.yml</legend>
+          <pre><code># metadata
+name: my-app
+version: 0.0.0
+description: an example app
+
+options:
+  - &quot;[-v | --version]&quot;
+
+commands:
+  build:
+    description: build the project
+    options:
+      - &quot;[--input=&lt;file&gt; [--output=&lt;dir&gt;]]&quot;
+      - &quot;[--mode={fast|safe|deep}]&quot;
+    arguments:
+      - &quot;&lt;assets&gt;...&quot;
+
+  create:
+    description: create things
+    commands:
+      file:
+        description: create a file
+        arguments: &quot;&lt;path&gt; [&lt;content=&#x27;empty&#x27;&gt;]&quot;
+      folder:
+        arguments: &quot;&lt;path&gt;&quot;
+
+$:
+  build: |
+    echo &quot;mode=$(x-opt mode), assets=$(x-arg assets)&quot;
+  create: x-usage create
+  create.file: |
+    echo &quot;creating $(x-arg path) with $(x-arg content)&quot;
+  create.folder: |
+    mkdir -p &quot;$(x-arg path)&quot;</code></pre>
+        </fieldset>
+          <h3>Top-level fields</h3>
+          <ul>
+            <li><code>name</code>, <code>version</code>, <code>description</code>: metadata shown in help output.</li>
+            <li><code>options</code>: flags available on the root command.</li>
+            <li><code>arguments</code>: positional args on the root command.</li>
+            <li><code>commands</code>: nested subcommand tree.</li>
+            <li><code>$</code> or <code>$.import</code>: bash handler map (mutually exclusive).</li>
+          </ul>
+          <h3>Command nodes</h3>
+          <p>Each entry under <code>commands</code> can have <code>description</code>, <code>options</code>, <code>arguments</code>, nested <code>commands</code>, or any combination. Leaf commands need a matching handler key in <code>$</code> (e.g. <code>build</code> → <code>$: build:</code>).</p>
+          <h3>Non-leaf groups</h3>
+          <p>A command with subcommands but no direct handler can use a one-liner like <code>create: x-usage create</code> to print help when invoked without a subcommand.</p>
+          <h3>Imported handlers</h3>
+          <p>External files referenced by <code>$.import</code> have the same flat <code>dotted.path: bash body</code> shape as the inline <code>$:</code> block.</p>
+            </section>
+          </details>
+          <details id="synopsis">
+            <summary>Synopsis DSL</summary>
+            <section>
+          <p>Every string in <code>options</code> and <code>arguments</code> arrays is a <strong>synopsis</strong> that x parses into a structured CLI spec. All constraints are enforced before handlers run.</p>
+          <table>
+            <thead><tr><th>Synopsis</th><th>Meaning</th></tr></thead>
+            <tbody><tr><td><code>&lt;name&gt;</code></td><td>Required positional</td></tr><tr><td><code>[&lt;name&gt;]</code></td><td>Optional positional</td></tr><tr><td><code>[&lt;name='val'&gt;]</code></td><td>Optional positional with default literal</td></tr><tr><td><code>&lt;name&gt;...</code> / <code>[&lt;name&gt;...]</code></td><td>Repeating positional (greedy, must be last)</td></tr><tr><td><code>[-s | --long]</code></td><td>Optional bool flag (alias pair)</td></tr><tr><td><code>[-s | --long &lt;arg&gt;]</code></td><td>Flag with one required value</td></tr><tr><td><code>[-s | --long &lt;arg='v'&gt;]</code></td><td>Flag value with default</td></tr><tr><td><code>[-s | --long &lt;arg&gt; ...]</code></td><td>Flag value repeats</td></tr><tr><td><code>[--long={a|b|c}]</code></td><td>Choice from set</td></tr><tr><td><code>[--long=&lt;arg='v'&gt;]</code></td><td><code>=</code> form with default value</td></tr><tr><td><code>[--input=&lt;a&gt; [--output=&lt;b&gt;]]</code></td><td>Nesting = dependency (<code>--output</code> requires <code>--input</code>)</td></tr><tr><td><code>(a|b|c)</code></td><td>Required choice (becomes positional <code>choice</code>)</td></tr><tr><td><code>--long</code></td><td>Required option (bare, no brackets)</td></tr></tbody>
+          </table>
+          <h3>Validation guarantees</h3>
+          <ul>
+            <li>Required arguments and options must be present.</li>
+            <li>Defaults are applied when optional values are omitted.</li>
+            <li>Choice values must be members of the declared set.</li>
+            <li><code>requires:</code> chains from nested bracket groups are enforced.</li>
+            <li>Repeating positionals must be the last argument in the list.</li>
+            <li>Unknown options are rejected with a clear error.</li>
+          </ul>
+          <h3>YAML anchors</h3>
+          <p>Standard YAML anchors and aliases work for sharing option sets across commands. See the <a href="https://github.com/michaelmunson/x.sh/blob/main/docs/examples/app/exapp.x.yml">example app</a> for <code>&demo_verbose</code> / <code>*demo_verbose</code> usage.</p>
+            </section>
+          </details>
+          <details id="builtins">
+            <summary>Built-in Helpers</summary>
+            <section>
+          <p>x prepends a small bash preamble to each handler so you can read parsed values without manual environment-variable wrangling. All helpers are available in the handler's scope and exported for <code>x-run</code> subprocesses.</p>
+          <table>
+            <thead><tr><th>Builtin</th><th>Behavior</th></tr></thead>
+            <tbody><tr><td><code>x-opt &lt;name&gt;</code></td><td>Print option value. Bool flags → <code>true</code>. Repeats join with newline.</td></tr><tr><td><code>x-arg &lt;name&gt;</code></td><td>Print positional argument value.</td></tr><tr><td><code>x-opts &lt;assoc-name&gt;</code></td><td>Populate a caller-named bash associative array with all options.</td></tr><tr><td><code>x-args &lt;assoc-name&gt;</code></td><td>Populate a caller-named bash associative array with all arguments.</td></tr><tr><td><code>x-run &lt;cmd&gt; [args…]</code></td><td>Run a command with <code>x-*</code> helpers still in scope.</td></tr><tr><td><code>x-usage &lt;cmd-path&gt;</code></td><td>Print auto-generated help (e.g. <code>x-usage create.file</code>).</td></tr><tr><td><code>x-io-read …</code></td><td>Prompt for a line. <code>-v</code> / <code>--var</code> assigns to a global scalar.</td></tr><tr><td><code>x-io-confirm …</code></td><td>Yes/no prompt (<code>--default yes|no</code>). <code>-v</code> assigns <code>true</code>/<code>false</code>.</td></tr><tr><td><code>x-io-select …</code></td><td>Menu of <code>id=label</code> pairs. <code>--multi</code> for multiple. <code>-v</code> assigns result.</td></tr></tbody>
+          </table>
+          <h3>Reading options and arguments</h3>
+        <fieldset>
+          <legend></legend>
+          <pre><code>echo &quot;mode=$(x-opt mode)&quot;
+echo &quot;path=$(x-arg path)&quot;
+
+declare -A opts
+x-opts opts
+echo &quot;${opts[mode]}&quot;
+
+declare -A args
+x-args args
+for k in &quot;${!args[@]}&quot;; do echo &quot;$k=${args[$k]}&quot;; done</code></pre>
+        </fieldset>
+          <h3>Repeating options</h3>
+        <fieldset>
+          <legend></legend>
+          <pre><code>mapfile -t dirs &lt; &lt;(x-opt dir)
+for d in &quot;${dirs[@]}&quot;; do echo &quot;dir: $d&quot;; done</code></pre>
+        </fieldset>
+          <h3>Interactive I/O</h3>
+        <fieldset>
+          <legend></legend>
+          <pre><code>x-io-read &quot;Name:&quot; -v name
+echo &quot;$name&quot;
+
+x-io-confirm &quot;Proceed?&quot; --default no -v ok
+[[ &quot;$ok&quot; == &quot;true&quot; ]] &amp;&amp; echo &quot;go&quot;
+
+x-io-select -v color &quot;Pick a color&quot; &quot;red=Red&quot; &quot;green=Green&quot; &quot;blue=Blue&quot;
+echo &quot;$color&quot;
+
+x-io-select --multi -v colors &quot;Colors&quot; &quot;r=Red&quot; &quot;g=Green&quot;
+echo &quot;${colors[0]}&quot;</code></pre>
+        </fieldset>
+        <aside><strong>Tip:</strong> With <code>-v</code> / <code>--var</code>, results land in the caller's global shell variable, not stdout. Multi-select stores an indexed array.</aside>
+            </section>
+          </details>
+          <details id="validation-help">
+            <summary>Validation &amp; Help</summary>
+            <section>
+          <h3>Automatic help</h3>
+          <p>Every command supports <code>-h</code> / <code>--help</code> out of the box, with no extra configuration.</p>
+        <fieldset>
+          <legend></legend>
+          <pre><code>x my-app --help
+x my-app build --help
+x my-app create file --help</code></pre>
+        </fieldset>
+          <p>The same renderer powers <code>x-usage &lt;cmd-path&gt;</code> inside handlers, so you can print context-appropriate help from bash.</p>
+          <h3>Save-time validation (<code>x -i --app</code>)</h3>
+          <p>When you finish editing an app file, x performs a full structural check:</p>
+          <ul>
+            <li>YAML parses cleanly.</li>
+            <li>Every synopsis string parses into a valid spec.</li>
+            <li>Leaf commands have corresponding <code>$</code> handlers.</li>
+            <li>No orphan handler keys.</li>
+            <li>No duplicate options within a command.</li>
+            <li>No dangling <code>requires:</code> references.</li>
+            <li><code>$</code> and <code>$.import</code> are not both present.</li>
+          </ul>
+          <p>On failure, x lists all errors and offers <strong>edit</strong> (re-open the editor) or <strong>revert</strong>.</p>
+          <h3>Runtime validation</h3>
+          <p>A lighter validation pass runs on every <code>x &lt;app&gt;</code> invocation so hand-edited or stale files fail fast with readable errors before any bash executes.</p>
+            </section>
+          </details>
+          <details id="examples">
+            <summary>Examples</summary>
+            <section>
+          <h3>Comprehensive example app (<code>exapp</code>)</h3>
+          <p>The app definition imports handlers from two sidecar files:</p>
+        <fieldset>
+          <legend>exapp.x.yml</legend>
+          <pre><code># Comprehensive sample app for the `x` app framework (`x exapp …`).
+# Demonstrates: metadata, root options/arguments, nested commands, YAML anchors,
+# every synopsis form from the cheat-sheet, and split `$.import` handler files.
+
+name: exapp
+version: 0.1.0
+description: &gt;-
+  Exercise app: exercises options, positionals, nesting, validation,
+  `$.import`, and bash helpers (`x-opt`, `x-arg`, `x-opts`, `x-args`, `x-run`, `x-usage`).
+
+options:
+  - &quot;[-v | --version]&quot;
+  - &quot;[-g | --global &lt;note=&#x27;&#x27;&gt;]&quot;
+
+arguments:
+  - &quot;[&lt;topic=&#x27;overview&#x27;&gt;]&quot;
+
+commands:
+  demo:
+    description: nested demos (each subcommand highlights different DSL pieces)
+
+    commands:
+      opts:
+        description: &gt;-
+          Option forms: bool pair, value, defaulted value, repeating values,
+          enum choice, `=` default, requires-chain, and a required bare flag.
+        options:
+          - &quot;[-n | --dry-run]&quot;
+          - &quot;[-o | --out &lt;path&gt;]&quot;
+          - &quot;[-c | --count &lt;n=&#x27;1&#x27;&gt;]&quot;
+          - &quot;[-D | --define &lt;kv&gt; ...]&quot;
+          - &quot;[--kind={alpha|beta|gamma}]&quot;
+          - &quot;[--label=&lt;text=&#x27;demo&#x27;&gt;]&quot;
+          - &quot;[--src=&lt;path&gt; [--dst=&lt;path&gt;]]&quot;
+          - &quot;[--default={yes|no}]&quot;
+          - &quot;--commit&quot;
+
+      args:
+        description: &gt;-
+          Positional forms: required, optional, optional-with-default,
+          and greedy repeat (must be last).
+        arguments:
+          - &quot;&lt;one&gt; [&lt;two&gt;] [&lt;three=&#x27;3&#x27;&gt;] [&lt;rest&gt;...]&quot;
+
+      pick:
+        description: required choice; `(alt1|alt2|alt3)` becomes positional name `choice`
+        arguments:
+          - &quot;(north|south|east|west)&quot;
+
+      tail:
+        description: optional repeating positional `[&lt;items&gt;...]`
+        arguments:
+          - &quot;[&lt;items&gt;...]&quot;
+
+      group:
+        description: &gt;-
+          Non-leaf group: invoke `x exapp demo group` with no subcommand to see auto-help.
+        commands:
+          alpha:
+            description: nested leaf α; shares options via YAML anchor (see `reflect`)
+            options: &amp;demo_verbose
+              - &quot;[-V | --verbose]&quot;
+            arguments:
+              - &quot;&lt;msg&gt;&quot;
+          beta:
+            description: nested leaf β, with the same shared options as `alpha`
+            options: *demo_verbose
+            arguments:
+              - &quot;&lt;msg&gt;&quot;
+
+      reflect:
+        description: dump parsed options/args via `x-opts` / `x-args` (and `x-run`)
+        options: *demo_verbose
+        arguments:
+          - &quot;[&lt;label=&#x27;state&#x27;&gt;]&quot;
+
+      sparse:
+        description: optional repeat with a default (see also `tail` for plain `[&lt;items&gt;...]`)
+        arguments:
+          - &quot;[&lt;parts=&#x27;*&#x27;&gt;...]&quot;
+
+      usage-tip:
+        description: &gt;-
+          One-line handler that forwards to x-usage (same idea as README create → x-usage create).
+
+      io:
+        description: interactive builtins
+        commands:
+          read:
+            description: read a line of text
+          confirm:
+            description: confirm a yes/no question
+          select:
+            description: select an option from a list
+          multiselect:
+            description: select an option from a list
+
+$.import:
+  - ./exapp.handlers-a.yml
+  - ./exapp.handlers-b.yml</code></pre>
+        </fieldset>
+        <fieldset>
+          <legend>exapp.handlers-a.yml</legend>
+          <pre><code># Handlers merged via `$.import` (first file). Keys are dotted command paths.
+
+&quot;&quot;:
+  |
+    topic=$(x-arg topic)
+    note=$(x-opt global)
+    echo &quot;exapp: topic=${topic:-overview}  global-note=${note:-∅}&quot;
+    echo &quot;Try:  x exapp --help&quot;
+    echo &quot;       x exapp demo --help&quot;
+
+demo.opts:
+  |
+    echo &quot;dry-run=$(x-opt dry-run)&quot;
+    echo &quot;out=$(x-opt out)&quot;
+    echo &quot;count=$(x-opt count)&quot;
+    mapfile -t defs &lt; &lt;(x-opt define)
+    printf &#x27;define[%s]\n&#x27; &quot;${defs[@]:-}&quot;
+    echo &quot;kind=$(x-opt kind)&quot;
+    echo &quot;label=$(x-opt label)&quot;
+    echo &quot;src=$(x-opt src)&quot;
+    echo &quot;dst=$(x-opt dst)&quot;
+    echo &quot;commit=$(x-opt commit)&quot;
+
+demo.args:
+  |
+    echo &quot;one=$(x-arg one)&quot;
+    echo &quot;two=$(x-arg two)&quot;
+    echo &quot;three=$(x-arg three)&quot;
+    mapfile -t rest &lt; &lt;(x-arg rest)
+    printf &#x27;rest[%s]\n&#x27; &quot;${rest[@]:-}&quot;
+
+demo.pick:
+  |
+    echo &quot;direction=$(x-arg choice)&quot;
+
+demo.tail:
+  |
+    mapfile -t items &lt; &lt;(x-arg items)
+    if ((${#items[@]})); then
+      printf &#x27;items: %s\n&#x27; &quot;${items[@]}&quot;
+    else
+      echo &quot;(no items)&quot;
+    fi
+
+demo.sparse:
+  |
+    mapfile -t parts &lt; &lt;(x-arg parts)
+    echo &quot;parts=${parts[*]}&quot;
+
+demo.usage-tip: x-usage demo.opts</code></pre>
+        </fieldset>
+        <fieldset>
+          <legend>exapp.handlers-b.yml</legend>
+          <pre><code># Second import file; merged keys must not duplicate the first import.
+
+demo.group.alpha:
+  |
+    msg=$(x-arg msg)
+    if [[ $(x-opt verbose) == true ]]; then
+      echo &quot;[verbose] alpha ← $msg&quot;
+    else
+      echo &quot;alpha ← $msg&quot;
+    fi
+
+demo.group.beta:
+  |
+    msg=$(x-arg msg)
+    if [[ $(x-opt verbose) == true ]]; then
+      echo &quot;[verbose] beta ← $msg&quot;
+    else
+      echo &quot;beta ← $msg&quot;
+    fi
+
+demo.reflect:
+  |
+    declare -A opts args
+    x-opts opts
+    x-args args
+    echo &quot;--- x-opts ($(x-arg label)) ---&quot;
+    for k in &quot;${!opts[@]}&quot;; do echo &quot;  $k=${opts[$k]}&quot;; done | sort
+    echo &quot;--- x-args ---&quot;
+    for k in &quot;${!args[@]}&quot;; do echo &quot;  $k=${args[$k]}&quot;; done | sort
+    echo &quot;--- x-run ---&quot;
+    x-run echo &quot;ran nested echo via x-run&quot;
+
+# IO commands
+demo.io.read: |
+  answer=$(x-io-read &quot;What is your favorite color?&quot;)
+  if [ &quot;$answer&quot; != &quot;blue&quot; ]; then
+    echo &quot;Wrong answer&quot;
+    exit 1
+  else
+    echo &quot;Correct!&quot;
+  fi
+
+demo.io.confirm: |
+  answer=$(x-io-confirm &quot;Are you sure you want to submit?&quot; --default no)
+  echo &quot;Submit = $answer&quot;
+  answer=$(x-io-confirm &quot;Are you sure you want to delete?&quot; --default yes)
+  echo &quot;Delete = $answer&quot;
+
+demo.io.select: |
+  x-io-select &quot;Choose a color&quot; \
+    &quot;red=Red&quot; \
+    &quot;green=Green&quot; \
+    &quot;blue=Blue&quot; \
+    &quot;yellow/orange=Yellow or Orange&quot; \
+    -v color
+  echo &quot;Color = $color&quot;
+
+demo.io.multiselect: |
+  x-io-select --multi &quot;Choose a color&quot; \
+    &quot;red=Red&quot; \
+    &quot;green=Green&quot; \
+    &quot;blue=Blue&quot; \
+    &quot;yellow/orange=Yellow or Orange&quot; \
+    -v colors 
+  
+  echo &quot;First Color = ${colors[0]}&quot;
+  echo &quot;All Colors = ${colors[*]}&quot;</code></pre>
+        </fieldset>
+          <p><a href="https://github.com/michaelmunson/x.sh/tree/main/docs/examples/app" rel="noopener noreferrer">View source on GitHub</a></p>
+          <h3>Typical workflows</h3>
+          <ul>
+            <li><strong>Dotfiles scripts</strong>: <code>x -i</code> for personal utilities, <code>x --ln</code> for PATH access.</li>
+            <li><strong>Monorepo tasks</strong>: root <code>x.yml</code> for <code>build</code>, <code>test</code>, <code>lint</code>; no global install needed.</li>
+            <li><strong>Team CLI tool</strong>: commit <code>&lt;tool&gt;.x.yml</code> to the repo; teammates run <code>x tool subcmd</code> from any subdirectory.</li>
+            <li><strong>Complex internal CLI</strong>: global app in <code>~/.x.sh/apps/</code> with <code>$.import</code> for large handler sets.</li>
+          </ul>
+            </section>
+          </details>
+        </section>
+      </details>
+    </section>
+    <details name="detail" id="configuration">
+      <summary>Configuration</summary>
+      <section>
+        <h3><code>x --config</code></h3>
+        <p>Interactive menu with two options:</p>
+        <h4>Default Script Language</h4>
+        <p>Sets <code>default_program</code> in <code>~/.x.sh/config.json</code>. Pre-selected during <code>x -i</code> and used for <code>x.yml</code> inline execution.</p>
+        <fieldset>
+          <legend>config.json</legend>
+          <pre><code>{
+  &quot;default_program&quot;: &quot;bash&quot;
+}</code></pre>
+        </fieldset>
+        <h4>LLM Provider</h4>
+        <p>Opens your editor with a template script saved to <code>~/.x.sh/config/llm.sh</code>. The script must accept the prompt as <code>$1</code> and print the completion to stdout.</p>
+        <fieldset>
+          <legend>llm.sh example</legend>
+          <pre><code>#!/bin/bash
+PROMPT=&quot;$1&quot;
+ollama run llama2 &quot;$PROMPT&quot;</code></pre>
+        </fieldset>
+        <h3>Environment</h3>
+        <ul>
+          <li><code>$EDITOR</code>: used by <code>x -i</code>, <code>x -i --app</code>, and LLM config.</li>
+          <li><code>$PATH</code>: must include <code>~/.local/bin</code> for <code>x --ln</code> symlinks.</li>
+        </ul>
+      </section>
+    </details>
+    <details name="detail" id="languages">
+      <summary>Supported Languages</summary>
+      <section>
+        <p>Each language maps to a <code>program</code> value stored in script metadata. x invokes <code>&lt;program&gt; &lt;script-file&gt; [args…]</code> for global scripts.</p>
+        <table>
+          <thead><tr><th width="150px">Language</th><th width="100px">Program</th><th width="300px">Notes</th></tr></thead>
+          <tbody><tr><td>Bash</td><td>bash</td><td>Default for most shell scripts</td></tr><tr><td>Zsh</td><td>zsh</td><td></td></tr><tr><td>POSIX Shell</td><td>sh</td><td></td></tr><tr><td>Node.js</td><td>node</td><td>JavaScript / TypeScript</td></tr><tr><td>Python 3</td><td>python</td><td></td></tr><tr><td>Python 2</td><td>python2</td><td></td></tr><tr><td>Ruby</td><td>ruby</td><td></td></tr><tr><td>Perl</td><td>perl</td><td></td></tr><tr><td>Go</td><td>go</td><td>Compiled; use <code>go run</code> style in script</td></tr><tr><td>Rust</td><td>rust</td><td></td></tr><tr><td>PHP</td><td>php</td><td></td></tr><tr><td>Lua</td><td>lua</td><td></td></tr><tr><td>Deno</td><td>deno</td><td>JS/TS runtime</td></tr><tr><td>Swift</td><td>swift</td><td></td></tr><tr><td>C</td><td>c</td><td></td></tr><tr><td>C++</td><td>cpp</td><td></td></tr><tr><td>Java</td><td>java</td><td></td></tr><tr><td>R</td><td>r</td><td></td></tr><tr><td>AWK</td><td>awk</td><td></td></tr><tr><td>Elixir</td><td>elixir</td><td></td></tr><tr><td>Clojure</td><td>clj</td><td></td></tr><tr><td>Scala</td><td>scala</td><td></td></tr><tr><td>Haskell</td><td>haskell</td><td></td></tr><tr><td>PowerShell</td><td>powershell</td><td></td></tr><tr><td>Kotlin</td><td>kotlin</td><td></td></tr></tbody>
+        </table>
+      </section>
+    </details>
+    <details name="detail" id="faq">
+      <summary>FAQs</summary>
+      <section>
+        <details>
+          <summary>Why does <code>x my-script</code> not find my <code>x.yml</code> entry?</summary>
+          <section>
+            <p><code>x.yml</code> is only read from the <strong>current working directory</strong>, not parent directories. <code>cd</code> to the directory containing <code>x.yml</code>, or use a global script / app instead.</p>
+          </section>
+        </details>
+        <details>
+          <summary>Why does a local app work from a subdirectory but <code>x.yml</code> does not?</summary>
+          <section>
+            <p>By design. Apps walk up the directory tree; <code>x.yml</code> does not. Put shared project commands in a root-level app or keep <code>x.yml</code> usage to single-directory workflows.</p>
+          </section>
+        </details>
+        <details>
+          <summary><code>x --ln</code> created a symlink but the command is not found</summary>
+          <section>
+            <p>Ensure <code>~/.local/bin</code> is on your <code>PATH</code>. Run <code>echo $PATH</code> and verify. You may need to open a new shell after updating your rc file.</p>
+          </section>
+        </details>
+        <details>
+          <summary>My app fails validation after editing</summary>
+          <section>
+            <p>Run <code>x -i --app --local &lt;name&gt;</code> (or <code>--global</code>) to re-enter the edit/revert loop. Common issues: missing handler for a leaf command, invalid synopsis syntax, or both <code>$</code> and <code>$.import</code> present.</p>
+          </section>
+        </details>
+        <details>
+          <summary>Can I use extensions in script names?</summary>
+          <section>
+            <p>Script <strong>names</strong> you pass to <code>x</code> are extensionless (e.g. <code>x c-test</code>). The file on disk can include an extension (<code>c-test.c</code>); x resolves by basename match.</p>
+          </section>
+        </details>
+        <details>
+          <summary>Does <code>x --delete</code> remove symlinks?</summary>
+          <section>
+            <p>No. Use <code>x -d --ln &lt;name&gt;</code> to remove symlinks separately.</p>
+          </section>
+        </details>
+        <details>
+          <summary>Where is the source code?</summary>
+          <section>
+            <p><a href="https://github.com/michaelmunson/x.sh" rel="noopener noreferrer">github.com/michaelmunson/x.sh</a></p>
+          </section>
+        </details>
+      </section>
+    </details>
+  </main>
+  <footer>
+    <p><a href="https://github.com/michaelmunson/x.sh">github.com/michaelmunson/x.sh</a></p>
+  </footer>
+</body>
+
+</html>
