@@ -12,12 +12,13 @@ commands:
     commands: 
       bin:
         description: build the binary
+        arguments: '[<test>]'
       tool:
         description: build the tools
         options:
           - '[--cursor]'
           - '[--vscode]'
-          - '[--compile]'
+          - '[--compile <test>]'
   test:
     description: run the tests
     arguments: "[<test>]"

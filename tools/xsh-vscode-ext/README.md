@@ -6,39 +6,43 @@ Syntax highlighting and linting for [x.sh](https://github.com/michaelmunson/x.sh
 
 ### Syntax Highlighting
 
-| Element | Highlighted as |
-|---|---|
-| `name`, `version`, `description` | Metadata keywords |
-| `options:`, `arguments:`, `commands:` | Section keywords |
-| `$:`, `$.import:` | Handler section keywords |
-| Command names | Function entities |
-| `--flag`, `-f` | Option flags |
-| `<placeholder>` | Parameters |
-| `[...]` brackets | Optional grouping |
-| `{a\|b\|c}` enums | Enum values |
-| `...` | Variadic marker |
-| `x-opt`, `x-arg`, `x-usage` | x.sh built-ins |
-| Bash/zsh/sh scripts (inline and block `\|` / `>`) | Full embedded shell highlighting |
+
+| Element                                 | Highlighted as           |
+| --------------------------------------- | ------------------------ |
+| `name`, `version`, `description`        | Metadata keywords        |
+| `options:`, `arguments:`, `commands:`   | Section keywords         |
+| `$:`, `$.import:`                       | Handler section keywords |
+| Command names                           | Function entities        |
+| `--flag`, `-f`                          | Option flags             |
+| `<placeholder>`                         | Parameters               |
+| `[...]` brackets                        | Optional grouping        |
+| `{a                                     | b                        |
+| `...`                                   | Variadic marker          |
+| `x-opt`, `x-arg`, `x-usage`             | x.sh built-ins           |
+| Bash/zsh/sh scripts (inline and block ` | `/`>`)                   |
+
 
 ### Linting
 
 The linter runs on every open, change, and save. Checks mirror the x.sh runtime validator (`src/app/validate.rs`):
 
-| Severity | Check |
-|---|---|
-| Error | YAML parse errors |
-| Error | Missing required `name` field |
-| Error | `name` contains invalid characters |
-| Error | Both `$:` and `$.import:` in the same file |
-| Error | Duplicate handler key in `$:` |
-| Error | Leaf command has no `$:` handler |
-| Error | Handler key does not match any command |
-| Error | Duplicate option or argument on a command |
-| Error | Option `requires:` references unknown sibling option |
-| Error | Unbalanced `[` / `]` in synopsis expressions |
-| Warning | `version` doesn't follow semver |
-| Warning | Command missing description _(optional, off by default)_ |
-| Hint | Handler value looks like a bare word (missing `x-` or `\|`) |
+
+| Severity | Check                                                    |
+| -------- | -------------------------------------------------------- |
+| Error    | YAML parse errors                                        |
+| Error    | Missing required `name` field                            |
+| Error    | `name` contains invalid characters                       |
+| Error    | Both `$:` and `$.import:` in the same file               |
+| Error    | Duplicate handler key in `$:`                            |
+| Error    | Leaf command has no `$:` handler                         |
+| Error    | Handler key does not match any command                   |
+| Error    | Duplicate option or argument on a command                |
+| Error    | Option `requires:` references unknown sibling option     |
+| Error    | Unbalanced `[` / `]` in synopsis expressions             |
+| Warning  | `version` doesn't follow semver                          |
+| Warning  | Command missing description *(optional, off by default)* |
+| Hint     | Handler value looks like a bare word (missing `x-` or `  |
+
 
 ## File Association
 
@@ -109,3 +113,12 @@ The following x.sh built-ins receive special highlighting inside bash scripts:
 - `x-opt <name>` — expand an option value
 - `x-arg <name>` — expand an argument value
 - `x-usage [command]` — print usage/help
+
+purple: keyword.control.flow.block-scalar.literal.yaml
+
+brown: string.quoted.double.yaml
+
+light blue: variable.parameter.argument-name.xsh
+
+
+

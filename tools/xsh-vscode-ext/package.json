@@ -43,7 +43,11 @@
           ".cli.yaml",
           ".cli.yml"
         ],
-        "configuration": "./language-configuration.json"
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icon.svg",
+          "dark": "./icon.svg"
+        }
       },
       {
         "id": "xsh-local",
@@ -55,7 +59,11 @@
           "x.yml"
         ],
         "firstLine": "^#\\s*x\\.sh",
-        "configuration": "./language-configuration.json"
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icon.svg",
+          "dark": "./icon.svg"
+        }
       }
     ],
     "grammars": [
