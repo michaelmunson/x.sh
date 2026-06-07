@@ -114,11 +114,7 @@ The following x.sh built-ins receive special highlighting inside bash scripts:
 - `x-arg <name>` — expand an argument value
 - `x-usage [command]` — print usage/help
 
-purple: keyword.control.flow.block-scalar.literal.yaml
 
-brown: string.quoted.double.yaml
-
-light blue: variable.parameter.argument-name.xsh
 
 
 
