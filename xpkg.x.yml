@@ -9,12 +9,11 @@ language: bash
 commands:
   build:
     description: build the binary/docs
-    commands:
+    commands: 
       bin:
         description: build the binary
       tool:
         description: build the tools
-        # arguments: "<tool=(a|b)>..."
         options:
           - '[--cursor]'
           - '[--vscode]'

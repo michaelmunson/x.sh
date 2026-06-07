@@ -7,6 +7,11 @@
   ],
   "patterns": [
     { "include": "#handlers-block" },
+    { "include": "#options-section" },
+    { "include": "#arguments-section" },
+    { "include": "#arguments-inline" },
+    { "include": "#commands-section-key" },
+    { "include": "#config-command-name" },
     { "include": "source.yaml" },
     { "include": "#yaml-fallback" }
   ],
@@ -14,6 +19,239 @@
     "comment": {
       "match": "#.*$",
       "name": "comment.line.number-sign.xsh"
+    },
+
+    "commands-section-key": {
+      "match": "^(\\s*)(commands)(:)(\\s*)$",
+      "captures": {
+        "2": { "name": "keyword.other.section.xsh" },
+        "3": { "name": "punctuation.separator.key-value.mapping.yaml" }
+      }
+    },
+
+    "config-command-name": {
+      "match": "^(\\s+)((?!(?:description|options|arguments|commands):)[a-zA-Z][a-zA-Z0-9_-]*)(:)(\\s*)$",
+      "captures": {
+        "2": { "name": "entity.name.function" },
+        "3": { "name": "punctuation.separator.key-value.mapping.yaml" }
+      }
+    },
+
+    "options-section": {
+      "begin": "^(\\s*)(options)(:)(\\s*)$",
+      "beginCaptures": {
+        "2": { "name": "keyword.other.section.xsh" },
+        "3": { "name": "punctuation.separator.key-value.mapping.yaml" }
+      },
+      "end": "^(?!\\1\\s)",
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#options-list-item" }
+      ]
+    },
+
+    "options-list-item": {
+      "patterns": [
+        { "include": "#options-list-item-double" },
+        { "include": "#options-list-item-single" }
+      ]
+    },
+
+    "options-list-item-double": {
+      "begin": "^(\\s+)-\\s+\"",
+      "end": "\"\\s*$",
+      "contentName": "meta.synopsis.options.xsh",
+      "patterns": [
+        { "include": "#synopsis-dsl-options" }
+      ]
+    },
+
+    "options-list-item-single": {
+      "begin": "^(\\s+)-\\s+'",
+      "end": "'\\s*$",
+      "contentName": "meta.synopsis.options.xsh",
+      "patterns": [
+        { "include": "#synopsis-dsl-options" }
+      ]
+    },
+
+    "arguments-section": {
+      "begin": "^(\\s*)(arguments)(:)(\\s*)$",
+      "beginCaptures": {
+        "2": { "name": "keyword.other.section.xsh" },
+        "3": { "name": "punctuation.separator.key-value.mapping.yaml" }
+      },
+      "end": "^(?!\\1\\s)",
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#arguments-list-item" }
+      ]
+    },
+
+    "arguments-list-item": {
+      "patterns": [
+        { "include": "#arguments-list-item-double" },
+        { "include": "#arguments-list-item-single" }
+      ]
+    },
+
+    "arguments-list-item-double": {
+      "begin": "^(\\s+)-\\s+\"",
+      "end": "\"\\s*$",
+      "contentName": "meta.synopsis.arguments.xsh",
+      "patterns": [
+        { "include": "#synopsis-dsl-arguments" }
+      ]
+    },
+
+    "arguments-list-item-single": {
+      "begin": "^(\\s+)-\\s+'",
+      "end": "'\\s*$",
+      "contentName": "meta.synopsis.arguments.xsh",
+      "patterns": [
+        { "include": "#synopsis-dsl-arguments" }
+      ]
+    },
+
+    "arguments-inline": {
+      "patterns": [
+        { "include": "#arguments-inline-double" },
+        { "include": "#arguments-inline-single" },
+        { "include": "#arguments-inline-bare" }
+      ]
+    },
+
+    "arguments-inline-double": {
+      "begin": "^(\\s*)(arguments)(:)(\\s+)\"",
+      "beginCaptures": {
+        "2": { "name": "keyword.other.section.xsh" },
+        "3": { "name": "punctuation.separator.key-value.mapping.yaml" }
+      },
+      "end": "\"\\s*$",
+      "contentName": "meta.synopsis.arguments.xsh",
+      "patterns": [
+        { "include": "#synopsis-dsl-arguments" }
+      ]
+    },
+
+    "arguments-inline-single": {
+      "begin": "^(\\s*)(arguments)(:)(\\s+)'",
+      "beginCaptures": {
+        "2": { "name": "keyword.other.section.xsh" },
+        "3": { "name": "punctuation.separator.key-value.mapping.yaml" }
+      },
+      "end": "'\\s*$",
+      "contentName": "meta.synopsis.arguments.xsh",
+      "patterns": [
+        { "include": "#synopsis-dsl-arguments" }
+      ]
+    },
+
+    "arguments-inline-bare": {
+      "match": "^(\\s*)(arguments)(:)(\\s+)([^\\s#'\"]+)\\s*$",
+      "captures": {
+        "2": { "name": "keyword.other.section.xsh" },
+        "3": { "name": "punctuation.separator.key-value.mapping.yaml" },
+        "5": {
+          "patterns": [
+            { "include": "#synopsis-dsl-arguments" }
+          ]
+        }
+      }
+    },
+
+    "synopsis-dsl-options": {
+      "patterns": [
+        { "include": "#synopsis-param" },
+        { "include": "#synopsis-choice" },
+        { "include": "#synopsis-enum" },
+        { "include": "#synopsis-flags" },
+        { "include": "#synopsis-brackets" },
+        { "include": "#synopsis-punctuation" }
+      ]
+    },
+
+    "synopsis-dsl-arguments": {
+      "patterns": [
+        { "include": "#synopsis-param" },
+        { "include": "#synopsis-choice" },
+        { "include": "#synopsis-enum" },
+        { "include": "#synopsis-brackets" },
+        { "include": "#synopsis-punctuation" }
+      ]
+    },
+
+    "synopsis-flags": {
+      "match": "(--[a-zA-Z][a-zA-Z0-9-]*|-[a-zA-Z]\\b)",
+      "name": "variable.other.anchor.yaml"
+    },
+
+    "synopsis-param": {
+      "match": "(<)([^>]*)(>)",
+      "captures": {
+        "1": { "name": "punctuation.definition.group.synopsis.xsh" },
+        "2": {
+          "name": "variable.parameter",
+          "patterns": [
+            { "include": "#synopsis-punctuation" }
+          ]
+        },
+        "3": { "name": "punctuation.definition.group.synopsis.xsh" }
+      }
+    },
+
+    "synopsis-choice": {
+      "match": "(\\()([^)]*)(\\))",
+      "captures": {
+        "1": { "name": "punctuation.definition.group.synopsis.xsh" },
+        "2": {
+          "patterns": [
+            { "match": "[a-zA-Z][a-zA-Z0-9_-]*", "name": "variable.parameter" },
+            { "include": "#synopsis-punctuation" }
+          ]
+        },
+        "3": { "name": "punctuation.definition.group.synopsis.xsh" }
+      }
+    },
+
+    "synopsis-enum": {
+      "match": "(\\{)([^}]*)(\\})",
+      "captures": {
+        "1": { "name": "punctuation.definition.group.synopsis.xsh" },
+        "2": {
+          "patterns": [
+            { "match": "[a-zA-Z][a-zA-Z0-9_-]*", "name": "variable.parameter" },
+            { "include": "#synopsis-punctuation" }
+          ]
+        },
+        "3": { "name": "punctuation.definition.group.synopsis.xsh" }
+      }
+    },
+
+    "synopsis-brackets": {
+      "match": "[\\[\\]]",
+      "name": "punctuation.definition.group.synopsis.xsh"
+    },
+
+    "synopsis-punctuation": {
+      "patterns": [
+        {
+          "match": "\\|",
+          "name": "punctuation.definition.group.synopsis.xsh"
+        },
+        {
+          "match": "=",
+          "name": "punctuation.definition.group.synopsis.xsh"
+        },
+        {
+          "match": "'",
+          "name": "punctuation.definition.group.synopsis.xsh"
+        },
+        {
+          "match": "\\.\\.\\.",
+          "name": "keyword.operator.variadic.synopsis.xsh"
+        }
+      ]
     },
 
     "command-key": {
