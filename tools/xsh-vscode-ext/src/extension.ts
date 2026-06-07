@@ -18,6 +18,11 @@ interface XAppDoc {
   options?: string[];
   arguments?: string | string[];
   commands?: Record<string, CommandDef>;
+  import?: {
+    $?: string | string[];
+    env?: string | string[];
+  };
+  env?: Record<string, unknown>;
   $?: Record<string, string>;
   '$.import'?: string | string[];
 }
@@ -212,14 +217,19 @@ function lintDocument(document: vscode.TextDocument) {
     ));
   }
 
-  if (parsedApp.$ && parsedApp['$.import']) {
-    const line = findKeyLine(document, '$') || findKeyLine(document, '$.import');
+  if (parsedApp['$.import'] && parsedApp.import?.$) {
+    const line = findKeyLine(document, '$.import') || findKeyLine(document, 'import');
     diagnostics.push(new vscode.Diagnostic(
       lineRange(document, line),
-      `${DIAG}: cannot use both "$:" and "$.import:" in the same app file`,
+      `${DIAG}: cannot use both "$.import:" and "import.$:" in the same app file`,
       vscode.DiagnosticSeverity.Error
     ));
   }
+
+  const hasHandlerImport = Boolean(
+    parsedApp['$.import'] ||
+    (parsedApp.import?.$ && (Array.isArray(parsedApp.import.$) ? parsedApp.import.$.length : true))
+  );
 
   const allPaths = new Set<string>(['']);
   if (parsedApp.commands) {
@@ -263,7 +273,7 @@ function lintDocument(document: vscode.TextDocument) {
     }
   }
 
-  if (config.get<boolean>('warnOnMissingHandlers', true)) {
+  if (config.get<boolean>('warnOnMissingHandlers', true) && !hasHandlerImport) {
     for (const path of leafPaths) {
       if (!handlerKeys.has(path)) {
         const cmdLine = findCommandLine(document, path);
@@ -296,7 +306,7 @@ function displayPath(path: string): string {
 
 // ─── Local x.yml linting (see src/local_x.rs) ────────────────────────────────
 
-const LOCAL_APP_ONLY_KEYS = ['commands', 'options', 'arguments', '$.import'] as const;
+const LOCAL_APP_ONLY_KEYS = ['commands', 'options', 'arguments', '$.import', 'import', 'env'] as const;
 
 function lintLocalXyml(
   document: vscode.TextDocument,

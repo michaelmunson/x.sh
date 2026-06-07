@@ -92,6 +92,18 @@ fn exec_handler(app: &App, app_path: &Path, parsed: &Parsed, body: &str) -> Resu
         cmd.env(format!("X_ARG_{}", env_key(k)), vs.join("\n"));
     }
 
+    for (k, v) in &app.env.globals {
+        cmd.env(k, v);
+    }
+    for (group, vars) in &app.env.groups {
+        let pairs: String = vars
+            .iter()
+            .map(|(k, v)| format!("{}={}", k, v))
+            .collect::<Vec<_>>()
+            .join("\n");
+        cmd.env(format!("X_ENV_GROUP_{}", group), pairs);
+    }
+
     cmd.stdin(Stdio::inherit());
     cmd.stdout(Stdio::inherit());
     cmd.stderr(Stdio::inherit());

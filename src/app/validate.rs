@@ -318,6 +318,7 @@ options:
             description: None,
             root,
             handlers: [("".to_string(), "echo".into())].into_iter().collect(),
+            env: Default::default(),
         };
         let msgs = validate(&app).unwrap_err();
         assert!(msgs.iter().any(|m| m.message.contains("requires `--ghost`")));
@@ -364,6 +365,7 @@ arguments:
             description: None,
             root,
             handlers: [("".to_string(), "echo".into())].into_iter().collect(),
+            env: Default::default(),
         };
         let msgs = validate(&app).unwrap_err();
         assert!(msgs.iter().any(|m| m.message.contains("option group references `--ghost`")));

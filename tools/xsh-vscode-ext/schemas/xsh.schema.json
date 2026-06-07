@@ -39,10 +39,38 @@
     },
     "$.import": {
       "$ref": "#/definitions/importValue",
-      "description": "External handler YAML files to import"
+      "description": "External handler YAML files to import (legacy; prefer import.$)"
+    },
+    "import": {
+      "$ref": "#/definitions/importBlock",
+      "description": "Unified imports for handlers ($) and env (.env files)"
+    },
+    "env": {
+      "$ref": "#/definitions/envBlock",
+      "description": "Global environment variables and .group named sets"
     }
   },
   "definitions": {
+    "importBlock": {
+      "type": "object",
+      "description": "Import handlers and/or .env files",
+      "additionalProperties": false,
+      "properties": {
+        "$": {
+          "$ref": "#/definitions/importValue",
+          "description": "Handler YAML files to import"
+        },
+        "env": {
+          "$ref": "#/definitions/importValue",
+          "description": "Classic .env files (KEY=VALUE) to import"
+        }
+      }
+    },
+    "envBlock": {
+      "type": "object",
+      "description": "Environment configuration",
+      "additionalProperties": true
+    },
     "optionsList": {
       "type": "array",
       "description": "A list of option expression strings",

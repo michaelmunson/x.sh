@@ -1,0 +1,5 @@
+# x.sh
+
+test: |
+  x-io-read -v MY_NAME "Enter your name:"
+  echo "Your Name = $MY_NAME"

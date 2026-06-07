@@ -5,15 +5,19 @@
 name: exapp
 version: 0.1.0
 description: >-
-  Exercise app — exercises options, positionals, nesting, validation,
-  `$.import`, and bash helpers (`x-opt`, `x-arg`, `x-opts`, `x-args`, `x-run`, `x-usage`).
+  Exercise app — exercises options, positionals, nesting, validation, and bash helpers (`x-opt`, `x-arg`, `x-opts`, `x-args`, `x-run`, `x-usage`).
+import:
+  $:
+    - handlers/exapp.handlers-a.yml
+    - handlers/exapp.handlers-b.yml
+env:
+  DEBUG: "true"
 
 options:
-  - "[-v | --version]"
-  - "[-g | --global <note=''>]"
+  - '[-v | --version]'
+  - '[-g | --global <note="">]'
 
-arguments:
-  - "[<topic='overview'>]"
+arguments: '[<topic="overview">]'
 
 commands:
   demo:
@@ -23,44 +27,44 @@ commands:
         description: >-
           Option forms — bool pair, value, defaulted value, repeating values,
           enum choice, `=` default, requires-chain, and a required bare flag.
-        options:
-          - "[-n | --dry-run]"
-          - "[-o | --out <path>]"
-          - "[-c | --count <n='1'>]"
-          - "[-D | --define <kv> ...]"
-          - "[--kind={alpha|beta|gamma}]"
-          - "[--label=<text='demo'>]"
-          - "[--src=<path> [--dst=<path>]]"
-          - "[--default={yes|no}]"
-          - "--commit"
-          - "(-f | --force)"
-          - "(--fmt | --format)"
-          - "(-q | --quiet | -v | --verbose)"
-          - "[--tag <label>]..."
+        options: 
+          - '[-n | --dry-run]'
+          - '[-o | --out <path>]'
+          - '[-c | --count <n="1">]'
+          - '[-D | --define <kv> ...]'
+          - '[--kind={alpha|beta|gamma}]'
+          - '[--label=<text="demo">]'
+          - '[--src=<path> [--dst=<path>]]'
+          - '[--default={yes|no}]'
+          - '--commit'
+          - '(-f | --force)'
+          - '(--fmt | --format)'
+          - '(-q | --quiet | -v | --verbose)'
+          - '[--tag <label>]...'
 
       args:
         description: >-
           Positional forms — required, optional, optional-with-default,
           and greedy repeat (must be last).
         arguments:
-          - "<one> [<two>] [<three='3'>] [<rest>...]"
+          - '<one> [<two>] [<three="3">] [<rest>...]'
 
       pick:
         description: required choice — `(alt1|alt2|alt3)` becomes positional name `choice`
         arguments:
-          - "(north|south|east|west)"
+          - '(north|south|east|west)'
 
       mode:
         description: >-
           Positional choice in angle brackets — `<action={…}>` and
           optional `[<speed={…}='default'>]`.
         arguments:
-          - "<action={read|write|delete}> [<speed={fast|slow}='fast'>]"
+          - '<action={read|write|delete}> [<speed={fast|slow}="fast">]'
 
       tail:
         description: optional repeating positional `[<items>...]`
         arguments:
-          - "[<items>...]"
+          - '[<items>...]'
 
       group:
         description: >-
@@ -69,25 +73,25 @@ commands:
           alpha:
             description: nested leaf α — shares options via YAML anchor (see `reflect`)
             options: &demo_verbose
-              - "[-V | --verbose]"
+              - '[-V | --verbose]'
             arguments:
-              - "<msg>"
+              - '<msg>'
           beta:
             description: nested leaf β — same shared options as `alpha`
             options: *demo_verbose
             arguments:
-              - "<msg>"
+              - '<msg>'
 
       reflect:
         description: dump parsed options/args via `x-opts` / `x-args` (and `x-run`)
         options: *demo_verbose
         arguments:
-          - "[<label='state'>]"
+          - '[<label="state">]'
 
       sparse:
         description: optional repeat with a default (see also `tail` for plain `[<items>...]`)
         arguments:
-          - "[<parts='*'>...]"
+          - '[<parts="*">...]'
 
       usage-tip:
         description: >-
@@ -113,6 +117,10 @@ commands:
           tui:
             description: alternate buffer demo via x-tui
 
-$.import:
-  - ./exapp.handlers-a.yml
-  - ./exapp.handlers-b.yml
+  debug:
+    description: debug the environment variables
+
+
+$:
+  debug: |
+    echo "DEBUG = $DEBUG"

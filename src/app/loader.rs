@@ -14,10 +14,18 @@
 //!     options: [...]
 //!     arguments: [...]
 //!     commands: { ... }
+//! import:
+//!   $:
+//!     - ./handlers.yml
+//!   env: ./.env
+//! env:
+//!   HELLO: global
+//!   .env1:
+//!     MY_NAME: env1
 //! $:
 //!   create.file: |
 //!     ...
-//! # OR
+//! # OR legacy
 //! $.import: /path/to/handlers.yml
 //! ```
 
@@ -27,11 +35,12 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, bail, Context, Result};
 use serde::Deserialize;
+use serde_yaml::Value;
 
-use crate::app::spec::{App, ArgDef, Command, OptionDef, OptionGroupDef};
+use crate::app::spec::{App, AppEnv, ArgDef, Command, OptionDef, OptionGroupDef};
 use crate::app::synopsis::{self, SynopsisEntry};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 enum SynopsisField {
     Single(String),
@@ -39,12 +48,27 @@ enum SynopsisField {
 }
 
 impl SynopsisField {
+    fn as_vec(&self) -> Vec<String> {
+        match self {
+            SynopsisField::Single(s) => vec![s.clone()],
+            SynopsisField::Many(v) => v.clone(),
+        }
+    }
+
     fn into_vec(self) -> Vec<String> {
         match self {
             SynopsisField::Single(s) => vec![s],
             SynopsisField::Many(v) => v,
         }
     }
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct RawImport {
+    #[serde(rename = "$", default)]
+    dollar: Option<SynopsisField>,
+    #[serde(default)]
+    env: Option<SynopsisField>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -72,14 +96,19 @@ struct RawApp {
     arguments: Option<SynopsisField>,
     #[serde(default)]
     commands: Option<BTreeMap<String, RawCommand>>,
+    #[serde(default)]
+    import: Option<RawImport>,
 
     /// Inline handlers map (`$:`).
     #[serde(rename = "$", default)]
     dollar: Option<BTreeMap<String, String>>,
 
-    /// External handler imports (`$.import`).
+    /// External handler imports (`$.import`, legacy).
     #[serde(rename = "$.import", default)]
     dollar_import: Option<SynopsisField>,
+
+    #[serde(default)]
+    env: Option<Value>,
 }
 
 /// Load and parse an app config file.
@@ -89,15 +118,11 @@ pub fn load(path: &Path) -> Result<App> {
     parse(&content, path)
 }
 
-/// Parse YAML content. `path` is used only for resolving `$.import` entries
+/// Parse YAML content. `path` is used only for resolving import entries
 /// relative to the file (and for error context).
 pub fn parse(content: &str, path: &Path) -> Result<App> {
     let raw: RawApp = serde_yaml::from_str(content)
         .with_context(|| format!("failed to parse {}", path.display()))?;
-
-    if raw.dollar.is_some() && raw.dollar_import.is_some() {
-        bail!("cannot use both `$:` and `$.import:` in the same app file");
-    }
 
     let app_name = raw
         .name
@@ -109,6 +134,9 @@ pub fn parse(content: &str, path: &Path) -> Result<App> {
                 .map(|s| s.to_string())
         })
         .ok_or_else(|| anyhow!("app file is missing top-level `name:`"))?;
+
+    let handlers = resolve_handlers(path, &raw)?;
+    let env = resolve_env(path, &raw)?;
 
     let mut root = Command::new(app_name.clone());
     root.description = raw.description.clone();
@@ -134,21 +162,79 @@ pub fn parse(content: &str, path: &Path) -> Result<App> {
         }
     }
 
-    let handlers = if let Some(dollar) = raw.dollar {
-        normalize_handlers(dollar)?
-    } else if let Some(import) = raw.dollar_import {
-        load_imports(path, import.into_vec())?
-    } else {
-        BTreeMap::new()
-    };
-
     Ok(App {
         name: app_name,
         version: raw.version,
         description: raw.description,
         root,
         handlers,
+        env,
     })
+}
+
+fn resolve_handlers(path: &Path, raw: &RawApp) -> Result<BTreeMap<String, String>> {
+    let import_paths = handler_import_paths(raw)?;
+    let mut handlers = if import_paths.is_empty() {
+        BTreeMap::new()
+    } else {
+        load_handler_imports(path, import_paths)?
+    };
+    if let Some(dollar) = &raw.dollar {
+        for (k, v) in normalize_handlers(dollar.clone())? {
+            handlers.insert(k, v);
+        }
+    }
+    Ok(handlers)
+}
+
+fn handler_import_paths(raw: &RawApp) -> Result<Vec<String>> {
+    let from_legacy = raw
+        .dollar_import
+        .as_ref()
+        .map(SynopsisField::as_vec)
+        .unwrap_or_default();
+    let from_import = raw
+        .import
+        .as_ref()
+        .and_then(|i| i.dollar.as_ref())
+        .map(SynopsisField::as_vec)
+        .unwrap_or_default();
+    if !from_legacy.is_empty() && !from_import.is_empty() {
+        bail!("cannot use both `$.import` and `import.$`");
+    }
+    Ok(if from_import.is_empty() {
+        from_legacy
+    } else {
+        from_import
+    })
+}
+
+fn env_import_paths(raw: &RawApp) -> Vec<String> {
+    raw.import
+        .as_ref()
+        .and_then(|i| i.env.as_ref())
+        .map(SynopsisField::as_vec)
+        .unwrap_or_default()
+}
+
+fn resolve_env(path: &Path, raw: &RawApp) -> Result<AppEnv> {
+    let import_paths = env_import_paths(raw);
+    let mut globals = if import_paths.is_empty() {
+        BTreeMap::new()
+    } else {
+        load_env_imports(path, import_paths)?
+    };
+
+    let mut groups = BTreeMap::new();
+    if let Some(value) = &raw.env {
+        let inline = parse_inline_env(value)?;
+        for (k, v) in inline.globals {
+            globals.insert(k, v);
+        }
+        groups = inline.groups;
+    }
+
+    Ok(AppEnv { globals, groups })
 }
 
 fn build_command(name: &str, raw: RawCommand) -> Result<Command> {
@@ -216,18 +302,11 @@ fn normalize_handlers(raw: BTreeMap<String, String>) -> Result<BTreeMap<String, 
     Ok(out)
 }
 
-fn load_imports(app_path: &Path, paths: Vec<String>) -> Result<BTreeMap<String, String>> {
-    let app_dir = app_path
-        .parent()
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("."));
+fn load_handler_imports(app_path: &Path, paths: Vec<String>) -> Result<BTreeMap<String, String>> {
+    let app_dir = app_dir(app_path);
     let mut out: BTreeMap<String, String> = BTreeMap::new();
     for p in paths {
-        let resolved = if Path::new(&p).is_absolute() {
-            PathBuf::from(&p)
-        } else {
-            app_dir.join(&p)
-        };
+        let resolved = resolve_path(&app_dir, &p);
         let content = fs::read_to_string(&resolved)
             .with_context(|| format!("failed to read import {}", resolved.display()))?;
         let parsed: BTreeMap<String, String> = serde_yaml::from_str(&content)
@@ -246,6 +325,192 @@ fn load_imports(app_path: &Path, paths: Vec<String>) -> Result<BTreeMap<String, 
     Ok(out)
 }
 
+fn load_env_imports(app_path: &Path, paths: Vec<String>) -> Result<BTreeMap<String, String>> {
+    let app_dir = app_dir(app_path);
+    let mut out: BTreeMap<String, String> = BTreeMap::new();
+    for p in paths {
+        let resolved = resolve_path(&app_dir, &p);
+        let content = fs::read_to_string(&resolved)
+            .with_context(|| format!("failed to read env import {}", resolved.display()))?;
+        let parsed = parse_dotenv(&content)
+            .with_context(|| format!("failed to parse env import {}", resolved.display()))?;
+        for (k, v) in parsed {
+            if out.contains_key(&k) {
+                bail!(
+                    "duplicate env key {:?} when merging import {}",
+                    k,
+                    resolved.display()
+                );
+            }
+            validate_env_var_name(&k)?;
+            out.insert(k, v);
+        }
+    }
+    Ok(out)
+}
+
+fn parse_inline_env(value: &Value) -> Result<AppEnv> {
+    let mapping = value.as_mapping().ok_or_else(|| anyhow!("`env:` must be a mapping"))?;
+    let mut globals = BTreeMap::new();
+    let mut groups = BTreeMap::new();
+
+    for (key, val) in mapping {
+        let key_str = key
+            .as_str()
+            .ok_or_else(|| anyhow!("`env:` keys must be strings"))?;
+
+        if key_str.starts_with('.') {
+            let group_name = &key_str[1..];
+            validate_env_group_name(group_name)?;
+            if groups.contains_key(group_name) {
+                bail!("duplicate env group `.{}` in `env:` block", group_name);
+            }
+            let vars = parse_env_group_value(val)?;
+            for var_name in vars.keys() {
+                validate_env_var_name(var_name)?;
+            }
+            groups.insert(group_name.to_string(), vars);
+        } else {
+            validate_env_var_name(key_str)?;
+            if globals.contains_key(key_str) {
+                bail!("duplicate env key {:?} in `env:` block", key_str);
+            }
+            let scalar = val
+                .as_str()
+                .ok_or_else(|| anyhow!("env global `{}` must be a string", key_str))?;
+            globals.insert(key_str.to_string(), scalar.to_string());
+        }
+    }
+
+    Ok(AppEnv { globals, groups })
+}
+
+fn parse_env_group_value(value: &Value) -> Result<BTreeMap<String, String>> {
+    let mut out = BTreeMap::new();
+    match value {
+        Value::Mapping(map) => {
+            for (k, v) in map {
+                let key = k
+                    .as_str()
+                    .ok_or_else(|| anyhow!("env group keys must be strings"))?;
+                if out.contains_key(key) {
+                    bail!("duplicate env key {:?} in env group", key);
+                }
+                let scalar = v
+                    .as_str()
+                    .ok_or_else(|| anyhow!("env group entry `{}` must be a string", key))?;
+                out.insert(key.to_string(), scalar.to_string());
+            }
+        }
+        Value::Sequence(seq) => {
+            for item in seq {
+                let map = item.as_mapping().ok_or_else(|| {
+                    anyhow!("env group list entries must be single-key mappings")
+                })?;
+                if map.len() != 1 {
+                    bail!("env group list entries must be single-key mappings");
+                }
+                for (k, v) in map {
+                    let key = k
+                        .as_str()
+                        .ok_or_else(|| anyhow!("env group keys must be strings"))?;
+                    if out.contains_key(key) {
+                        bail!("duplicate env key {:?} in env group", key);
+                    }
+                    let scalar = v
+                        .as_str()
+                        .ok_or_else(|| anyhow!("env group entry `{}` must be a string", key))?;
+                    out.insert(key.to_string(), scalar.to_string());
+                }
+            }
+        }
+        _ => bail!("env group value must be a mapping or list of single-key mappings"),
+    }
+    Ok(out)
+}
+
+fn parse_dotenv(content: &str) -> Result<BTreeMap<String, String>> {
+    let mut out = BTreeMap::new();
+    for (line_no, line) in content.lines().enumerate() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let Some((key, value)) = line.split_once('=') else {
+            bail!("invalid .env syntax at line {}: expected KEY=VALUE", line_no + 1);
+        };
+        let key = key.trim();
+        if key.is_empty() {
+            bail!("invalid .env syntax at line {}: empty key", line_no + 1);
+        }
+        let value = strip_dotenv_quotes(value.trim());
+        if out.contains_key(key) {
+            bail!("duplicate env key {:?} in .env file", key);
+        }
+        out.insert(key.to_string(), value);
+    }
+    Ok(out)
+}
+
+fn strip_dotenv_quotes(value: &str) -> String {
+    if (value.starts_with('"') && value.ends_with('"') && value.len() >= 2)
+        || (value.starts_with('\'') && value.ends_with('\'') && value.len() >= 2)
+    {
+        value[1..value.len() - 1].to_string()
+    } else {
+        value.to_string()
+    }
+}
+
+fn validate_env_var_name(name: &str) -> Result<()> {
+    if is_valid_shell_identifier(name) {
+        Ok(())
+    } else {
+        bail!(
+            "invalid env variable name {:?}: must match [A-Za-z_][A-Za-z0-9_]*",
+            name
+        )
+    }
+}
+
+fn validate_env_group_name(name: &str) -> Result<()> {
+    if name.is_empty() {
+        bail!("env group name must not be empty");
+    }
+    if is_valid_shell_identifier(name) {
+        Ok(())
+    } else {
+        bail!(
+            "invalid env group name {:?}: must match [A-Za-z_][A-Za-z0-9_]*",
+            name
+        )
+    }
+}
+
+fn is_valid_shell_identifier(name: &str) -> bool {
+    let mut chars = name.chars();
+    match chars.next() {
+        Some(c) if c.is_ascii_alphabetic() || c == '_' => {}
+        _ => return false,
+    }
+    chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+fn app_dir(app_path: &Path) -> PathBuf {
+    app_path
+        .parent()
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("."))
+}
+
+fn resolve_path(app_dir: &Path, p: &str) -> PathBuf {
+    if Path::new(p).is_absolute() {
+        PathBuf::from(p)
+    } else {
+        app_dir.join(p)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -259,6 +524,8 @@ mod tests {
         let app = p("name: foo\n");
         assert_eq!(app.name, "foo");
         assert!(app.root.subcommands.is_empty());
+        assert!(app.env.globals.is_empty());
+        assert!(app.env.groups.is_empty());
     }
 
     #[test]
@@ -288,13 +555,41 @@ commands:
     }
 
     #[test]
-    fn rejects_dollar_and_import_together() {
+    fn inline_handlers_override_imports() {
+        let dir = tempfile::tempdir().unwrap();
+        let handlers = dir.path().join("handlers.yml");
+        std::fs::write(&handlers, "run: echo imported\nother: echo other\n").unwrap();
+        let app_file = dir.path().join("app.x.yml");
+        std::fs::write(
+            &app_file,
+            r#"
+name: merged
+import:
+  $: ./handlers.yml
+"$":
+  run: echo inline
+"#,
+        )
+        .unwrap();
+        let app = load(&app_file).unwrap();
+        assert_eq!(
+            app.handlers.get("run").map(String::as_str),
+            Some("echo inline")
+        );
+        assert_eq!(
+            app.handlers.get("other").map(String::as_str),
+            Some("echo other")
+        );
+    }
+
+    #[test]
+    fn rejects_both_dollar_import_and_import_dollar() {
         let err = parse(
             r#"
 name: x
-"$":
-  a: echo
-"$.import": "./foo.yml"
+import:
+  $: ./foo.yml
+"$.import": "./bar.yml"
 "#,
             Path::new("t.x.yml"),
         )
@@ -347,6 +642,121 @@ name: dup
         .unwrap();
         let err = load(&app_file).unwrap_err();
         assert!(err.to_string().contains("duplicate handler key"));
+    }
+
+    #[test]
+    fn loads_inline_env_globals_and_groups() {
+        let app = p(
+            r#"
+name: env-app
+env:
+  HELLO: global
+  .env1:
+    - MY_NAME: env1
+  .env2:
+    MY_NAME: env2
+    OTHER: val
+commands:
+  run:
+    description: run
+"$":
+  run: echo
+"#,
+        );
+        assert_eq!(app.env.globals.get("HELLO").map(String::as_str), Some("global"));
+        assert_eq!(
+            app.env.groups.get("env1").and_then(|g| g.get("MY_NAME")).map(String::as_str),
+            Some("env1")
+        );
+        assert_eq!(
+            app.env.groups.get("env2").and_then(|g| g.get("MY_NAME")).map(String::as_str),
+            Some("env2")
+        );
+        assert_eq!(
+            app.env.groups.get("env2").and_then(|g| g.get("OTHER")).map(String::as_str),
+            Some("val")
+        );
+    }
+
+    #[test]
+    fn loads_env_import_from_dotenv() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join(".env"), "HELLO=imported\nFOO=bar\n").unwrap();
+        let app_file = dir.path().join("app.x.yml");
+        std::fs::write(
+            &app_file,
+            r#"
+name: env-import
+import:
+  env: ./.env
+commands:
+  run:
+    description: run
+"$":
+  run: echo
+"#,
+        )
+        .unwrap();
+        let app = load(&app_file).unwrap();
+        assert_eq!(
+            app.env.globals.get("HELLO").map(String::as_str),
+            Some("imported")
+        );
+        assert_eq!(app.env.globals.get("FOO").map(String::as_str), Some("bar"));
+    }
+
+    #[test]
+    fn inline_env_overrides_import() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join(".env"), "HELLO=imported\n").unwrap();
+        let app_file = dir.path().join("app.x.yml");
+        std::fs::write(
+            &app_file,
+            r#"
+name: env-overlay
+import:
+  env: ./.env
+env:
+  HELLO: inline
+commands:
+  run:
+    description: run
+"$":
+  run: echo
+"#,
+        )
+        .unwrap();
+        let app = load(&app_file).unwrap();
+        assert_eq!(
+            app.env.globals.get("HELLO").map(String::as_str),
+            Some("inline")
+        );
+    }
+
+    #[test]
+    fn rejects_duplicate_env_key_in_import_merge() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("a.env"), "HELLO=a\n").unwrap();
+        std::fs::write(dir.path().join("b.env"), "HELLO=b\n").unwrap();
+        let app_file = dir.path().join("app.x.yml");
+        std::fs::write(
+            &app_file,
+            r#"
+name: dup-env
+import:
+  env:
+    - ./a.env
+    - ./b.env
+commands:
+  run:
+    description: run
+"$":
+  run: echo
+"#,
+        )
+        .unwrap();
+        let err = load(&app_file).unwrap_err();
+        assert!(err.to_string().contains("duplicate env key"));
     }
 
     #[test]

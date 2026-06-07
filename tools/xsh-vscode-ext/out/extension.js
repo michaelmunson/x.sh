@@ -181,10 +181,12 @@ function lintDocument(document) {
         const verLine = findKeyLine(document, 'version');
         diagnostics.push(new vscode.Diagnostic(lineRange(document, verLine), `${DIAG}: "version" should use semantic versioning (e.g. 1.0.0)`, vscode.DiagnosticSeverity.Warning));
     }
-    if (parsedApp.$ && parsedApp['$.import']) {
-        const line = findKeyLine(document, '$') || findKeyLine(document, '$.import');
-        diagnostics.push(new vscode.Diagnostic(lineRange(document, line), `${DIAG}: cannot use both "$:" and "$.import:" in the same app file`, vscode.DiagnosticSeverity.Error));
+    if (parsedApp['$.import'] && parsedApp.import?.$) {
+        const line = findKeyLine(document, '$.import') || findKeyLine(document, 'import');
+        diagnostics.push(new vscode.Diagnostic(lineRange(document, line), `${DIAG}: cannot use both "$.import:" and "import.$:" in the same app file`, vscode.DiagnosticSeverity.Error));
     }
+    const hasHandlerImport = Boolean(parsedApp['$.import'] ||
+        (parsedApp.import?.$ && (Array.isArray(parsedApp.import.$) ? parsedApp.import.$.length : true)));
     const allPaths = new Set(['']);
     if (parsedApp.commands) {
         collectAllPaths(parsedApp.commands, '', allPaths);
@@ -215,7 +217,7 @@ function lintDocument(document) {
             }
         }
     }
-    if (config.get('warnOnMissingHandlers', true)) {
+    if (config.get('warnOnMissingHandlers', true) && !hasHandlerImport) {
         for (const path of leafPaths) {
             if (!handlerKeys.has(path)) {
                 const cmdLine = findCommandLine(document, path);
@@ -237,7 +239,7 @@ function displayPath(path) {
     return path === '' ? '$' : path;
 }
 // ─── Local x.yml linting (see src/local_x.rs) ────────────────────────────────
-const LOCAL_APP_ONLY_KEYS = ['commands', 'options', 'arguments', '$.import'];
+const LOCAL_APP_ONLY_KEYS = ['commands', 'options', 'arguments', '$.import', 'import', 'env'];
 function lintLocalXyml(document, parsed, diagnostics) {
     for (const key of LOCAL_APP_ONLY_KEYS) {
         if (key in parsed) {
