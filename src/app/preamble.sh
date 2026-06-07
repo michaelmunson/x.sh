@@ -13,6 +13,7 @@
 #   x-io-select [-v|--var NAME] [...]       pick id=label; `-v` assigns (string or indexed array when --multi)
 #   x-prt [(-s|--style) <style>] [<text>...]  styled print via ANSI SGR codes
 #   x-tui [--init|--exit|--clear|...] [<text>...]  terminal control via ANSI escape sequences
+#   x-env-load .<group>   load a named env group from the app `env:` block
 #
 # `x` exports the data via env vars:
 #   X_OPT_<name>           value of option (repeats joined with newlines)
@@ -20,6 +21,7 @@
 #   X_OPTS_PAIRS           "k=v\n..." for all options (one per line)
 #   X_ARGS_PAIRS           "k=v\n..." for all args
 #   X_BIN, X_APP, X_APP_FILE
+#   X_ENV_GROUP_<name>   newline-separated KEY=VALUE pairs for named env groups
 #
 # Names with `-` in them are translated to `_` for env-var lookups.
 
@@ -291,6 +293,7 @@ _x_style_to_sgr() {
 
 x-prt() {
   local sgr=
+  local is_print_newline=0
   while (($#)); do
     case "$1" in
       -s | --style)
@@ -305,6 +308,10 @@ x-prt() {
         sgr=$(_x_style_to_sgr "${1#*=}") || return $?
         shift
         ;;
+      -n | --newline)
+        is_print_newline=1
+        shift
+        ;;
       *)
         if [[ -n "$sgr" ]]; then
           printf '%b%s\033[0m' "$sgr" "$1"
@@ -314,6 +321,9 @@ x-prt() {
         shift
         ;;
     esac
+    if [[ "$is_print_newline" -eq 1 ]]; then
+      echo
+    fi
   done
 }
 
@@ -382,4 +392,22 @@ x-tui() {
   done
 }
 
-export -f x-opt x-arg x-opts x-args x-run x-usage x-io-read x-io-confirm x-io-select x-prt x-tui
+x-env-load() {
+  local group="${1:?usage: x-env-load .<group>}"
+  group="${group#.}"
+  local var="X_ENV_GROUP_${group}"
+  local pairs="${!var-}"
+  if [[ -z "$pairs" ]]; then
+    echo "x-env-load: unknown env group .${group}" >&2
+    return 1
+  fi
+  local line k v
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    k="${line%%=*}"
+    v="${line#*=}"
+    [[ -n "$k" ]] && export "$k=$v"
+  done <<< "$pairs"
+}
+
+export -f x-opt x-arg x-opts x-args x-run x-usage x-io-read x-io-confirm x-io-select x-prt x-tui x-env-load

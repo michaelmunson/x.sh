@@ -4,7 +4,8 @@
 name: xpkg
 version: 0.0.0
 description: x package meta app
-language: bash
+env:
+  HELLO: "world"
 
 commands:
   build:
@@ -61,6 +62,8 @@ $:
       fi
     fi
     popd
+
+    
   build.bin: |
     cargo build --release
 
@@ -78,8 +81,5 @@ $:
     fi
 
   random: |
-    FOO=$(x-opt foo)
-    for F in $FOO; do
-      echo "$F ABC"
-    done
+    realpath .
     

@@ -2,6 +2,8 @@
 
 # Second import file — merged keys must not duplicate the first import.
 
+
+
 demo.group.alpha:
   |
     msg=$(x-arg msg)
@@ -57,6 +59,7 @@ demo.io.select: |
     -v color
   echo "Color = $color"
 
+
 demo.io.multiselect: |
   x-io-select --multi "Choose a color" \
     "red=Red" \
@@ -73,8 +76,10 @@ demo.style.prt: |
     --style red,underline,bg-white \
     "Hello" \
     --style blue,bg-yellow \
-    " World"
-  echo
+    " World" \
+    --newline
+  x-prt --style green,bold "exapp prt demo"
+  x-prt --style red,bold " exapp prt demo (red)" --newline
 
 demo.style.tui: |
   x-tui --init --clear

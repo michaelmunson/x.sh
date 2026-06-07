@@ -403,14 +403,30 @@ $:
     mkdir -p "$(x-arg path)"
 
 # OR load handlers from one or more external YAML files
+# import:
+#   $:
+#     - ./handlers.yml
+#   env: ./.env
+# Legacy form still supported:
 # "$.import": ./handlers.yml
 # "$.import":
 #   - ./create.yml
 #   - ./build.yml
+#
+# env:
+#   HELLO: global
+#   .env1:
+#     MY_NAME: env1
 ```
 
-`$:` and `$.import:` are mutually exclusive. Imported files have the same shape
-as the inline `$:` block (a flat map of `<dotted.path>: <bash body>`).
+Imported handler files have the same shape as the inline `$:` block (a flat map
+of `<dotted.path>: <bash body>`). Paths resolve relative to the app file.
+Duplicate keys across import files are an error; inline `$:` entries override
+imported handlers with the same key.
+
+`import.env` paths point to classic `.env` files (`KEY=VALUE`). Imported globals
+merge first; inline `env:` globals override on duplicate keys. Named `.group`
+entries in `env:` are inline only and are loaded at runtime via `x-env-load`.
 
 ### Synopsis cheat-sheet
 
@@ -469,6 +485,7 @@ parsed values without manual env-var wrangling.
 | `x-io-select …`                 | Menu of `id=label` options (`--multi`, optional `--search` no-op, `--no-search`). With `-v` / `--var`, assigns a global indexed array if `--multi`, else a single id string (same order as without `-v`). Otherwise prints one id per line when `--multi`. |
 | `x-prt …`                       | Styled print via ANSI SGR codes. `(-s\|--style) <style>` sets comma-separated styles (e.g. `red,underline,bg-white`); style is sticky until the next `--style`. No implicit newline. |
 | `x-tui …`                       | Terminal control via ANSI escape sequences (`--init`, `--exit`, `--clear`, cursor moves, etc.). Unrecognized args print as literal text. |
+| `x-env-load .<group>`           | Export variables from a named `env:` group (e.g. `x-env-load .env1`). Global `env:` vars are already in the shell before the handler runs. |
 
 With `-v`, results are stored in the **caller's** global shell variable (not stdout): scalars for `x-io-read`, `x-io-confirm`, and single select; an indexed array for `x-io-select --multi`.
 

@@ -2,7 +2,7 @@
 //!
 //! The synopsis DSL strings in `options:` / `arguments:` are parsed in
 //! [`crate::app::synopsis`] into `OptionDef` / `ArgDef` values. Handler bodies
-//! from the `$:` block (or `$.import`) are stored on [`App::handlers`] keyed by
+//! from the `$:` block (or imported handler files) are stored on [`App::handlers`] keyed by
 //! the dotted command path (root = `""`, nested = `"create.file"`).
 
 use std::collections::BTreeMap;
@@ -104,6 +104,15 @@ impl Command {
     }
 }
 
+/// Environment configuration for an app.
+#[derive(Debug, Clone, Default)]
+pub struct AppEnv {
+    /// Applied to the shell before handler runs (import + inline, inline wins).
+    pub globals: BTreeMap<String, String>,
+    /// Named groups keyed without leading `.` (e.g. `"env1"`). Inline only.
+    pub groups: BTreeMap<String, BTreeMap<String, String>>,
+}
+
 /// A fully loaded and parsed application spec.
 #[derive(Debug, Clone)]
 pub struct App {
@@ -115,4 +124,5 @@ pub struct App {
     /// Map from dotted command path (e.g. `""`, `"create"`, `"create.file"`)
     /// to bash handler body.
     pub handlers: BTreeMap<String, String>,
+    pub env: AppEnv,
 }

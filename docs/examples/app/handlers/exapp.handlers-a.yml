@@ -1,7 +1,5 @@
 # x.sh
 
-# Handlers merged via `$.import` (first file). Keys are dotted command paths.
-
 "":
   |
     topic=$(x-arg topic)

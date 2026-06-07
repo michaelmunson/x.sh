@@ -105,10 +105,35 @@ $:
 | `version`, `description` | Metadata shown in help |
 | `options`, `arguments` | Root command synopsis (string or list of strings) |
 | `commands` | Nested subcommand tree |
-| `$:` | Inline handler map |
-| `$.import` | List of external YAML files with handler maps |
+| `import` | Unified imports: `$` (handler YAML files), `env` (`.env` files) |
+| `$:` | Inline handler map (overrides imported handlers on duplicate keys) |
+| `$.import` | Legacy handler imports (use `import.$` instead) |
+| `env` | Global vars and `.group` named sets (inline only for groups) |
 
-**`$:` and `$.import` are mutually exclusive.**
+**`$:` and `import.$` / `$.import` may be combined** — inline handlers override imports.
+
+### Environment
+
+```yaml
+import:
+  env: ./.env
+
+env:
+  HELLO: global
+  .env1:
+    - MY_NAME: env1
+```
+
+Global vars from `.env` imports and inline `env:` are exported before the handler
+runs (inline wins on duplicate keys). Named groups load on demand:
+
+```bash
+echo "$HELLO"
+x-env-load .env1
+echo "$MY_NAME"
+```
+
+Reference: `docs/examples/app/simple.x.yml`.
 
 ### Handler keys
 
@@ -125,7 +150,16 @@ Handler values are either:
 
 **All handlers are bash.** They call external tools (`cargo`, `npm`, etc.) as needed.
 
-### Split handlers with `$.import`
+### Split handlers with `import` or `$.import`
+
+```yaml
+import:
+  $:
+    - ./handlers/build.yml
+    - ./handlers/create.yml
+```
+
+Legacy:
 
 ```yaml
 $.import:
@@ -134,7 +168,8 @@ $.import:
 ```
 
 Each import file is a flat YAML map of `dotted.path: <bash body>`. Paths resolve
-relative to the app file. Duplicate keys across imports are an error.
+relative to the app file. Duplicate keys across imports are an error; inline `$:`
+entries override imported handlers with the same key.
 
 Reference: `docs/examples/app/exapp.x.yml` + `exapp.handlers-a.yml` / `exapp.handlers-b.yml`.
 
@@ -264,8 +299,8 @@ Checked on `x -i --app` save and every `x <app>` invocation:
 | No duplicate `--long` or `-s` on same command | `duplicate option` |
 | No duplicate positional names | `duplicate argument` |
 | `requires:` references a defined sibling option | `requires --foo, but --foo is not defined` |
-| No duplicate keys in `$:` or across `$.import` | `duplicate handler key` |
-| Both `$:` and `$.import` present | `cannot use both` |
+| No duplicate keys in `$:` or across imports | `duplicate handler key` |
+| Both `$.import` and `import.$` present | `cannot use both` |
 
 Fix with `x -i --app [--local|--global] <name>` or edit the YAML directly, then
 run `x <app> --help` to confirm.

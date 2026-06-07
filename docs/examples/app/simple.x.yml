@@ -1,0 +1,29 @@
+
+# documentation: https://github.com/michaelmunson/x.sh/blob/main/README.md#app-framework
+# examples:      https://github.com/michaelmunson/x.sh/blob/main/docs/examples/app/exapp.x.yml
+
+name: simple
+version: 0.0.0
+description: an x app
+import:
+  $:
+    - handlers/test.yml
+  env: .env.example
+
+env:
+  .env1:
+    - MY_NAME: "env1"
+  HELLO: "global"
+
+commands:
+  get-env:
+    description: print the environment variable
+  test:
+    description: test the environment variable
+
+$:
+  get-env: |
+    echo "HELLO = $HELLO"
+    x-env-load .env1
+    echo "MY_NAME = $MY_NAME"
+    echo "IS_DEBUG = $IS_DEBUG"

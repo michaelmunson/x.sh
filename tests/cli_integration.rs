@@ -204,3 +204,17 @@ fn fixture_style_app_unknown_style_fails() {
         .failure()
         .stderr(predicate::str::contains("unknown style"));
 }
+
+fn simple_dir() -> PathBuf {
+    manifest_dir().join("docs/examples/app")
+}
+
+#[test]
+fn simple_app_get_env() {
+    x_cmd()
+        .current_dir(simple_dir())
+        .args(["simple", "get-env"])
+        .assert()
+        .success()
+        .stdout("global\nenv1\n");
+}
