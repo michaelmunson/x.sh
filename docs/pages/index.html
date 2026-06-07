@@ -164,18 +164,18 @@
     <details name="detail" id="overview">
       <summary>Overview</summary>
       <section>
-        <p><strong>x</strong> is a Rust-powered CLI that helps you create, organize, and run scripts across projects.
-          Think of it as a script registry with metadata, editor integration, and optional symlinks into your PATH, plus
-          two YAML-based layers for project commands and full multi-command apps.</p>
-        <h3>What makes x different</h3>
+        <p><strong>x</strong> is a CLI that helps you create, organize, and run scripts across projects, as well as providing a framework for creating complex CLIs.</p>
+        <h3>Overview</h3>
         <ul>
-          <li><strong>Global scripts</strong> live in <code>~/.x.sh/scripts/</code> with per-script metadata
-            (description, language, groups) and usage tracking.</li>
-          <li><strong>Project-local commands</strong> in <code>./x.yml</code> let you easily define project specific
-            scripts and commands.</li>
-          <li><strong>Apps</strong> (<code>&lt;name&gt;.x.yml</code>) turn YAML into validated CLIs with options,
-            arguments, nested subcommands, and bash handlers. Before any bash runs, x parses and validates the user's
-            input.</li>
+          <li>
+            <strong>Script management:</strong> Store your favorite scripts globally in <code>~/.x.sh/scripts/</code>, complete with descriptions, language info, and usage statistics.
+          </li>
+          <li>
+            <strong>Project automation:</strong> Define project-specific commands in <code>./x.yml</code> files, enabling consistent development workflows with versioned, tracked, and portable automations.
+          </li>
+          <li>
+            <strong>App framework:</strong> Create fully-featured CLI apps using <code>&lt;name&gt;.x.yml</code> files. Describe options, arguments, and subcommands (in your shell language) in YAML . x.sh provides argument parsing, validation, and helpful error messages before any script runs.
+          </li>
         </ul>
       </section>
     </details>
