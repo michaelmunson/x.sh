@@ -18,7 +18,6 @@ arguments:
 commands:
   demo:
     description: nested demos (each subcommand highlights different DSL pieces)
-
     commands:
       opts:
         description: >-

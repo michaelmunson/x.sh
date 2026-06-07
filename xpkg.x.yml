@@ -36,7 +36,15 @@ $:
   build: |
     x xpkg build bin
     x xpkg build tool
+  
   build.tool: |
+    if ! ls Cargo.toml >/dev/null 2>&1; then
+      echo "Error: Wrong Directory. Please navigate to the root of the project."
+      exit 1
+    fi
+    x-prt --style yellow,bold "Removing existing extension" && echo
+    rm tools/xsh-vscode-ext/xsh-vscode-ext-0.0.1.vsix
+    x-prt --style green,bold "Building extension" && echo
     pushd tools/xsh-vscode-ext
     if [ "$(x-opt "compile")" = "true" ]; then
       npm run compile

@@ -16,6 +16,14 @@
       "name": "comment.line.number-sign.xsh"
     },
 
+    "command-key": {
+      "match": "^(\\s*)(\"[^\"]*\"|'[^']*'|[a-zA-Z][a-zA-Z0-9._-]*)(:)",
+      "captures": {
+        "2": { "name": "entity.name.type.class" },
+        "3": { "name": "punctuation.separator.key-value.mapping.yaml" }
+      }
+    },
+
     "handlers-block": {
       "begin": "^(\"\\$\"|\\$)(:)\\s*$",
       "beginCaptures": {
@@ -28,14 +36,14 @@
         { "include": "#handler-block-literal" },
         { "include": "#handler-inline-quoted" },
         { "include": "#handler-inline" },
-        { "include": "source.yaml" }
+        { "include": "#command-key" }
       ]
     },
 
     "handler-inline-quoted": {
       "match": "^(\\s+)(\"[^\"]*\"|'[^']*'|[a-zA-Z][a-zA-Z0-9._-]*)(:)\\s+(\"[^\"]*\"|'[^']*')\\s*$",
       "captures": {
-        "2": { "name": "entity.other.attribute-name.yaml" },
+        "2": { "name": "entity.name.type.class" },
         "3": { "name": "punctuation.separator.key-value.mapping.yaml" },
         "4": {
           "contentName": "meta.embedded.line.shell",
@@ -50,7 +58,7 @@
     "handler-inline": {
       "match": "^(\\s+)(\"[^\"]*\"|'[^']*'|[a-zA-Z][a-zA-Z0-9._-]*)(:)\\s+(.*)$",
       "captures": {
-        "2": { "name": "entity.other.attribute-name.yaml" },
+        "2": { "name": "entity.name.type.class" },
         "3": { "name": "punctuation.separator.key-value.mapping.yaml" },
         "4": {
           "contentName": "meta.embedded.line.shell",
@@ -66,13 +74,14 @@
     "handler-block-literal": {
       "begin": "^(\\s+)(\"[^\"]*\"|'[^']*'|[a-zA-Z][a-zA-Z0-9._-]*)(:)\\s+(\\||>)\\s*$",
       "beginCaptures": {
-        "2": { "name": "entity.other.attribute-name.yaml" },
+        "2": { "name": "entity.name.type.class" },
         "3": { "name": "punctuation.separator.key-value.mapping.yaml" },
         "4": { "name": "keyword.control.flow.block-scalar.literal.yaml" }
       },
       "end": "^(?!\\1\\s|\\s*$)",
       "contentName": "meta.embedded.block.shell",
       "patterns": [
+        { "include": "#command-key" },
         { "include": "#x-builtin-directive" },
         { "include": "#x-template-vars" },
         { "include": "source.shell" }

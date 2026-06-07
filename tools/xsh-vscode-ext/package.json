@@ -76,6 +76,14 @@
           "meta.embedded.block.shell": "shellscript",
           "meta.embedded.line.shell": "shellscript"
         }
+      },
+      {
+        "scopeName": "xsh.shell.injection",
+        "path": "./syntaxes/shell-injection.tmLanguage.json",
+        "injectTo": [
+          "source.xsh",
+          "source.xsh.local"
+        ]
       }
     ],
     "jsonValidation": [

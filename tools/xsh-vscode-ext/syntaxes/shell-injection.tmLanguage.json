@@ -1,0 +1,7 @@
+{
+  "scopeName": "xsh.shell.injection",
+  "injectionSelector": "R:meta.embedded.block.shell, R:meta.embedded.line.shell",
+  "patterns": [
+    { "include": "source.shell" }
+  ]
+}

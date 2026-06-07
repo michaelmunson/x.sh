@@ -80,4 +80,16 @@ demo.style.tui: |
   x-tui --init --clear
   x-tui --home
   x-prt --style green,bold "exapp TUI demo"
+  x-io-select "Action" "stay=Stay" "go=Go" -v action
+  echo "Action = $action"
+  if [ "$action" = "go" ]; then
+    echo "Going!"
+    x-prt --style red,bold "Going!"
+  else
+    echo "Staying!"
+    x-prt --style green,bold "Staying!"
+    sleep 2
+    x-run x exapp demo style tui
+  fi
+  sleep 2
   x-tui --exit
