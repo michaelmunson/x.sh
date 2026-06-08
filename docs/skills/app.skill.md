@@ -60,6 +60,15 @@ or **Revert**. Every `x <app>` run also re-validates the file.
 name: my-app
 version: 0.0.0
 description: short summary
+import:
+  $:
+    - handlers/test.yml
+  env: .env.example
+
+env:
+  .env1:
+    - MY_NAME: "env1"
+  HELLO: "global"
 
 # Root-level options/args apply when invoking `x my-app …` directly
 options:
@@ -68,6 +77,13 @@ arguments:
   - "[<topic='overview'>]"
 
 commands:
+  get-env:
+    description: print the environment variable
+  
+  run-test:
+    # handler imported
+    description: run a test
+  
   build:
     description: build the project
     options:
@@ -95,6 +111,11 @@ $:
     echo "creating $(x-arg path)"
   create.folder: |
     mkdir -p "$(x-arg path)"
+  get-env: |
+    echo "HELLO = $HELLO"
+    x-env-load .env1
+    echo "MY_NAME = $MY_NAME"
+    echo "IS_DEBUG = $IS_DEBUG"
 ```
 
 ### Top-level keys
@@ -273,6 +294,30 @@ x-io-confirm "Delete?" --default no -v ok
 x-io-select "Color" "red=Red" "green=Green" -v color
 x-io-select --multi -v colors "Pick colors" "red=Red" "blue=Blue"
 echo "${colors[0]}"
+```
+
+### Styling Output
+```bash
+x-prt --style red,underline,bg-white "Hello" --style blue,bg-yellow " World" --newline
+x-prt --style green,bold "exapp prt demo"
+x-prt --style red,bold " exapp prt demo (red)" --newline
+sleep 2
+x-tui --init --clear
+x-tui --home
+x-prt --style green,bold "exapp TUI demo"
+x-io-select "Action" "stay=Stay" "go=Go" -v action
+echo "Action = $action"
+if [ "$action" = "go" ]; then
+  echo "Going!"
+  x-prt --style red,bold "Going!"
+else
+  echo "Staying!"
+  x-prt --style green,bold "Staying!"
+  sleep 2
+  x-run x exapp demo style tui
+fi
+sleep 2
+x-tui --exit
 ```
 
 ## Help
