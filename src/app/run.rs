@@ -79,9 +79,15 @@ fn exec_handler(app: &App, app_path: &Path, parsed: &Parsed, body: &str) -> Resu
     let mut cmd = ProcCommand::new("bash");
     cmd.arg("-c").arg(&bash_cmd).arg(app.name.clone());
 
+    let path_root = app_path
+        .parent()
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| PathBuf::from("."));
+
     cmd.env("X_BIN", &bin);
     cmd.env("X_APP", &app.name);
     cmd.env("X_APP_FILE", app_path);
+    cmd.env("X_PATH_ROOT", &path_root);
     cmd.env("X_OPTS_PAIRS", &opts_pairs);
     cmd.env("X_ARGS_PAIRS", &args_pairs);
 

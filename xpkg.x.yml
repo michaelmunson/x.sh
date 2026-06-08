@@ -35,10 +35,12 @@ commands:
 
 $:
   build: |
+    
     x xpkg build bin
     x xpkg build tool
   
   build.tool: |
+    
     if ! ls Cargo.toml >/dev/null 2>&1; then
       echo "Error: Wrong Directory. Please navigate to the root of the project."
       exit 1
@@ -81,5 +83,5 @@ $:
     fi
 
   random: |
-    realpath .
+    echo "$(x-path-root)"
     

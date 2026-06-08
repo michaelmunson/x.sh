@@ -14,13 +14,14 @@
 #   x-prt [(-s|--style) <style>] [<text>...]  styled print via ANSI SGR codes
 #   x-tui [--init|--exit|--clear|...] [<text>...]  terminal control via ANSI escape sequences
 #   x-env-load .<group>   load a named env group from the app `env:` block
+#   x-path-root             print the directory containing the app `.x.yml` file
 #
 # `x` exports the data via env vars:
 #   X_OPT_<name>           value of option (repeats joined with newlines)
 #   X_ARG_<name>           value of arg   (repeats joined with newlines)
 #   X_OPTS_PAIRS           "k=v\n..." for all options (one per line)
 #   X_ARGS_PAIRS           "k=v\n..." for all args
-#   X_BIN, X_APP, X_APP_FILE
+#   X_BIN, X_APP, X_APP_FILE, X_PATH_ROOT
 #   X_ENV_GROUP_<name>   newline-separated KEY=VALUE pairs for named env groups
 #
 # Names with `-` in them are translated to `_` for env-var lookups.
@@ -71,6 +72,10 @@ x-run() {
     return 2
   fi
   "$@"
+}
+
+x-path-root() {
+  printf '%s\n' "${X_PATH_ROOT:?}"
 }
 
 x-usage() {
@@ -410,4 +415,4 @@ x-env-load() {
   done <<< "$pairs"
 }
 
-export -f x-opt x-arg x-opts x-args x-run x-usage x-io-read x-io-confirm x-io-select x-prt x-tui x-env-load
+export -f x-opt x-arg x-opts x-args x-run x-usage x-io-read x-io-confirm x-io-select x-prt x-tui x-env-load x-path-root

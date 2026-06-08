@@ -210,6 +210,36 @@ fn simple_dir() -> PathBuf {
 }
 
 #[test]
+fn fixture_path_root_builtin_prints_app_directory() {
+    let dir = tempfile::tempdir().unwrap();
+    let fixture = manifest_dir().join("tests/fixtures/path-root.x.yml");
+    fs::copy(fixture, dir.path().join("path-root.x.yml")).unwrap();
+
+    x_cmd()
+        .current_dir(dir.path())
+        .args(["path-root", "show"])
+        .assert()
+        .success()
+        .stdout(format!("{}\n", dir.path().display()));
+}
+
+#[test]
+fn fixture_path_root_builtin_uses_app_dir_not_cwd() {
+    let dir = tempfile::tempdir().unwrap();
+    let fixture = manifest_dir().join("tests/fixtures/path-root.x.yml");
+    fs::copy(fixture, dir.path().join("path-root.x.yml")).unwrap();
+    let sub = dir.path().join("pkg");
+    fs::create_dir(&sub).unwrap();
+
+    x_cmd()
+        .current_dir(&sub)
+        .args(["path-root", "show"])
+        .assert()
+        .success()
+        .stdout(format!("{}\n", dir.path().display()));
+}
+
+#[test]
 fn simple_app_get_env() {
     x_cmd()
         .current_dir(simple_dir())
