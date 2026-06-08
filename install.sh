@@ -156,10 +156,12 @@ suggest_shell_completion() {
             local comp_dir="${HOME}/.local/share/bash-completion/completions"
             echo "  mkdir -p \"$comp_dir\""
             echo "  $BINARY_NAME __complete bash > \"$comp_dir/$BINARY_NAME\""
+            echo '  echo "source <(x __complete bash)" >> ~/.bashrc'
             ;;
         zsh)
             echo "  Add to ~/.zshrc:"
-            echo "    source <($BINARY_NAME __complete zsh)"
+            echo '  echo "source <(x __complete bash)" >> ~/.zshrc'
+            echo '  echo "source <(x __complete zsh)" >> ~/.zshrc'
             ;;
         *)
             echo "  Bash: $BINARY_NAME __complete bash > ~/.local/share/bash-completion/completions/$BINARY_NAME"
