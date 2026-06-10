@@ -1,0 +1,1 @@
+{"name":"oxdocs","version":"1.0.0","description":"","main":"index.js","scripts":{"start":"parcel","build":"parcel build"},"keywords":[],"author":"","license":"ISC","type":"commonjs","devDependencies":{"parcel":"^2.16.4"},"dependencies":{"oxidizer":"^3.3.4"},"source":"src/index.html","@parcel/resolver-default":{"packageExports":true}}

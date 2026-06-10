@@ -32,7 +32,7 @@
     "config-command-name": {
       "match": "^(\\s+)((?!(?:description|options|arguments|commands):)[a-zA-Z][a-zA-Z0-9_-]*)(:)(\\s*)$",
       "captures": {
-        "2": { "name": "entity.name.function" },
+        "2": { "name": "entity.name.type.class" },
         "3": { "name": "punctuation.separator.key-value.mapping.yaml" }
       }
     },
@@ -271,7 +271,7 @@
     "command-key": {
       "match": "^(\\s*)(\"[^\"]*\"|'[^']*'|[a-zA-Z][a-zA-Z0-9._-]*)(:)",
       "captures": {
-        "2": { "name": "entity.name.type.class" },
+        "2": { "name": "entity.name.function" },
         "3": { "name": "punctuation.separator.key-value.mapping.yaml" }
       }
     },
@@ -295,7 +295,7 @@
     "handler-inline-quoted": {
       "match": "^(\\s+)(\"[^\"]*\"|'[^']*'|[a-zA-Z][a-zA-Z0-9._-]*)(:)\\s+(\"[^\"]*\"|'[^']*')\\s*$",
       "captures": {
-        "2": { "name": "entity.name.type.class" },
+        "2": { "name": "entity.name.function" },
         "3": { "name": "punctuation.separator.key-value.mapping.yaml" },
         "4": {
           "contentName": "meta.embedded.line.shell",
@@ -310,7 +310,7 @@
     "handler-inline": {
       "match": "^(\\s+)(\"[^\"]*\"|'[^']*'|[a-zA-Z][a-zA-Z0-9._-]*)(:)\\s+(.*)$",
       "captures": {
-        "2": { "name": "entity.name.type.class" },
+        "2": { "name": "entity.name.function" },
         "3": { "name": "punctuation.separator.key-value.mapping.yaml" },
         "4": {
           "contentName": "meta.embedded.line.shell",
@@ -326,7 +326,7 @@
     "handler-block-literal": {
       "begin": "^(\\s+)(\"[^\"]*\"|'[^']*'|[a-zA-Z][a-zA-Z0-9._-]*)(:)\\s+(\\||>)\\s*$",
       "beginCaptures": {
-        "2": { "name": "entity.name.type.class" },
+        "2": { "name": "entity.name.function" },
         "3": { "name": "punctuation.separator.key-value.mapping.yaml" },
         "4": { "name": "keyword.control.flow.block-scalar.literal.yaml" }
       },

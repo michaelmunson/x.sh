@@ -15,6 +15,7 @@ interface XAppDoc {
   name?: string;
   version?: string;
   description?: string;
+  dir?: string;
   options?: string[];
   arguments?: string | string[];
   commands?: Record<string, CommandDef>;

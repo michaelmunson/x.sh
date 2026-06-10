@@ -121,6 +121,10 @@ fn exec_handler(app: &App, app_path: &Path, parsed: &Parsed, body: &str) -> Resu
     cmd.stdout(Stdio::inherit());
     cmd.stderr(Stdio::inherit());
 
+    if let Some(dir) = &app.dir {
+        cmd.current_dir(dir);
+    }
+
     let status = cmd.status().context("failed to spawn bash for app handler")?;
     std::process::exit(status.code().unwrap_or(1));
 }

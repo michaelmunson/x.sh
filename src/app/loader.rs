@@ -6,6 +6,7 @@
 //! name: my-app
 //! version: 0.0.0
 //! description: ...
+//! dir: ./app
 //! options:
 //!   - "[-v | --version]"
 //! commands:
@@ -95,6 +96,8 @@ struct RawApp {
     #[serde(default)]
     description: Option<String>,
     #[serde(default)]
+    dir: Option<String>,
+    #[serde(default)]
     options: Option<SynopsisField>,
     #[serde(default)]
     arguments: Option<SynopsisField>,
@@ -142,6 +145,7 @@ pub fn parse(content: &str, path: &Path) -> Result<App> {
     let handlers = resolve_handlers(path, &raw)?;
     let env = resolve_env(path, &raw)?;
     let sh_imports = resolve_sh_imports(path, &raw)?;
+    let dir = resolve_dir(path, raw.dir.as_deref())?;
 
     let mut root = Command::new(app_name.clone());
     root.description = raw.description.clone();
@@ -171,6 +175,7 @@ pub fn parse(content: &str, path: &Path) -> Result<App> {
         name: app_name,
         version: raw.version,
         description: raw.description,
+        dir,
         root,
         handlers,
         env,
@@ -534,6 +539,17 @@ fn app_dir(app_path: &Path) -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
 }
 
+fn resolve_dir(app_path: &Path, dir: Option<&str>) -> Result<Option<PathBuf>> {
+    let Some(dir) = dir else {
+        return Ok(None);
+    };
+    let resolved = resolve_path(&app_dir(app_path), dir);
+    if !resolved.is_dir() {
+        bail!("`dir` {} is not a directory", resolved.display());
+    }
+    Ok(Some(resolved))
+}
+
 fn resolve_path(app_dir: &Path, p: &str) -> PathBuf {
     if Path::new(p).is_absolute() {
         PathBuf::from(p)
@@ -835,6 +851,47 @@ import:
         .unwrap();
         let err = load(&app_file).unwrap_err();
         assert!(err.to_string().contains("sh import"));
+    }
+
+    #[test]
+    fn loads_dir_relative_to_app_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let app_sub = dir.path().join("app");
+        std::fs::create_dir(&app_sub).unwrap();
+        let app_file = dir.path().join("apps.x.yml");
+        std::fs::write(
+            &app_file,
+            r#"
+name: apps
+dir: ./app
+commands:
+  run:
+    description: run
+"$":
+  run: echo
+"#,
+        )
+        .unwrap();
+        let app = load(&app_file).unwrap();
+        assert_eq!(app.dir.as_deref(), Some(app_sub.as_path()));
+    }
+
+    #[test]
+    fn rejects_dir_that_is_not_a_directory() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("not-a-dir"), "nope\n").unwrap();
+        let app_file = dir.path().join("apps.x.yml");
+        std::fs::write(
+            &app_file,
+            r#"
+name: apps
+dir: ./not-a-dir
+"#,
+        )
+        .unwrap();
+        let err = load(&app_file).unwrap_err();
+        assert!(err.to_string().contains("`dir`"));
+        assert!(err.to_string().contains("not a directory"));
     }
 
     #[test]

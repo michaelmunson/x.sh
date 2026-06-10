@@ -120,6 +120,8 @@ pub struct App {
     pub name: String,
     pub version: Option<String>,
     pub description: Option<String>,
+    /// Working directory for handler execution (resolved absolute path).
+    pub dir: Option<PathBuf>,
     /// Root command. The app name is treated as the root command's name.
     pub root: Command,
     /// Map from dotted command path (e.g. `""`, `"create"`, `"create.file"`)

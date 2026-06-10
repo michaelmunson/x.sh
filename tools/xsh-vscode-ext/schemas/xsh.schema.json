@@ -21,6 +21,10 @@
       "type": "string",
       "description": "Human-readable description of the app"
     },
+    "dir": {
+      "type": "string",
+      "description": "Working directory to cd into before running handlers (relative to the app file or absolute)"
+    },
     "options": {
       "$ref": "#/definitions/optionsList",
       "description": "Top-level options for the root command"
