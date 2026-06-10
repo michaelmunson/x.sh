@@ -1,0 +1,10 @@
+name: sh-import
+description: fixture app for import.sh
+import:
+  sh:
+    - helpers/example.sh
+commands:
+  run:
+    description: call a function from the imported script
+"$":
+  run: example_fn

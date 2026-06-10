@@ -6,6 +6,7 @@
 //! the dotted command path (root = `""`, nested = `"create.file"`).
 
 use std::collections::BTreeMap;
+use std::path::PathBuf;
 
 /// What kind of value, if any, an option takes.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -125,4 +126,6 @@ pub struct App {
     /// to bash handler body.
     pub handlers: BTreeMap<String, String>,
     pub env: AppEnv,
+    /// Bash/zsh scripts sourced before each handler runs (`import.sh`, in order).
+    pub sh_imports: Vec<PathBuf>,
 }

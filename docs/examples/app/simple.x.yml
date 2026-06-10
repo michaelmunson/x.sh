@@ -8,6 +8,7 @@ description: an x app
 import:
   $:
     - handlers/test.yml
+  sh: handlers/example.sh
   env: .env.example
 
 env:
@@ -20,6 +21,8 @@ commands:
     description: print the environment variable
   test:
     description: test the environment variable
+  hello-world:
+    description: say hello to the world
 
 $:
   get-env: |
@@ -27,3 +30,5 @@ $:
     x-env-load .env1
     echo "MY_NAME = $MY_NAME"
     echo "IS_DEBUG = $IS_DEBUG"
+  hello-world: |
+    hello_world

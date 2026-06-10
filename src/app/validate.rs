@@ -319,6 +319,7 @@ options:
             root,
             handlers: [("".to_string(), "echo".into())].into_iter().collect(),
             env: Default::default(),
+            sh_imports: Vec::new(),
         };
         let msgs = validate(&app).unwrap_err();
         assert!(msgs.iter().any(|m| m.message.contains("requires `--ghost`")));
@@ -366,6 +367,7 @@ arguments:
             root,
             handlers: [("".to_string(), "echo".into())].into_iter().collect(),
             env: Default::default(),
+            sh_imports: Vec::new(),
         };
         let msgs = validate(&app).unwrap_err();
         assert!(msgs.iter().any(|m| m.message.contains("option group references `--ghost`")));

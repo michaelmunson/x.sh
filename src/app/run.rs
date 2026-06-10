@@ -68,7 +68,14 @@ fn resolve_command<'a>(app: &'a App, path: &[String]) -> Option<&'a crate::app::
 }
 
 fn exec_handler(app: &App, app_path: &Path, parsed: &Parsed, body: &str) -> Result<()> {
-    let bash_cmd = format!("{}\n{}", PREAMBLE, body);
+    let mut bash_cmd = String::from(PREAMBLE);
+    for sh_path in &app.sh_imports {
+        bash_cmd.push_str("\nsource ");
+        bash_cmd.push_str(&shell_single_quote(sh_path));
+        bash_cmd.push('\n');
+    }
+    bash_cmd.push('\n');
+    bash_cmd.push_str(body);
 
     let opts_pairs = pairs_string(&parsed.options);
     let args_pairs = pairs_string(&parsed.arguments);
@@ -133,6 +140,13 @@ fn pairs_string(map: &BTreeMap<String, Vec<String>>) -> String {
 
 fn env_key(name: &str) -> String {
     name.replace('-', "_")
+}
+
+fn shell_single_quote(path: &Path) -> String {
+    format!(
+        "'{}'",
+        path.to_string_lossy().replace('\'', "'\\''")
+    )
 }
 
 /// Hidden `x __usage <app-file> <cmd-path>` entry point used by the bash

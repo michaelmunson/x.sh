@@ -21,6 +21,7 @@ interface XAppDoc {
   import?: {
     $?: string | string[];
     env?: string | string[];
+    sh?: string | string[];
   };
   env?: Record<string, unknown>;
   $?: Record<string, string>;

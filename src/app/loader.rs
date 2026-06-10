@@ -18,6 +18,8 @@
 //!   $:
 //!     - ./handlers.yml
 //!   env: ./.env
+//!   sh:
+//!     - ./helpers/example.sh
 //! env:
 //!   HELLO: global
 //!   .env1:
@@ -69,6 +71,8 @@ struct RawImport {
     dollar: Option<SynopsisField>,
     #[serde(default)]
     env: Option<SynopsisField>,
+    #[serde(default)]
+    sh: Option<SynopsisField>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -137,6 +141,7 @@ pub fn parse(content: &str, path: &Path) -> Result<App> {
 
     let handlers = resolve_handlers(path, &raw)?;
     let env = resolve_env(path, &raw)?;
+    let sh_imports = resolve_sh_imports(path, &raw)?;
 
     let mut root = Command::new(app_name.clone());
     root.description = raw.description.clone();
@@ -169,6 +174,7 @@ pub fn parse(content: &str, path: &Path) -> Result<App> {
         root,
         handlers,
         env,
+        sh_imports,
     })
 }
 
@@ -215,6 +221,31 @@ fn env_import_paths(raw: &RawApp) -> Vec<String> {
         .and_then(|i| i.env.as_ref())
         .map(SynopsisField::as_vec)
         .unwrap_or_default()
+}
+
+fn sh_import_paths(raw: &RawApp) -> Vec<String> {
+    raw.import
+        .as_ref()
+        .and_then(|i| i.sh.as_ref())
+        .map(SynopsisField::as_vec)
+        .unwrap_or_default()
+}
+
+fn resolve_sh_imports(path: &Path, raw: &RawApp) -> Result<Vec<PathBuf>> {
+    let paths = sh_import_paths(raw);
+    if paths.is_empty() {
+        return Ok(Vec::new());
+    }
+    let app_dir = app_dir(path);
+    let mut out = Vec::with_capacity(paths.len());
+    for p in paths {
+        let resolved = resolve_path(&app_dir, &p);
+        if !resolved.is_file() {
+            bail!("sh import {} is not a file", resolved.display());
+        }
+        out.push(resolved);
+    }
+    Ok(out)
 }
 
 fn resolve_env(path: &Path, raw: &RawApp) -> Result<AppEnv> {
@@ -757,6 +788,53 @@ commands:
         .unwrap();
         let err = load(&app_file).unwrap_err();
         assert!(err.to_string().contains("duplicate env key"));
+    }
+
+    #[test]
+    fn loads_sh_import_paths() {
+        let dir = tempfile::tempdir().unwrap();
+        let helpers = dir.path().join("helpers");
+        std::fs::create_dir_all(&helpers).unwrap();
+        std::fs::write(helpers.join("example.sh"), "example_fn() { echo ok; }\n").unwrap();
+        let app_file = dir.path().join("app.x.yml");
+        std::fs::write(
+            &app_file,
+            r#"
+name: sh-import
+import:
+  sh:
+    - ./helpers/example.sh
+commands:
+  run:
+    description: run
+"$":
+  run: example_fn
+"#,
+        )
+        .unwrap();
+        let app = load(&app_file).unwrap();
+        assert_eq!(app.sh_imports.len(), 1);
+        assert_eq!(
+            app.sh_imports[0],
+            helpers.join("example.sh")
+        );
+    }
+
+    #[test]
+    fn rejects_missing_sh_import_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let app_file = dir.path().join("app.x.yml");
+        std::fs::write(
+            &app_file,
+            r#"
+name: missing-sh
+import:
+  sh: ./nope.sh
+"#,
+        )
+        .unwrap();
+        let err = load(&app_file).unwrap_err();
+        assert!(err.to_string().contains("sh import"));
     }
 
     #[test]

@@ -240,6 +240,26 @@ fn fixture_path_root_builtin_uses_app_dir_not_cwd() {
 }
 
 #[test]
+fn fixture_sh_import_sources_script_before_handler() {
+    let dir = tempfile::tempdir().unwrap();
+    let fixture_dir = manifest_dir().join("tests/fixtures");
+    fs::copy(fixture_dir.join("sh-import.x.yml"), dir.path().join("sh-import.x.yml")).unwrap();
+    fs::create_dir_all(dir.path().join("helpers")).unwrap();
+    fs::copy(
+        fixture_dir.join("helpers/example.sh"),
+        dir.path().join("helpers/example.sh"),
+    )
+    .unwrap();
+
+    x_cmd()
+        .current_dir(dir.path())
+        .args(["sh-import", "run"])
+        .assert()
+        .success()
+        .stdout("from-import\n");
+}
+
+#[test]
 fn simple_app_get_env() {
     x_cmd()
         .current_dir(simple_dir())

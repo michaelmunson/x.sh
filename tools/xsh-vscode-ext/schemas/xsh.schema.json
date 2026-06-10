@@ -43,7 +43,7 @@
     },
     "import": {
       "$ref": "#/definitions/importBlock",
-      "description": "Unified imports for handlers ($) and env (.env files)"
+      "description": "Unified imports for handlers ($), env (.env files), and shell scripts (sh)"
     },
     "env": {
       "$ref": "#/definitions/envBlock",
@@ -53,7 +53,7 @@
   "definitions": {
     "importBlock": {
       "type": "object",
-      "description": "Import handlers and/or .env files",
+      "description": "Import handlers, .env files, and/or shell scripts",
       "additionalProperties": false,
       "properties": {
         "$": {
@@ -63,6 +63,10 @@
         "env": {
           "$ref": "#/definitions/importValue",
           "description": "Classic .env files (KEY=VALUE) to import"
+        },
+        "sh": {
+          "$ref": "#/definitions/importValue",
+          "description": "Bash/zsh scripts sourced before each handler runs"
         }
       }
     },
