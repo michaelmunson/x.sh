@@ -129,17 +129,12 @@ name: {name}
 version: 0.0.0
 description: an x app
 
-options: &options
-  - '[--name=<name>]'
-
-commands:
-  hello:
-    description: print a greeting
-    arguments: '[<who="world">]'
-    options: *options
-
-$:
-  hello: |
+.hello:
+  help: print a greeting
+  args: '[<who="world">]'
+  opts: |
+    [--name=<name>]
+  $: |
     name=$(x-opt "name")
     who=$(x-arg "who")
     echo "hello, $who : $name"

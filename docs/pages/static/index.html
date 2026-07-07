@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>x.sh — Overview</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Trebuchet MS', sans-serif;
+      color: #222;
+    }
+
+    nav#toc {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 15rem;
+      height: 100vh;
+      overflow-y: auto;
+      border-right: 1px solid #cacaca;
+      padding: 1em 1.25em;
+      background: #fafafa;
+      z-index: 10;
+    }
+
+    nav#toc h2 {
+      font-size: 1rem;
+      margin: 0 0 0.5em;
+    }
+
+    nav#toc ul {
+      list-style: none;
+      margin: 0;
+      padding-left: 1.1em;
+    }
+
+    nav#toc>ul {
+      padding-left: 0;
+    }
+
+    nav#toc li {
+      margin: 0.2em 0;
+    }
+
+    nav#toc a {
+      color: #1a5fb4;
+      text-decoration: none;
+      font-size: 0.95rem;
+    }
+
+    nav#toc a[aria-current="page"] {
+      font-weight: bold;
+      text-decoration: underline;
+    }
+
+    nav#toc a:hover {
+      text-decoration: underline;
+    }
+
+    .page {
+      margin-right: 15rem;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      gap: 1em;
+      padding: 1.25em 2em 2em;
+    }
+
+    header {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5em;
+      padding-bottom: 1em;
+      border-bottom: 1px solid #cacaca;
+    }
+
+    header>h1,
+    header>p {
+      margin: 0;
+    }
+
+    main {
+      display: flex;
+      flex-direction: column;
+      gap: 2em;
+      flex: 1;
+    }
+
+    main>section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75em;
+    }
+
+    main>section>h2 {
+      font-size: 1.5rem;
+      margin: 0 0 0.25em;
+      padding-bottom: 0.25em;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    main>section>h3:first-of-type {
+      margin-top: 0;
+    }
+
+    h3 {
+      font-size: 1.2rem;
+      margin: 0.75em 0 0;
+    }
+
+    h3+fieldset,
+    h3+p {
+      margin-top: 0.25em;
+    }
+
+    h3 code {
+      font-size: 1rem;
+    }
+
+    h4, h5, h6, p {
+      margin: 0.5em 0;
+    }
+
+    fieldset {
+      border-radius: 5px;
+      margin: 0;
+    }
+
+    fieldset legend {
+      padding: 0 0.3rem;
+      border: 1px solid #cacaca;
+      border-radius: 5px;
+      font-size: 0.8rem;
+    }
+
+    fieldset+fieldset {
+      margin-top: 1em;
+    }
+
+    pre {
+      margin: 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0.5em 0 1em;
+      background: #fff;
+    }
+
+    table th,
+    table td {
+      padding: 0.6em 1em;
+      border: 1px solid #ececec;
+      text-align: left;
+    }
+
+    table th {
+      font-weight: bold;
+      border-bottom: 2px solid #cacaca;
+    }
+
+    footer {
+      border-top: 1px solid #cacaca;
+      padding-top: 1em;
+      margin-top: 1em;
+      color: #555;
+    }
+
+    footer p {
+      margin: 0;
+    }
+
+    aside {
+      display: block;
+      padding: 0.75em 1em;
+      border-left: 3px solid #b7b7b7;
+      background: #f5f5f5;
+      border-radius: 0 4px 4px 0;
+    }
+
+  </style>
+  <style>
+    body:has(details#toggle-toc[open]) {
+      & nav#toc {
+        display: none;
+      }
+      & .page {
+        margin-right: 0;
+      }
+    }
+    div#toggle-toc-container {
+      position:fixed;
+      z-index: 1000;
+      right: 10px;
+      top: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 5px;
+      background: #fafafa;
+      border: 1px solid #cacaca;
+      border-radius: 5px;
+    }
+    details#toggle-toc {
+      & summary {
+        list-style: none;
+        &::after {
+          content: "Menu ▶";
+        }
+      }
+
+      & summary::-webkit-details-marker {
+        display: none; /* older Safari/Chrome */
+      }
+
+      & summary::marker {
+        display: none; /* modern spec-compliant approach */
+        content: ""; /* fallback in case display:none isn't respected */
+      }
+    }
+    details#toggle-toc:not([open]) summary::after {
+      content: "Menu ▼";
+    }
+  </style>
+</head>
+<body>
+  <div id="toggle-toc-container">
+    <details id="toggle-toc"><summary></summary></details>
+  </div>
+  <nav id="toc">
+    <h2>Contents</h2>
+    <ul>
+      <li>
+        <a href="index.html" aria-current="page">Overview</a>
+        <ul>
+          <li><a href="index.html#installation">Installation</a></li>
+          <li><a href="index.html#languages">Supported Languages</a></li>
+        </ul>
+      </li>
+      <li><a href="quickstart.html">Quick Start</a></li>
+      <li><a href="architecture.html">Architecture</a></li>
+      <li><a href="commands.html">Commands</a></li>
+      <li>
+        <a href="scripts.html">Scripts</a>
+        <ul>
+          <li><a href="scripts.html#global-scripts">Global Scripts</a></li>
+        </ul>
+      </li>
+      <li>
+        <a href="apps.html">Apps</a>
+        <ul>
+          <li><a href="apps.html#app-framework">Overview</a></li>
+          <li><a href="apps.html#app-format">File Format</a></li>
+          <li><a href="apps.html#synopsis">Synopsis DSL</a></li>
+          <li><a href="apps.html#builtins">Built-in Helpers</a></li>
+          <li><a href="apps.html#validation-help">Validation &amp; Help</a></li>
+          <li><a href="apps.html#examples">Examples</a></li>
+          <li><a href="apps.html#project-local">Project-local Scripts</a></li>
+        </ul>
+      </li>
+    </ul>
+  </nav>
+  <div class="page">
+  <header>
+    <h1 style="display:flex; align-items:center; gap:10px">
+      <img alt="x.sh" height="40" width="40" src="icon.png">
+      x.sh
+    </h1>
+  </header>
+    <main>
+<section id="overview"><h2>Overview</h2><p><strong>x</strong> is a CLI that helps you create, organize, and run scripts across projects, as well as providing a framework for creating complex CLIs.</p>
+        <h3>Overview</h3>
+        <ul>
+          <li>
+            <strong>Script management:</strong> Store your favorite scripts globally in <code>~/.x.sh/scripts/</code>, complete with descriptions, language info, and usage statistics.
+          </li>
+          <li>
+            <strong>Project automation:</strong> Define project-specific commands in <code>./x.yml</code> files, enabling consistent development workflows with versioned, tracked, and portable automations.
+          </li>
+          <li>
+            <strong>App framework:</strong> Create fully-featured CLI apps using <code>&lt;name&gt;.x.yml</code> files. Describe options, arguments, and subcommands (in your shell language) in YAML . x.sh provides argument parsing, validation, and helpful error messages before any script runs.
+          </li>
+        </ul>
+        <h3>What's new in v3</h3>
+        <p>Project-local <code>x.yml</code> and app (<code>&lt;name&gt;.x.yml</code>) files now share <strong>one file format</strong>, powered by the same engine. This is a breaking change:</p>
+        <ul>
+          <li><strong>Dot-prefixed commands:</strong> subcommands are declared with <code>.command-name:</code> keys directly on the parent node — the old top-level <code>commands:</code> mapping is <strong>removed</strong>.</li>
+          <li><strong>Inline scripts:</strong> each command carries its own <code>$:</code> script (or a bare string shorthand). The old top-level <code>$:</code> block used as a dotted-path handler map is <strong>removed</strong>; a top-level <code>$:</code> is now only ever the root command's own script.</li>
+          <li><strong><code>x.yml</code> gets the full app engine:</strong> options, arguments, nested subcommands, auto-help, and validation all work in project-local <code>x.yml</code> now, not just flat inline scripts.</li>
+          <li><strong>New aliases:</strong> <code>help</code>/<code>description</code>, <code>opts</code>/<code>options</code>, and <code>args</code>/<code>arguments</code> are interchangeable field names.</li>
+          <li><strong>Multiline synopsis shorthand:</strong> <code>opts</code>/<code>args</code> accept a single multiline string (one synopsis fragment per line) instead of a YAML list.</li>
+          <li><strong>New <code>dir</code>/<code>env</code> inheritance:</strong> per-command working directory and environment merge downward to subcommands.</li>
+          <li><strong>New <code>alias</code> commands:</strong> dispatch a command's remaining arguments to another x file entirely.</li>
+          <li><strong>New <code>x-path-root</code> builtin</strong> and unified <code>import:</code> block (<code>$</code>, <code>env</code>, <code>sh</code>) replacing the old scattered import fields.</li>
+        </ul>
+        <aside><strong>Migrating:</strong> replace <code>commands:</code> nesting with <code>.command:</code> keys, move each handler from the top-level <code>$:</code> map onto its own command's <code>$:</code>, and rename the root handler's <code>""</code> key to a plain top-level <code>$:</code> string.</aside></section>
+    <section id="installation"><h2>Installation</h2><h3>Automated install (recommended)</h3>
+        <p>The install script clones the repo, builds in release mode, and places the binary in
+          <code>~/.local/bin/</code>.</p>
+        <fieldset>
+          <legend></legend>
+          <pre><code>curl -fsSL https://raw.githubusercontent.com/michaelmunson/x.sh/main/install.sh | bash</code></pre>
+        </fieldset>
+        <p>Or download and run manually:</p>
+        <fieldset>
+          <legend></legend>
+          <pre><code>wget https://raw.githubusercontent.com/michaelmunson/x.sh/main/install.sh
+bash install.sh</code></pre>
+        </fieldset>
+        <h4>Requirements</h4>
+        <ul>
+          <li><strong>Rust / Cargo</strong>: the script prompts you to install via rustup if missing.</li>
+          <li><strong>Git</strong>: used to clone the repository (skipped if you run the script from inside the repo).
+          </li>
+          <li>An internet connection for the initial clone and build.</li>
+        </ul>
+        <h4>What the script does</h4>
+        <ol>
+          <li>Checks for Rust/Cargo.</li>
+          <li>Clones <code>github.com/michaelmunson/x.sh</code> (or uses the current directory if already in the repo).
+          </li>
+          <li>Runs <code>cargo build --release</code>.</li>
+          <li>Copies <code>target/release/x</code> to <code>~/.local/bin/x</code>.</li>
+          <li>Verifies the installation by running <code>x --help</code>.</li>
+        </ol>
+        <aside><strong>PATH</strong> Ensure <code>~/.local/bin</code> is on your PATH. Add
+          <code>export PATH="$HOME/.local/bin:$PATH"</code> to <code>~/.bashrc</code>, <code>~/.zshrc</code>, or
+          <code>~/.profile</code>, then restart your shell.</aside>
+        <h3>Manual build</h3>
+        <fieldset>
+          <legend></legend>
+          <pre><code>git clone https://github.com/michaelmunson/x.sh.git
+cd x.sh
+cargo build --release
+# Binary at target/release/x: copy or symlink into your PATH</code></pre>
+        </fieldset>
+
+        <h3>VS Code extension</h3>
+        <p>The <strong>x.sh</strong> extension adds syntax highlighting and linting for <code>*.x.yml</code> and
+          <code>x.yml</code> files in VS Code and Cursor.</p>
+        <ol>
+          <li>Download the <a href="https://github.com/michaelmunson/x.sh/blob/main/tools/xsh-vscode-ext/xsh-vscode-ext-0.0.1.vsix">extension package (<code>xsh-vscode-ext-0.0.1.vsix</code>)</a>.</li>
+          <li>Open the Extensions view, choose <strong>Install from VSIX…</strong> from the <code>⋯</code> menu, and
+            select the downloaded file.</li>
+        </ol>
+        <p>Or install from the command line:</p>
+        <fieldset>
+          <legend></legend>
+          <pre><code>code --install-extension /path/to/xsh-vscode-ext-0.0.1.vsix</code></pre>
+        </fieldset>
+        <h3>First-run directory layout</h3>
+        <p>On first use, x creates <code>~/.x.sh/</code> with the following structure:</p>
+        <fieldset>
+          <legend></legend>
+          <pre><code>~/.x.sh/
+├── scripts/          # your global script files
+├── apps/             # global app YAML files (&lt;name&gt;.x.yml)
+├── metadata/         # per-script TOML metadata
+│   └── &lt;name&gt;.toml
+├── config.json       # default_program and other settings
+├── metadata.json     # usage / activity tracking
+└── config/
+    └── llm.sh        # LLM provider script (after x --config)</code></pre>
+        </fieldset></section>
+    <section id="languages"><h2>Supported Languages</h2><p>Each language maps to a <code>program</code> value stored in script metadata. x invokes
+          <code>&lt;program&gt; &lt;script-file&gt; [args…]</code> for global scripts.</p>
+        <table>
+          <thead>
+            <tr>
+              <th width="150px">Language</th>
+              <th width="100px">Program</th>
+              <th width="300px">Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Bash</td>
+              <td>bash</td>
+              <td>Default for most shell scripts</td>
+            </tr>
+            <tr>
+              <td>Zsh</td>
+              <td>zsh</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>POSIX Shell</td>
+              <td>sh</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>Node.js</td>
+              <td>node</td>
+              <td>JavaScript / TypeScript</td>
+            </tr>
+            <tr>
+              <td>Python 3</td>
+              <td>python</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>Python 2</td>
+              <td>python2</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>Ruby</td>
+              <td>ruby</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>Perl</td>
+              <td>perl</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>Go</td>
+              <td>go</td>
+              <td>Compiled; use <code>go run</code> style in script</td>
+            </tr>
+            <tr>
+              <td>Rust</td>
+              <td>rust</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>PHP</td>
+              <td>php</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>Lua</td>
+              <td>lua</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>Deno</td>
+              <td>deno</td>
+              <td>JS/TS runtime</td>
+            </tr>
+            <tr>
+              <td>Swift</td>
+              <td>swift</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>C</td>
+              <td>c</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>C++</td>
+              <td>cpp</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>Java</td>
+              <td>java</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>R</td>
+              <td>r</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>AWK</td>
+              <td>awk</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>Elixir</td>
+              <td>elixir</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>Clojure</td>
+              <td>clj</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>Scala</td>
+              <td>scala</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>Haskell</td>
+              <td>haskell</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>PowerShell</td>
+              <td>powershell</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>Kotlin</td>
+              <td>kotlin</td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table></section>
+    </main>
+  <footer>
+    <p>Repository: <a href="https://github.com/michaelmunson/x.sh">github.com/michaelmunson/x.sh</a></p>
+  </footer>
+  </div>
+</body>
+</html>

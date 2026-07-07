@@ -16,19 +16,18 @@ env:
     - MY_NAME: "env1"
   HELLO: "global"
 
-commands:
-  get-env:
-    description: print the environment variable
-  test:
-    description: test the environment variable
-  hello-world:
-    description: say hello to the world
-
-$:
-  get-env: |
+.get-env:
+  description: print the environment variable
+  $: |
     echo "HELLO = $HELLO"
     x-env-load .env1
     echo "MY_NAME = $MY_NAME"
     echo "IS_DEBUG = $IS_DEBUG"
-  hello-world: |
+
+.test:
+  description: test the environment variable
+
+.hello-world:
+  description: say hello to the world
+  $: |
     hello_world

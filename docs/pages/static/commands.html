@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>x.sh — Commands</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Trebuchet MS', sans-serif;
+      color: #222;
+    }
+
+    nav#toc {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 15rem;
+      height: 100vh;
+      overflow-y: auto;
+      border-right: 1px solid #cacaca;
+      padding: 1em 1.25em;
+      background: #fafafa;
+      z-index: 10;
+    }
+
+    nav#toc h2 {
+      font-size: 1rem;
+      margin: 0 0 0.5em;
+    }
+
+    nav#toc ul {
+      list-style: none;
+      margin: 0;
+      padding-left: 1.1em;
+    }
+
+    nav#toc>ul {
+      padding-left: 0;
+    }
+
+    nav#toc li {
+      margin: 0.2em 0;
+    }
+
+    nav#toc a {
+      color: #1a5fb4;
+      text-decoration: none;
+      font-size: 0.95rem;
+    }
+
+    nav#toc a[aria-current="page"] {
+      font-weight: bold;
+      text-decoration: underline;
+    }
+
+    nav#toc a:hover {
+      text-decoration: underline;
+    }
+
+    .page {
+      margin-right: 15rem;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      gap: 1em;
+      padding: 1.25em 2em 2em;
+    }
+
+    header {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5em;
+      padding-bottom: 1em;
+      border-bottom: 1px solid #cacaca;
+    }
+
+    header>h1,
+    header>p {
+      margin: 0;
+    }
+
+    main {
+      display: flex;
+      flex-direction: column;
+      gap: 2em;
+      flex: 1;
+    }
+
+    main>section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75em;
+    }
+
+    main>section>h2 {
+      font-size: 1.5rem;
+      margin: 0 0 0.25em;
+      padding-bottom: 0.25em;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    main>section>h3:first-of-type {
+      margin-top: 0;
+    }
+
+    h3 {
+      font-size: 1.2rem;
+      margin: 0.75em 0 0;
+    }
+
+    h3+fieldset,
+    h3+p {
+      margin-top: 0.25em;
+    }
+
+    h3 code {
+      font-size: 1rem;
+    }
+
+    h4, h5, h6, p {
+      margin: 0.5em 0;
+    }
+
+    fieldset {
+      border-radius: 5px;
+      margin: 0;
+    }
+
+    fieldset legend {
+      padding: 0 0.3rem;
+      border: 1px solid #cacaca;
+      border-radius: 5px;
+      font-size: 0.8rem;
+    }
+
+    fieldset+fieldset {
+      margin-top: 1em;
+    }
+
+    pre {
+      margin: 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0.5em 0 1em;
+      background: #fff;
+    }
+
+    table th,
+    table td {
+      padding: 0.6em 1em;
+      border: 1px solid #ececec;
+      text-align: left;
+    }
+
+    table th {
+      font-weight: bold;
+      border-bottom: 2px solid #cacaca;
+    }
+
+    footer {
+      border-top: 1px solid #cacaca;
+      padding-top: 1em;
+      margin-top: 1em;
+      color: #555;
+    }
+
+    footer p {
+      margin: 0;
+    }
+
+    aside {
+      display: block;
+      padding: 0.75em 1em;
+      border-left: 3px solid #b7b7b7;
+      background: #f5f5f5;
+      border-radius: 0 4px 4px 0;
+    }
+
+  </style>
+  <style>
+    body:has(details#toggle-toc[open]) {
+      & nav#toc {
+        display: none;
+      }
+      & .page {
+        margin-right: 0;
+      }
+    }
+    div#toggle-toc-container {
+      position:fixed;
+      z-index: 1000;
+      right: 10px;
+      top: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 5px;
+      background: #fafafa;
+      border: 1px solid #cacaca;
+      border-radius: 5px;
+    }
+    details#toggle-toc {
+      & summary {
+        list-style: none;
+        &::after {
+          content: "Menu ▶";
+        }
+      }
+
+      & summary::-webkit-details-marker {
+        display: none; /* older Safari/Chrome */
+      }
+
+      & summary::marker {
+        display: none; /* modern spec-compliant approach */
+        content: ""; /* fallback in case display:none isn't respected */
+      }
+    }
+    details#toggle-toc:not([open]) summary::after {
+      content: "Menu ▼";
+    }
+  </style>
+</head>
+<body>
+  <div id="toggle-toc-container">
+    <details id="toggle-toc"><summary></summary></details>
+  </div>
+  <nav id="toc">
+    <h2>Contents</h2>
+    <ul>
+      <li>
+        <a href="index.html">Overview</a>
+        <ul>
+          <li><a href="index.html#installation">Installation</a></li>
+          <li><a href="index.html#languages">Supported Languages</a></li>
+        </ul>
+      </li>
+      <li><a href="quickstart.html">Quick Start</a></li>
+      <li><a href="architecture.html">Architecture</a></li>
+      <li><a href="commands.html" aria-current="page">Commands</a></li>
+      <li>
+        <a href="scripts.html">Scripts</a>
+        <ul>
+          <li><a href="scripts.html#global-scripts">Global Scripts</a></li>
+        </ul>
+      </li>
+      <li>
+        <a href="apps.html">Apps</a>
+        <ul>
+          <li><a href="apps.html#app-framework">Overview</a></li>
+          <li><a href="apps.html#app-format">File Format</a></li>
+          <li><a href="apps.html#synopsis">Synopsis DSL</a></li>
+          <li><a href="apps.html#builtins">Built-in Helpers</a></li>
+          <li><a href="apps.html#validation-help">Validation &amp; Help</a></li>
+          <li><a href="apps.html#examples">Examples</a></li>
+          <li><a href="apps.html#project-local">Project-local Scripts</a></li>
+        </ul>
+      </li>
+    </ul>
+  </nav>
+  <div class="page">
+  <header>
+    <h1 style="display:flex; align-items:center; gap:10px">
+      <img alt="x.sh" height="40" width="40" src="icon.png">
+      x.sh
+    </h1>
+  </header>
+    <main>
+<section id="commands"><h2>Commands</h2><h3><code>x --init | -i [name] [script]</code></h3>
+        <p>Create a new global script or re-open an existing one in your editor.</p>
+        <ul>
+          <li><code>x -i</code>: fully interactive (name, description, language, editor).</li>
+          <li><code>x -i my-script</code>: prompts for metadata, opens editor. If the script exists, you can rename it
+            first; metadata and history follow the new name.</li>
+          <li><code>x -i my-script "echo hello"</code>: creates the script with inline content using the default or
+            existing program.</li>
+        </ul>
+        <aside><strong>Note:</strong> Script names must be non-empty and contain only letters, numbers, and dashes.
+        </aside>
+        <h3><code>x &lt;script_name&gt; [args…]</code></h3>
+        <p>Execute a command using the resolution order described in <a href="architecture.html">Architecture</a>. Arguments
+          are forwarded verbatim.</p>
+        <h3><code>x --ls</code> / <code>x -l</code></h3>
+        <p>List all global scripts in a table with description, program, groups, and activity timestamps.</p>
+        <h3><code>x --delete &lt;name&gt;</code> / <code>x -d</code></h3>
+        <p>Remove a global script and its metadata. Does <strong>not</strong> remove symlinks created with
+          <code>x --ln</code>; delete those separately.</p>
+        <h3><code>x --ln &lt;name&gt; [link_name]</code></h3>
+        <p>Symlink a script into <code>~/.local/bin/</code> so you can invoke it without the <code>x</code> prefix.</p>
+        <fieldset>
+          <legend></legend>
+          <pre><code>x --ln my-script          # → ~/.local/bin/my-script
+x --ln my-script alias    # → ~/.local/bin/alias
+x -d --ln my-script       # remove the symlink</code></pre>
+        </fieldset>
+        <h3><code>x --src &lt;name&gt;</code></h3>
+        <p>Print the absolute path of a script or app file. Resolution: local app → global app → global script.
+          <code>x.yml</code> keys are not matched.</p>
+        <h3><code>x -i --app [--local | --global] [&lt;name&gt;]</code></h3>
+        <p>Create a new app YAML file. Scope flags control where the file is written; without them, x prompts
+          interactively.</p></section>
+    </main>
+  <footer>
+    <p>Repository: <a href="https://github.com/michaelmunson/x.sh">github.com/michaelmunson/x.sh</a></p>
+  </footer>
+  </div>
+</body>
+</html>

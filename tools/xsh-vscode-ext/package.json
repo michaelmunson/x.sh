@@ -3,7 +3,7 @@
   "displayName": "x.sh",
   "description": "Syntax highlighting and linting for x.sh app definition files (*.x.yml, x.yml)",
   "version": "0.0.1",
-  "publisher": "your-publisher-name",
+  "publisher": "michaelmunson",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -99,11 +99,44 @@
         "fileMatch": [
           "*.x.yml",
           "*.cli.yaml",
-          "*.cli.yml"
+          "*.cli.yml",
+          "x.yml"
         ],
         "url": "./schemas/xsh.schema.json"
       }
     ],
+    "configurationDefaults": {
+      "[xsh]": {
+        "editor.tokenColorCustomizations": {
+          "textMateRules": [
+            {
+              "scope": [
+                "entity.name.function.command.xsh",
+                "punctuation.definition.command.xsh"
+              ],
+              "settings": {
+                "foreground": "#89D185"
+              }
+            }
+          ]
+        }
+      },
+      "[xsh-local]": {
+        "editor.tokenColorCustomizations": {
+          "textMateRules": [
+            {
+              "scope": [
+                "entity.name.function.command.xsh",
+                "punctuation.definition.command.xsh"
+              ],
+              "settings": {
+                "foreground": "#89D185"
+              }
+            }
+          ]
+        }
+      }
+    },
     "configuration": {
       "title": "x.sh",
       "properties": {
@@ -115,12 +148,7 @@
         "xsh.lint.warnOnMissingHandlers": {
           "type": "boolean",
           "default": true,
-          "description": "Report when a leaf command has no corresponding $ handler"
-        },
-        "xsh.lint.warnOnUnreferencedHandlers": {
-          "type": "boolean",
-          "default": true,
-          "description": "Report when a $ handler key has no matching command"
+          "description": "Report when a leaf command has no inline $ script (and no alias)"
         },
         "xsh.lint.requireDescription": {
           "type": "boolean",

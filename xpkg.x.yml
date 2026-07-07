@@ -7,69 +7,60 @@ description: x package meta app
 env:
   HELLO: "world"
 
-commands:
-  build:
-    description: build the binary/docs
-    commands: 
-      bin:
-        description: build the binary
-        arguments: '[<test>]'
-      tool:
-        description: build the tools
-        options:
-          - '[--cursor]'
-          - '[--vscode]'
-          - '[--compile <test>]'
-  test:
-    description: run the tests
-    arguments: "[<test>]"
-    options:
-      - '[--complete]'
-      - '[--integration]'
-      - '[--test <test>]'
-  
-  random:
-    options:
-      - '[--foo <arg> ...]'
-      - '[--bar <arg>]'
-
-$:
-  build: |
-    
+.build:
+  help: build the binary/docs
+  $: |
     x xpkg build bin
     x xpkg build tool
-  
-  build.tool: |
-    
-    if ! ls Cargo.toml >/dev/null 2>&1; then
-      echo "Error: Wrong Directory. Please navigate to the root of the project."
-      exit 1
-    fi
-    x-prt --style yellow,bold "Removing existing extension" && echo
-    rm tools/xsh-vscode-ext/xsh-vscode-ext-0.0.1.vsix
-    x-prt --style green,bold "Building extension" && echo
-    pushd tools/xsh-vscode-ext
-    if [ "$(x-opt "compile")" = "true" ]; then
-      npm run compile
-    else
-      npm install
-      npm run compile
-      npm run package
-      if [ "$(x-opt "cursor")" = "true" ]; then
-        npm run install-cursor-extension
-      elif [ "$(x-opt "vscode")" = "true" ]; then
-        npm run install-vscode-extension
-      else
-        echo "No extension selected, skipping installation"
+
+  .bin:
+    description: build the binary
+    $: |
+      cargo build --release
+
+  .tool:
+    description: build the tools
+    options:
+      - '[--cursor]'
+      - '[--vscode]'
+      - '[--compile <test>]'
+    $: |
+      
+      if ! ls Cargo.toml >/dev/null 2>&1; then
+        echo "Error: Wrong Directory. Please navigate to the root of the project."
+        exit 1
       fi
-    fi
-    popd
+      x-prt --style yellow,bold "Removing existing extension" && echo
+      rm tools/xsh-vscode-ext/xsh-vscode-ext-0.0.1.vsix
+      x-prt --style green,bold "Building extension" && echo
+      pushd tools/xsh-vscode-ext
+      if [ "$(x-opt "compile")" = "true" ]; then
+        npm run compile
+      else
+        npm install
+        npm run compile
+        npm run package
+        if [ "$(x-opt "cursor")" = "true" ]; then
+          npm run install-cursor-extension
+        elif [ "$(x-opt "vscode")" = "true" ]; then
+          npm run install-vscode-extension
+        else
+          echo "No extension selected, skipping installation"
+        fi
+      fi
+      popd
 
-    
-  build.bin: |
-    cargo build --release
+      
 
-  test: |
+.test:
+  description: run the tests
+  arguments: >
+    [<test>]
+  options: |
+    [--complete]
+    [--integration]
+    [--test <test>]
+  $: |
     if [ -n "$(x-arg test)" ]; then
       cargo test $(x-arg test)
     elif [ "$(x-opt "test")" = "true" ]; then
@@ -82,6 +73,17 @@ $:
       cargo test --bin x # this is a test for the x binary
     fi
 
-  random: |
-    echo "$(x-path-root)"
-    
+.random:
+  arguments: |
+    [<arg>...]
+  options: |
+    [--foo <arg> ...]
+    [--bar <arg>]
+  $: |
+    x-prt --style green,bold -n "Root: $(x-path-root)"
+    x-prt --style yellow -n "Foo: $(x-opt "foo")"
+    x-prt --style blue -n "Bar: $(x-opt "bar")"
+
+    if [ -n "$(x-arg arg)" ]; then
+      x-prt --style green,bold -n "Arg: $(x-arg arg)"
+    fi

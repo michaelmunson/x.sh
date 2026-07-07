@@ -2,8 +2,9 @@
 //!
 //! Catches mistakes the loader can't (the loader is purely syntactic):
 //!
-//! - leaf commands that have no `$:` handler
-//! - handler keys in `$:` that don't match any command path
+//! - leaf commands that have no `$` script (and no `alias`)
+//! - imported handler keys that don't match any command path
+//! - alias commands that also define options/arguments/scripts/subcommands
 //! - options whose `requires:` references an unknown sibling option
 //! - duplicate option names within a single command
 //! - illegal defaults / inconsistent option specs
@@ -36,39 +37,39 @@ pub fn validate(app: &App) -> Result<(), Vec<ValidationError>> {
 
     let mut all_paths: BTreeSet<String> = BTreeSet::new();
     collect_paths(&app.root, "", &mut all_paths);
+    let mut alias_paths: BTreeSet<String> = BTreeSet::new();
+    collect_alias_paths(&app.root, "", &mut alias_paths);
     let mut leaf_paths: BTreeSet<String> = BTreeSet::new();
     collect_leaf_paths(&app.root, "", &mut leaf_paths);
 
-    // Every leaf command should have a handler in $: (unless it has no body
-    // because it only exists as a help wrapper). We surface a warning-style
-    // error to keep things explicit; users can add `: x-usage <path>` if they
-    // want a help-only leaf.
+    // Every leaf command needs a `$` script or an `alias`.
     for leaf in &leaf_paths {
-        if !app.handlers.contains_key(leaf) {
+        if !app.handlers.contains_key(leaf) && !alias_paths.contains(leaf) {
             errors.push(ValidationError {
                 path: leaf.clone(),
-                message: format!(
-                    "leaf command has no handler — add `{}: ...` under `$:`",
-                    if leaf.is_empty() { "$" } else { leaf.as_str() }
-                ),
+                message: if leaf.is_empty() {
+                    "app defines no commands and no root `$:` script".to_string()
+                } else {
+                    "leaf command has no script — add a `$: ...` entry (or `alias:`)".to_string()
+                },
             });
         }
     }
 
-    // Every key in $: must correspond to a known command path.
+    // Every handler key (inline or imported) must match a known command path.
     for key in app.handlers.keys() {
         if !all_paths.contains(key) {
             errors.push(ValidationError {
                 path: key.clone(),
                 message: format!(
-                    "handler key `{}` does not match any command in `commands:`",
+                    "script key `{}` does not match any defined command",
                     if key.is_empty() { "$" } else { key.as_str() }
                 ),
             });
         }
     }
 
-    validate_command(&app.root, "", &mut errors);
+    validate_command(&app.root, "", app, &mut errors);
 
     if errors.is_empty() {
         Ok(())
@@ -104,7 +105,36 @@ fn collect_leaf_paths(cmd: &Command, prefix: &str, out: &mut BTreeSet<String>) {
     }
 }
 
-fn validate_command(cmd: &Command, path: &str, errors: &mut Vec<ValidationError>) {
+fn collect_alias_paths(cmd: &Command, prefix: &str, out: &mut BTreeSet<String>) {
+    if cmd.alias.is_some() {
+        out.insert(prefix.to_string());
+    }
+    for (name, sub) in &cmd.subcommands {
+        let next = if prefix.is_empty() {
+            name.clone()
+        } else {
+            format!("{}.{}", prefix, name)
+        };
+        collect_alias_paths(sub, &next, out);
+    }
+}
+
+fn validate_command(cmd: &Command, path: &str, app: &App, errors: &mut Vec<ValidationError>) {
+    if cmd.alias.is_some() {
+        let has_extras = !cmd.options.is_empty()
+            || !cmd.arguments.is_empty()
+            || !cmd.option_groups.is_empty()
+            || !cmd.subcommands.is_empty()
+            || app.handlers.contains_key(path);
+        if has_extras {
+            errors.push(ValidationError {
+                path: path.to_string(),
+                message: "alias command may only define `alias` and `help`".into(),
+            });
+        }
+        return;
+    }
+
     let mut seen_long: BTreeSet<&str> = BTreeSet::new();
     let mut seen_short: BTreeSet<char> = BTreeSet::new();
     for opt in &cmd.options {
@@ -192,7 +222,7 @@ fn validate_command(cmd: &Command, path: &str, errors: &mut Vec<ValidationError>
         } else {
             format!("{}.{}", path, name)
         };
-        validate_command(sub, &next, errors);
+        validate_command(sub, &next, app, errors);
     }
 }
 
@@ -227,11 +257,9 @@ mod tests {
         let app = app(
             r#"
 name: ok
-commands:
-  run:
-    description: run it
-"$":
-  run: echo ok
+.run:
+  help: run it
+  $: echo ok
 "#,
         );
         assert!(validate(&app).is_ok());
@@ -242,28 +270,33 @@ commands:
         let msgs = err_messages(
             r#"
 name: t
-commands:
-  run:
-    description: x
+.run:
+  help: x
 "#,
         );
-        assert!(msgs.iter().any(|m| m.contains("no handler")));
+        assert!(msgs.iter().any(|m| m.contains("no script")));
     }
 
     #[test]
-    fn reports_orphan_handler_key() {
-        let msgs = err_messages(
+    fn reports_orphan_imported_handler_key() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("handlers.yml"), "ghost: echo\n").unwrap();
+        let app_file = dir.path().join("app.x.yml");
+        std::fs::write(
+            &app_file,
             r#"
 name: t
-commands:
-  run:
-    description: x
-"$":
-  run: echo
-  ghost: echo
+import:
+  $: ./handlers.yml
+.run: echo
 "#,
-        );
-        assert!(msgs.iter().any(|m| m.contains("does not match any command")));
+        )
+        .unwrap();
+        let app = loader::load(&app_file).unwrap();
+        let errors = validate(&app).unwrap_err();
+        assert!(errors
+            .iter()
+            .any(|e| e.message.contains("does not match any defined command")));
     }
 
     #[test]
@@ -274,8 +307,7 @@ name: t
 options:
   - "[--foo]"
   - "[--foo]"
-"$":
-  "": echo
+$: echo
 "#,
         );
         assert!(msgs.iter().any(|m| m.contains("duplicate option `--foo`")));
@@ -286,14 +318,54 @@ options:
         let msgs = err_messages(
             r#"
 name: t
-options:
-  - "[-f]"
-  - "[-f]"
-"$":
-  "": echo
+opts: |
+  [-f]
+  [-f]
+$: echo
 "#,
         );
         assert!(msgs.iter().any(|m| m.contains("duplicate option `-f`")));
+    }
+
+    #[test]
+    fn alias_command_with_extras_fails() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("other.x.yml"), "name: other\n.run: echo\n").unwrap();
+        let app_file = dir.path().join("app.x.yml");
+        std::fs::write(
+            &app_file,
+            r#"
+name: t
+.jump:
+  alias: ./other.x.yml
+  opts: |
+    [--bad]
+"#,
+        )
+        .unwrap();
+        let app = loader::load(&app_file).unwrap();
+        let errors = validate(&app).unwrap_err();
+        assert!(errors
+            .iter()
+            .any(|e| e.message.contains("alias command may only define")));
+    }
+
+    #[test]
+    fn alias_leaf_needs_no_script() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("other.x.yml"), "name: other\n.run: echo\n").unwrap();
+        let app_file = dir.path().join("app.x.yml");
+        std::fs::write(
+            &app_file,
+            r#"
+name: t
+.jump:
+  alias: ./other.x.yml
+"#,
+        )
+        .unwrap();
+        let app = loader::load(&app_file).unwrap();
+        assert!(validate(&app).is_ok());
     }
 
     #[test]
@@ -316,10 +388,8 @@ options:
             name: "t".into(),
             version: None,
             description: None,
-            dir: None,
             root,
             handlers: [("".to_string(), "echo".into())].into_iter().collect(),
-            env: Default::default(),
             sh_imports: Vec::new(),
         };
         let msgs = validate(&app).unwrap_err();
@@ -331,11 +401,10 @@ options:
         let msgs = err_messages(
             r#"
 name: t
-arguments:
+args:
   - "<file>"
   - "<file>"
-"$":
-  "": echo
+$: echo
 "#,
         );
         assert!(msgs.iter().any(|m| m.contains("duplicate argument `<file>`")));
@@ -365,10 +434,8 @@ arguments:
             name: "t".into(),
             version: None,
             description: None,
-            dir: None,
             root,
             handlers: [("".to_string(), "echo".into())].into_iter().collect(),
-            env: Default::default(),
             sh_imports: Vec::new(),
         };
         let msgs = validate(&app).unwrap_err();
@@ -380,17 +447,14 @@ arguments:
         let errors = validate(&app(
             r#"
 name: t
-commands:
-  a:
-    description: leaf
-  b:
-    description: leaf
-"$":
-  orphan: echo
+.a:
+  help: leaf
+.b:
+  help: leaf
 "#,
         ))
         .unwrap_err();
-        assert!(errors.len() >= 3);
+        assert!(errors.len() >= 2);
     }
 
     #[test]

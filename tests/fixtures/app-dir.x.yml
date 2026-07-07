@@ -1,8 +1,7 @@
 name: app-dir
 dir: ./app
-commands:
-  show:
-    description: print the handler working directory
-"$":
-  show: |
+
+.show:
+  description: print the handler working directory
+  $: |
     pwd

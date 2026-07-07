@@ -227,9 +227,18 @@ fn strip_repeat_suffix(s: &str) -> (&str, bool) {
 /// dependent option.
 fn parse_optional_group(inner: &str) -> Result<Vec<SynopsisEntry>> {
     let inner = inner.trim();
-    let tokens = tokenize_top(inner)?;
+    let mut tokens = tokenize_top(inner)?;
     if tokens.is_empty() {
         return Ok(Vec::new());
+    }
+
+    // A trailing standalone `...` marks repetition, e.g. `[<arg> ...]`
+    // (equivalent to the spaceless `[<arg>...]`). Peel it off so the single
+    // positional / option-chain detection below sees the underlying form.
+    let mut trailing_repeat = false;
+    if tokens.len() > 1 && tokens.last().map(|t| t == "...").unwrap_or(false) {
+        trailing_repeat = true;
+        tokens.pop();
     }
 
     // Positional inside brackets, e.g. `[<name>]` or `[<name='x'>]` or `[<name>...]`
@@ -241,7 +250,7 @@ fn parse_optional_group(inner: &str) -> Result<Vec<SynopsisEntry>> {
         let (token, repeats) = strip_repeat_suffix(&tokens[0]);
         let inside = strip_outer(token, '<', '>')
             .ok_or_else(|| anyhow!("expected `<name>` inside [...]"))?;
-        let arg = parse_arg_inner(inside, false, repeats)?;
+        let arg = parse_arg_inner(inside, false, repeats || trailing_repeat)?;
         return Ok(vec![SynopsisEntry::Argument(arg)]);
     }
 
@@ -713,6 +722,17 @@ mod tests {
         assert!(a[0].repeats);
         assert_eq!(a[0].default.as_deref(), Some("*"));
         assert!(!a[0].required);
+    }
+
+    #[test]
+    fn repeating_optional_positional_spaced_ellipsis() {
+        let e = parse_fragment("[<arg> ...]").unwrap();
+        let a = args(&e);
+        assert_eq!(a.len(), 1);
+        assert_eq!(a[0].name, "arg");
+        assert!(a[0].repeats);
+        assert!(!a[0].required);
+        assert!(a[0].default.is_none());
     }
 
     #[test]

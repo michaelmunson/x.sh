@@ -258,12 +258,10 @@ options:
   - "[-v | --verbose]"
 arguments:
   - "[<file>]"
-commands:
-  build:
-    description: compile
-"$":
-  "": echo
-  build: echo
+$: echo
+.build:
+  description: compile
+  $: echo
 "#,
             &[],
         );
@@ -286,15 +284,13 @@ commands:
         let text = render_yaml(
             r#"
 name: app
-commands:
-  demo:
-    description: demo command
-    options:
-      - "[--mode={fast|safe}]"
-    arguments:
-      - "<name>"
-"$":
-  demo: echo
+.demo:
+  description: demo command
+  options:
+    - "[--mode={fast|safe}]"
+  arguments:
+    - "<name>"
+  $: echo
 "#,
             &["demo"],
         );
@@ -313,8 +309,7 @@ name: app
 options:
   - "[--src=<path> [--dst=<path>]]"
   - "[-c | --count <n='1'>]"
-"$":
-  "": echo
+$: echo
 "#,
             &[],
         );
@@ -336,8 +331,7 @@ options:
 name: app
 options:
   - "(-l | --long | -s | --short)"
-"$":
-  "": echo
+$: echo
 "#,
             &[],
         );
@@ -352,8 +346,7 @@ options:
 name: app
 arguments:
   - "<mode={read|write}>"
-"$":
-  "": echo
+$: echo
 "#,
             &[],
         );
