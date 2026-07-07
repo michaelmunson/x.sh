@@ -105,6 +105,38 @@
         "url": "./schemas/xsh.schema.json"
       }
     ],
+    "configurationDefaults": {
+      "[xsh]": {
+        "editor.tokenColorCustomizations": {
+          "textMateRules": [
+            {
+              "scope": [
+                "entity.name.function.command.xsh",
+                "punctuation.definition.command.xsh"
+              ],
+              "settings": {
+                "foreground": "#89D185"
+              }
+            }
+          ]
+        }
+      },
+      "[xsh-local]": {
+        "editor.tokenColorCustomizations": {
+          "textMateRules": [
+            {
+              "scope": [
+                "entity.name.function.command.xsh",
+                "punctuation.definition.command.xsh"
+              ],
+              "settings": {
+                "foreground": "#89D185"
+              }
+            }
+          ]
+        }
+      }
+    },
     "configuration": {
       "title": "x.sh",
       "properties": {

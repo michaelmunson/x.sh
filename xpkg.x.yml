@@ -8,15 +8,13 @@ env:
   HELLO: "world"
 
 .build:
-  description: build the binary/docs
+  help: build the binary/docs
   $: |
-    
     x xpkg build bin
     x xpkg build tool
 
   .bin:
     description: build the binary
-    arguments: '[<test>]'
     $: |
       cargo build --release
 
@@ -56,11 +54,12 @@ env:
 
 .test:
   description: run the tests
-  arguments: "[<test>]"
-  options:
-    - '[--complete]'
-    - '[--integration]'
-    - '[--test <test>]'
+  arguments: >
+    [<test>]
+  options: |
+    [--complete]
+    [--integration]
+    [--test <test>]
   $: |
     if [ -n "$(x-arg test)" ]; then
       cargo test $(x-arg test)
@@ -75,9 +74,16 @@ env:
     fi
 
 .random:
-  options:
-    - '[--foo <arg> ...]'
-    - '[--bar <arg>]'
+  arguments: |
+    [<arg>...]
+  options: |
+    [--foo <arg> ...]
+    [--bar <arg>]
   $: |
-    echo "$(x-path-root)"
-    
+    x-prt --style green,bold -n "Root: $(x-path-root)"
+    x-prt --style yellow -n "Foo: $(x-opt "foo")"
+    x-prt --style blue -n "Bar: $(x-opt "bar")"
+
+    if [ -n "$(x-arg arg)" ]; then
+      x-prt --style green,bold -n "Arg: $(x-arg arg)"
+    fi
