@@ -19,7 +19,7 @@
     nav#toc {
       position: fixed;
       top: 0;
-      left: 0;
+      right: 0;
       width: 15rem;
       height: 100vh;
       overflow-y: auto;
@@ -64,7 +64,7 @@
     }
 
     .page {
-      margin-left: 15rem;
+      margin-right: 15rem;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
@@ -186,14 +186,64 @@
     }
 
   </style>
+  <style>
+    body:has(details#toggle-toc[open]) {
+      & nav#toc {
+        display: none;
+      }
+      & .page {
+        margin-right: 0;
+      }
+    }
+    div#toggle-toc-container {
+      position:fixed;
+      z-index: 1000;
+      right: 10px;
+      top: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 5px;
+      background: #fafafa;
+      border: 1px solid #cacaca;
+      border-radius: 5px;
+    }
+    details#toggle-toc {
+      & summary {
+        list-style: none;
+        &::after {
+          content: "Menu ▶";
+        }
+      }
+
+      & summary::-webkit-details-marker {
+        display: none; /* older Safari/Chrome */
+      }
+
+      & summary::marker {
+        display: none; /* modern spec-compliant approach */
+        content: ""; /* fallback in case display:none isn't respected */
+      }
+    }
+    details#toggle-toc:not([open]) summary::after {
+      content: "Menu ▼";
+    }
+  </style>
 </head>
 <body>
+  <div id="toggle-toc-container">
+    <details id="toggle-toc"><summary></summary></details>
+  </div>
   <nav id="toc">
     <h2>Contents</h2>
     <ul>
-      <li><a href="index.html">Overview</a></li>
-      <li><a href="index.html#installation">Installation</a></li>
-      <li><a href="index.html#languages">Supported Languages</a></li>
+      <li>
+        <a href="index.html">Overview</a>
+        <ul>
+          <li><a href="index.html#installation">Installation</a></li>
+          <li><a href="index.html#languages">Supported Languages</a></li>
+        </ul>
+      </li>
       <li><a href="quickstart.html" aria-current="page">Quick Start</a></li>
       <li><a href="architecture.html">Architecture</a></li>
       <li><a href="commands.html">Commands</a></li>
