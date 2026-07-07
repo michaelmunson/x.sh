@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>x.sh — Apps</title>
+  <title>x.sh - Apps</title>
   <style>
     * {
       box-sizing: border-box;
@@ -280,7 +280,7 @@
                 <strong>parse-time validation</strong>: x checks required args, defaults, choice membership,
                 <code>requires:</code> chains, and unknown flags before any script executes. Project-local
                 <code>x.yml</code> files (see <a href="apps.html#project-local">Project-local Scripts</a>) use this exact same
-                file format — just invoked without a name prefix.</p>
+                file format - just invoked without a name prefix.</p>
               <h3>Where apps live</h3>
               <ul>
                 <li><strong>Local:</strong> <code>./&lt;name&gt;.x.yml</code> (discovered from CWD up through parents).
@@ -298,7 +298,7 @@ x -i --app --global my-app    # ~/.x.sh/apps/my-app.x.yml</code></pre>
                 handler coverage. On failure you can <strong>edit</strong> (re-open) or <strong>revert</strong> (restore
                 prior file or delete the new one).</p>
               <h3>App vs project-local</h3>
-              <p>As of v3, <code>x.yml</code> and apps run on the <strong>same engine</strong> — full synopsis DSL,
+              <p>As of v3, <code>x.yml</code> and apps run on the <strong>same engine</strong> - full synopsis DSL,
                 validation, nested <code>.command:</code> keys, and auto-help all work in both. The differences are
                 only about scope and invocation:</p>
               <table>
@@ -350,7 +350,7 @@ x -i --app --global my-app    # ~/.x.sh/apps/my-app.x.yml</code></pre>
               <h3>Handler imports</h3>
               <p>Large files can split scripts into external YAML files via <code>import.$</code> (or the legacy
                 <code>$.import</code>). This is mutually exclusive with an inline top-level <code>$:</code> handler
-                map — which no longer exists in v3 anyway; imports simply supply scripts for commands that don't
+                map - which no longer exists in v3 anyway; imports simply supply scripts for commands that don't
                 declare their own inline <code>$:</code>.</p>
               <fieldset>
                 <legend></legend>
@@ -366,7 +366,7 @@ x -i --app --global my-app    # ~/.x.sh/apps/my-app.x.yml</code></pre>
   - ./handlers/build.yml
   - ./handlers/deploy.yml</code></pre>
               </fieldset></section>
-          <section id="app-format"><h2>File Format</h2><p>This is the same file format used by project-local <code>x.yml</code> files — see
+          <section id="app-format"><h2>File Format</h2><p>This is the same file format used by project-local <code>x.yml</code> files - see
                 <a href="apps.html#project-local">Project-local Scripts</a>. Commands are declared with
                 <strong>dot-prefixed keys</strong> (<code>.command-name:</code>), never <code>commands:</code>.</p>
               <fieldset>
@@ -409,15 +409,15 @@ options:
                 <li><code>name</code>: app name; defaults to the filename without <code>.x.yml</code>/<code>.yml</code>
                   if omitted.</li>
                 <li><code>version</code>, <code>description</code>/<code>help</code>: metadata shown in help output
-                  (<code>help</code>/<code>description</code> are aliases — pick one).</li>
+                  (<code>help</code>/<code>description</code> are aliases - pick one).</li>
                 <li><code>options</code>/<code>opts</code>, <code>arguments</code>/<code>args</code>: root command
                   synopsis (aliases; string, multiline string, or list).</li>
                 <li><code>dir</code>: working directory scripts run in (relative to the app file, or absolute).</li>
                 <li><code>env</code>: inline environment variables and named groups.</li>
-                <li><code>import</code>: unified imports — <code>$</code> (script files), <code>env</code>
+                <li><code>import</code>: unified imports - <code>$</code> (script files), <code>env</code>
                   (<code>.env</code> files), <code>sh</code> (scripts to source).</li>
                 <li><code>$</code>: the root command's own inline script, run on bare <code>x my-app</code>.</li>
-                <li><code>.command-name</code>: a subcommand — a string (shorthand inline script) or a mapping.</li>
+                <li><code>.command-name</code>: a subcommand - a string (shorthand inline script) or a mapping.</li>
               </ul>
               <aside><strong>Removed in v3:</strong> the <code>commands:</code> mapping and a top-level <code>$:</code>
                 handler map are both gone. Define commands with <code>.command-name:</code> keys, and put each
@@ -431,11 +431,11 @@ options:
                 <code>$:</code> (or <code>alias:</code>).</p>
               <fieldset>
                 <legend></legend>
-                <pre><code>.docs: cargo doc --no-deps    # shorthand — equivalent to { $: cargo doc --no-deps }</code></pre>
+                <pre><code>.docs: cargo doc --no-deps    # shorthand - equivalent to { $: cargo doc --no-deps }</code></pre>
               </fieldset>
               <h3>Non-leaf groups</h3>
               <p>A command with subcommands but no <code>$:</code> of its own auto-prints help when invoked bare. To
-                customize that, give it its own <code>$:</code> — a one-liner like <code>x-usage create</code> prints
+                customize that, give it its own <code>$:</code> - a one-liner like <code>x-usage create</code> prints
                 the same generated help explicitly.</p>
               <h3>Working directory (<code>dir</code>)</h3>
               <p>Set <code>dir</code> to change the process working directory before a script runs. Relative paths
@@ -458,7 +458,7 @@ dir: ./app
               <h3>Alias commands</h3>
               <p>An <code>alias:</code> command dispatches its remaining arguments to another x file, as if you'd
                 invoked that file directly. Alias commands may define <strong>only</strong> <code>alias</code> and
-                <code>help</code>/<code>description</code> — no <code>options</code>, <code>arguments</code>,
+                <code>help</code>/<code>description</code> - no <code>options</code>, <code>arguments</code>,
                 <code>dir</code>, <code>env</code>, <code>$</code>, or nested commands.</p>
               <fieldset>
                 <legend></legend>
@@ -469,7 +469,7 @@ dir: ./app
                 <code>legacy.x.yml</code> as if you'd run it directly (as its own root command).</p>
               <h3>Multiline <code>opts</code>/<code>args</code> shorthand</h3>
               <p><code>opts</code>/<code>options</code> and <code>args</code>/<code>arguments</code> accept a single
-                multiline string as an alternative to a YAML list — each non-empty line becomes one synopsis
+                multiline string as an alternative to a YAML list - each non-empty line becomes one synopsis
                 fragment:</p>
               <fieldset>
                 <legend></legend>
@@ -488,7 +488,7 @@ dir: ./app
               </fieldset>
               <h3>Imports</h3>
               <p>Split scripts into sidecar files instead of inline <code>$:</code> entries. Each import file is a
-                flat YAML map of <code>dotted.path: &lt;bash body&gt;</code> — the same shape used before v3, and
+                flat YAML map of <code>dotted.path: &lt;bash body&gt;</code> - the same shape used before v3, and
                 these files are <strong>not</strong> rewritten to dot-prefixed keys. Paths resolve relative to the
                 app file. Duplicate keys across import files are an error; inline <code>$:</code> entries override
                 imported scripts with the same key.</p>
@@ -554,7 +554,7 @@ LOG_LEVEL=info</code></pre>
                 duplicate keys.</p></section>
           <section id="synopsis"><h2>Synopsis DSL</h2><p>Every string in <code>options</code>/<code>opts</code> and <code>arguments</code>/<code>args</code>
                 is a <strong>synopsis</strong> that x parses into a structured CLI spec. These fields accept a list
-                of strings, a single string, or a multiline string (one fragment per line) — all three forms are
+                of strings, a single string, or a multiline string (one fragment per line) - all three forms are
                 equivalent. All constraints are enforced before scripts run.</p>
               <p>All <code>[optional]</code> forms have bare <code>(required)</code> equivalents</p>
               <fieldset>
@@ -783,7 +783,7 @@ LOG_LEVEL=info</code></pre>
                   </tr>
                 </tbody>
               </table>
-              <aside><strong>Env vars:</strong> parsed values are also available directly as environment variables —
+              <aside><strong>Env vars:</strong> parsed values are also available directly as environment variables -
                 <code>X_OPT_&lt;name&gt;</code>, <code>X_ARG_&lt;name&gt;</code> (hyphens → underscores),
                 <code>X_OPTS_PAIRS</code>, <code>X_ARGS_PAIRS</code>, <code>X_BIN</code>, <code>X_APP</code>,
                 <code>X_APP_FILE</code>.</aside>
@@ -868,7 +868,7 @@ x my-app create file --help</code></pre>
 name: exapp
 version: 0.1.0
 description: &gt;-
-  Exercise app — exercises options, positionals, nesting, validation, and bash helpers
+  Exercise app - exercises options, positionals, nesting, validation, and bash helpers
   (`x-opt`, `x-arg`, `x-opts`, `x-args`, `x-run`, `x-usage`).
 import:
   $:
@@ -888,7 +888,7 @@ arguments: &#x27;[&lt;topic=&quot;overview&quot;&gt;]&#x27;
 
   .opts:
     description: &gt;-
-      Option forms — bool pair, value, defaulted value, repeating values,
+      Option forms - bool pair, value, defaulted value, repeating values,
       enum choice, `=` default, requires-chain, and a required bare flag.
     opts: |
       [-n | --dry-run]
@@ -907,17 +907,17 @@ arguments: &#x27;[&lt;topic=&quot;overview&quot;&gt;]&#x27;
 
   .args:
     description: &gt;-
-      Positional forms — required, optional, optional-with-default,
+      Positional forms - required, optional, optional-with-default,
       and greedy repeat (must be last).
     args: &#x27;&lt;one&gt; [&lt;two&gt;] [&lt;three=&quot;3&quot;&gt;] [&lt;rest&gt;...]&#x27;
 
   .pick:
-    description: required choice — `(alt1|alt2|alt3)` becomes positional name `choice`
+    description: required choice - `(alt1|alt2|alt3)` becomes positional name `choice`
     args: &#x27;(north|south|east|west)&#x27;
 
   .mode:
     description: &gt;-
-      Positional choice in angle brackets — `&lt;action={…}&gt;` and
+      Positional choice in angle brackets - `&lt;action={…}&gt;` and
       optional `[&lt;speed={…}=&#x27;default&#x27;&gt;]`.
     args: &#x27;&lt;action={read|write|delete}&gt; [&lt;speed={fast|slow}=&quot;fast&quot;&gt;]&#x27;
 
@@ -927,14 +927,14 @@ arguments: &#x27;[&lt;topic=&quot;overview&quot;&gt;]&#x27;
 
   .group:
     description: &gt;-
-      Non-leaf group — invoke `x exapp demo group` with no subcommand to see auto-help.
+      Non-leaf group - invoke `x exapp demo group` with no subcommand to see auto-help.
     .alpha:
-      description: nested leaf α — shares options via YAML anchor (see `reflect`)
+      description: nested leaf α - shares options via YAML anchor (see `reflect`)
       opts: &amp;demo_verbose
         - &#x27;[-V | --verbose]&#x27;
       args: &#x27;&lt;msg&gt;&#x27;
     .beta:
-      description: nested leaf β — same shared options as `alpha`
+      description: nested leaf β - same shared options as `alpha`
       opts: *demo_verbose
       args: &#x27;&lt;msg&gt;&#x27;
 
@@ -949,7 +949,7 @@ arguments: &#x27;[&lt;topic=&quot;overview&quot;&gt;]&#x27;
 
   .usage-tip:
     description: &gt;-
-      One-line handler — forwards to x-usage (same idea as README create → x-usage create).
+      One-line handler - forwards to x-usage (same idea as README create → x-usage create).
 
   .io:
     description: interactive builtins
@@ -976,14 +976,14 @@ arguments: &#x27;[&lt;topic=&quot;overview&quot;&gt;]&#x27;
               </fieldset>
               <fieldset>
                 <legend>handlers/exapp.handlers-a.yml</legend>
-                <pre><code># Scripts merged via `import.$` (first file). Keys are dotted command paths —
+                <pre><code># Scripts merged via `import.$` (first file). Keys are dotted command paths -
 # import files keep this flat shape; they're not rewritten to dot-prefixed keys.
 
 &quot;&quot;:
   |
     topic=$(x-arg topic)
     note=$(x-opt global)
-    echo &quot;exapp — topic=${topic:-overview}  global-note=${note:-∅}&quot;
+    echo &quot;exapp - topic=${topic:-overview}  global-note=${note:-∅}&quot;
     echo &quot;Try:  x exapp --help&quot;
     echo &quot;       x exapp demo --help&quot;
 
@@ -1042,7 +1042,7 @@ demo.usage-tip: x-usage demo.opts</code></pre>
               </fieldset>
               <fieldset>
                 <legend>handlers/exapp.handlers-b.yml</legend>
-                <pre><code># Second import file — merged keys must not duplicate the first import.
+                <pre><code># Second import file - merged keys must not duplicate the first import.
 
 demo.group.alpha:
   |
@@ -1191,7 +1191,7 @@ env:
                 <code>&lt;name&gt;</code>. If found, the command runs; otherwise x falls back to an app or global
                 script.</p>
               <aside><strong>v3:</strong> <code>x.yml</code> uses <strong>exactly the same file format</strong> as
-                app files (see <a href="apps.html#app-format">App File Format</a>) — the only difference is that it's invoked
+                app files (see <a href="apps.html#app-format">App File Format</a>) - the only difference is that it's invoked
                 without a name prefix, and <code>name:</code> is never required.</aside>
               <aside><strong>Warning:</strong> Only the CWD is checked for <code>x.yml</code>, not parent directories.
                 Invalid YAML (or removed v3 syntax like <code>commands:</code>) fails immediately; x does not fall
@@ -1199,8 +1199,8 @@ env:
               <h3>Dot-prefixed commands</h3>
               <p>Every command is declared with a <code>.command-name:</code> key. The value is either:</p>
               <ul>
-                <li><strong>A string</strong> — shorthand for an inline script (equivalent to <code>{ $: &lt;string&gt; }</code>). Often a block scalar with <code>|</code>.</li>
-                <li><strong>A mapping</strong> — any of <code>description</code>/<code>help</code>, <code>options</code>/<code>opts</code>, <code>arguments</code>/<code>args</code>, <code>dir</code>, <code>env</code>, <code>alias</code>, its own <code>$:</code> script, and nested <code>.sub-command:</code> keys.</li>
+                <li><strong>A string</strong> - shorthand for an inline script (equivalent to <code>{ $: &lt;string&gt; }</code>). Often a block scalar with <code>|</code>.</li>
+                <li><strong>A mapping</strong> - any of <code>description</code>/<code>help</code>, <code>options</code>/<code>opts</code>, <code>arguments</code>/<code>args</code>, <code>dir</code>, <code>env</code>, <code>alias</code>, its own <code>$:</code> script, and nested <code>.sub-command:</code> keys.</li>
               </ul>
               <fieldset>
                 <legend>x.yml</legend>

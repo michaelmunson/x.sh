@@ -3,7 +3,7 @@ import * as yaml from 'js-yaml';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-/** A YAML mapping node — either a command's body or the document root. */
+/** A YAML mapping node - either a command's body or the document root. */
 type YamlNode = Record<string, unknown>;
 
 interface ParsedOption {
@@ -88,7 +88,7 @@ function normalizeSynopsisValue(value: unknown): string[] {
 
 const DIAG = 'x.sh';
 
-/** `# x.sh` first line — kept for documents without a `.x.yml`/`x.yml` filename. */
+/** `# x.sh` first line - kept for documents without a `.x.yml`/`x.yml` filename. */
 const XSH_LOCAL_FIRST_LINE = /^#\s*x\.sh\b/i;
 
 function hasLocalFirstLine(document: vscode.TextDocument): boolean {
@@ -189,7 +189,7 @@ function lintDocument(document: vscode.TextDocument) {
     const line = findKeyLine(document, 'commands');
     diagnostics.push(new vscode.Diagnostic(
       lineRange(document, line),
-      `${DIAG}: "commands:" was removed in v3 — define commands with ".command-name:" keys instead`,
+      `${DIAG}: "commands:" was removed in v3 - define commands with ".command-name:" keys instead`,
       vscode.DiagnosticSeverity.Error
     ));
   }
@@ -198,7 +198,7 @@ function lintDocument(document: vscode.TextDocument) {
     const line = findKeyLine(document, '$');
     diagnostics.push(new vscode.Diagnostic(
       lineRange(document, line),
-      `${DIAG}: top-level "$:" handler map was removed in v3 — define scripts inline with "$:" under each command`,
+      `${DIAG}: top-level "$:" handler map was removed in v3 - define scripts inline with "$:" under each command`,
       vscode.DiagnosticSeverity.Error
     ));
   }
@@ -245,7 +245,7 @@ function lintDocument(document: vscode.TextDocument) {
     const line = findKeyLine(document, key);
     diagnostics.push(new vscode.Diagnostic(
       lineRange(document, line),
-      `${DIAG}: unknown key "${key}" — use a dot-prefixed command key (e.g. ".${key}:") or a reserved property`,
+      `${DIAG}: unknown key "${key}" - use a dot-prefixed command key (e.g. ".${key}:") or a reserved property`,
       vscode.DiagnosticSeverity.Error
     ));
   }
@@ -306,7 +306,7 @@ function lintCommandNode(
   const leaf = path.split('.').pop() ?? path;
 
   if (typeof value === 'string') {
-    // Shorthand: `.cmd: <script>` — equivalent to `.cmd: { $: <script> }`.
+    // Shorthand: `.cmd: <script>` - equivalent to `.cmd: { $: <script> }`.
     if (!value.trim()) {
       const line = findCommandLine(document, leaf);
       diagnostics.push(new vscode.Diagnostic(
@@ -336,7 +336,7 @@ function lintCommandNode(
     const line = findNestedKeyLine(document, leaf, key);
     diagnostics.push(new vscode.Diagnostic(
       lineRange(document, line),
-      `${DIAG}: unknown key "${key}" on command "${displayPath}" — use a dot-prefixed subcommand key (e.g. ".${key}:")`,
+      `${DIAG}: unknown key "${key}" on command "${displayPath}" - use a dot-prefixed subcommand key (e.g. ".${key}:")`,
       vscode.DiagnosticSeverity.Error
     ));
   }
@@ -364,7 +364,7 @@ function lintCommandNode(
       const line = findCommandLine(document, leaf);
       diagnostics.push(new vscode.Diagnostic(
         lineRange(document, line),
-        `${DIAG}: leaf command "${displayPath}" has no script — add a "$: ..." entry (or "alias:")`,
+        `${DIAG}: leaf command "${displayPath}" has no script - add a "$: ..." entry (or "alias:")`,
         vscode.DiagnosticSeverity.Error
       ));
     }
@@ -521,7 +521,7 @@ function parseOptionExpression(expr: string): { options: ParsedOption[]; groups:
   if (bracketInner && body.startsWith('[')) {
     const chain = parseOptionChain(bracketInner, true);
     if (flagRepeats) {
-      // flag-level repeat — names still register for duplicate/requires checks
+      // flag-level repeat - names still register for duplicate/requires checks
     }
     return chain;
   }

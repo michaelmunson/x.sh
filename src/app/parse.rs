@@ -1,7 +1,7 @@
 //! Parse the user's argv against a resolved [`App`] / [`Command`].
 //!
-//! Supports the four standard option forms — `--long val`, `--long=val`,
-//! `-s val`, `-sval` — descends through nested subcommands, applies defaults,
+//! Supports the four standard option forms - `--long val`, `--long=val`,
+//! `-s val`, `-sval` - descends through nested subcommands, applies defaults,
 //! enforces `requires:` chains, and detects `-h` / `--help`.
 
 use std::collections::BTreeMap;

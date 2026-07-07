@@ -53,7 +53,7 @@ pub fn list_scripts(config: &XConfig) -> Result<()> {
             .as_ref()
             .and_then(|m| m.description.as_ref())
             .map(|s| s.as_str())
-            .unwrap_or("—");
+            .unwrap_or("-");
         let script_type = metadata
             .as_ref()
             .and_then(|m| m.program.as_ref())
@@ -70,14 +70,14 @@ pub fn list_scripts(config: &XConfig) -> Result<()> {
         let activity = activity_metadata.scripts.get(&script);
         let created = activity
             .map(|a| format_timestamp(&a.created))
-            .unwrap_or_else(|| "—".to_string());
+            .unwrap_or_else(|| "-".to_string());
         let updated = activity
             .map(|a| format_timestamp(&a.updated))
-            .unwrap_or_else(|| "—".to_string());
+            .unwrap_or_else(|| "-".to_string());
         let last_executed = activity
             .and_then(|a| a.last_executed.as_ref())
             .map(|ts| format_timestamp(ts))
-            .unwrap_or_else(|| "—".to_string());
+            .unwrap_or_else(|| "-".to_string());
         
         table.add_row(vec![
             display_name.to_string(),

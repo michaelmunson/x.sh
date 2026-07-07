@@ -1,4 +1,4 @@
-//! End-to-end CLI tests — spawn the `x` binary and assert on exit codes and output.
+//! End-to-end CLI tests - spawn the `x` binary and assert on exit codes and output.
 
 use std::fs;
 use std::path::PathBuf;

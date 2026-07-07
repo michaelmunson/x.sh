@@ -50,7 +50,7 @@ pub fn validate(app: &App) -> Result<(), Vec<ValidationError>> {
                 message: if leaf.is_empty() {
                     "app defines no commands and no root `$:` script".to_string()
                 } else {
-                    "leaf command has no script — add a `$: ...` entry (or `alias:`)".to_string()
+                    "leaf command has no script - add a `$: ...` entry (or `alias:`)".to_string()
                 },
             });
         }

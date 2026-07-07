@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# x app framework — bash builtins preamble.
+# x app framework - bash builtins preamble.
 #
 # `x` injects this file before each handler body so the script can call:
 #   x-opt <name>           prints the value of an option (or "true" for flags)

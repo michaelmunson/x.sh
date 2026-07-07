@@ -1,7 +1,7 @@
 ---
 name: x-app
 description: >-
-  Design, author, and debug `x` files — YAML-defined multi-command CLIs using
+  Design, author, and debug `x` files - YAML-defined multi-command CLIs using
   dot-prefixed `.command:` keys, inline `$:` scripts, synopsis DSL, and
   built-in validation. Covers both `<name>.x.yml` apps and project-local
   `x.yml` (same syntax). Use when creating or editing these files, working
@@ -20,7 +20,7 @@ imported handler, or an `alias:` redirect to another x file).
 - Project-local: `x <command> [subcommands…] [options] [args…]` (no name prefix)
 
 Both share **exactly the same syntax** described below. The differences are
-purely about *where the file lives* and *how it's invoked* — see
+purely about *where the file lives* and *how it's invoked* - see
 [skill.md](skill.md) for resolution/scope details.
 
 ## When to build one
@@ -38,7 +38,7 @@ Reach for the full `.command:` syntax (in either an app or `x.yml`) when you nee
 
 | Scope | Path | Create with |
 |-------|------|-------------|
-| Project-local commands | `./x.yml` | edit directly, or `x -i --app --local` style is not needed — just create the file |
+| Project-local commands | `./x.yml` | edit directly, or `x -i --app --local` style is not needed - just create the file |
 | Local app | `./<name>.x.yml` | `x -i --app --local <name>` |
 | Global app | `~/.x.sh/apps/<name>.x.yml` | `x -i --app --global <name>` |
 
@@ -49,7 +49,7 @@ then check `~/.x.sh/apps/`. Nearest file wins.
 Locate a file: `x --src <name>`
 
 App names: letters, numbers, dashes, underscores. Saved as `<name>.x.yml`.
-`name:` is optional — it defaults to the filename without the `.x.yml`/`.yml`
+`name:` is optional - it defaults to the filename without the `.x.yml`/`.yml`
 suffix if omitted.
 
 ## Create and edit
@@ -65,10 +65,10 @@ or **Revert**. Every `x <app>` run also re-validates the file.
 
 ## File structure
 
-Commands are declared with **dot-prefixed keys** (`.name:`) — never
+Commands are declared with **dot-prefixed keys** (`.name:`) - never
 `commands:` (removed in v3). A command's value is either:
 
-- a **string** — shorthand for `{ $: <string> }` (inline script)
+- a **string** - shorthand for `{ $: <string> }` (inline script)
 - a **mapping** with any of: `description`/`help`, `options`/`opts`,
   `arguments`/`args`, `dir`, `env`, `alias`, `$`, and nested `.sub-command:` keys
 
@@ -93,7 +93,7 @@ arguments:
   - "[<topic='overview'>]"
 
 $: |
-  echo "root handler — topic=$(x-arg topic)"
+  echo "root handler - topic=$(x-arg topic)"
 
 .get-env:
   description: print the environment variable
@@ -135,14 +135,14 @@ $: |
 | Key | Purpose |
 |-----|---------|
 | `name` | App name (falls back to filename without `.x.yml`/`.yml`) |
-| `version`, `description`/`help` | Metadata shown in help (`help`/`description` are aliases — pick one) |
-| `options`/`opts`, `arguments`/`args` | Root command synopsis — string, multiline string, or list of strings (aliases — pick one of each pair) |
+| `version`, `description`/`help` | Metadata shown in help (`help`/`description` are aliases - pick one) |
+| `options`/`opts`, `arguments`/`args` | Root command synopsis - string, multiline string, or list of strings (aliases - pick one of each pair) |
 | `dir` | Working directory for the root handler (and all commands, unless overridden) |
 | `env` | Global vars and `.group` named sets |
 | `import` | Unified imports: `$` (handler YAML files), `env` (`.env` files), `sh` (scripts to source) |
 | `$` | Root command's inline script (runs on bare `x my-app` invocation) |
 | `$.import` | Legacy handler imports (use `import.$` instead) |
-| `.command-name` | A subcommand — string shorthand or a command mapping (see below) |
+| `.command-name` | A subcommand - string shorthand or a command mapping (see below) |
 
 **Removed in v3** (clean break, no fallback): `commands:` mapping, and a
 top-level `$:` used as a handler map (`$:` is now only ever the root's own
@@ -152,21 +152,21 @@ inline script string).
 
 | Key | Purpose |
 |-----|---------|
-| `description`/`help` | One-line description shown in help (aliases — pick one) |
-| `options`/`opts`, `arguments`/`args` | This command's synopsis (aliases — pick one of each pair) |
+| `description`/`help` | One-line description shown in help (aliases - pick one) |
+| `options`/`opts`, `arguments`/`args` | This command's synopsis (aliases - pick one of each pair) |
 | `dir` | Working directory for this command's handler and its subcommands (relative to the file, or absolute) |
 | `env` | Environment for this command's handler and its subcommands (merges over parent's) |
 | `alias` | Path to another x file; remaining args are dispatched there (mutually exclusive with everything except `help`/`description`) |
 | `$` | This command's inline bash script |
 | `.sub-command` | A nested subcommand (same shape, recursively) |
 
-**`$:` and `import.$` / `$.import` may be combined** — inline `$:` overrides
+**`$:` and `import.$` / `$.import` may be combined** - inline `$:` overrides
 an imported handler with the same dotted-path key.
 
 ### Multiline `opts`/`args` shorthand
 
 `opts`/`options` and `args`/`arguments` accept a single multiline string as an
-alternative to a YAML list — each non-empty line becomes one synopsis fragment:
+alternative to a YAML list - each non-empty line becomes one synopsis fragment:
 
 ```yaml
 opts: |
@@ -211,7 +211,7 @@ Per-command `dir:`/`env:` merge downward: a subcommand inherits its parent's
 
 Reference: `docs/examples/app/simple.x.yml`.
 
-### Alias commands — dispatch to another x file
+### Alias commands - dispatch to another x file
 
 ```yaml
 .legacy:
@@ -220,7 +220,7 @@ Reference: `docs/examples/app/simple.x.yml`.
 
 `x my-app legacy <rest…>` runs `<rest…>` against `legacy.x.yml` as if you'd
 run it directly (as its own root command). An alias command may define
-**only** `alias` and `help`/`description` — no `options`, `arguments`, `dir`,
+**only** `alias` and `help`/`description` - no `options`, `arguments`, `dir`,
 `env`, `$`, or nested `.sub-command` keys.
 
 ### Script shorthand
@@ -229,7 +229,7 @@ run it directly (as its own root command). An alias command may define
 .docs: cargo doc --no-deps      # shorthand for { $: cargo doc --no-deps }
 ```
 
-`x` treats any string value on a `.command:` key as its inline script — no
+`x` treats any string value on a `.command:` key as its inline script - no
 need to write `$: cargo doc --no-deps` for one-liners.
 
 ### Split scripts with `import` or `$.import`
@@ -249,7 +249,7 @@ $.import:
   - ./handlers/create.yml
 ```
 
-Each import file is a flat YAML map of `dotted.path: <bash body>` — same
+Each import file is a flat YAML map of `dotted.path: <bash body>` - same
 dotted-path keys as before v3 (these files are **not** rewritten to
 dot-prefixed keys; they're just plain script lookups). Paths resolve relative
 to the x file. Duplicate keys across imports are an error; inline `$:`
@@ -260,10 +260,10 @@ Reference: `docs/examples/app/exapp.x.yml` + `exapp.handlers-a.yml` / `exapp.han
 ## Synopsis DSL
 
 Synopsis strings live in `options`/`opts` and `arguments`/`args` (per command
-or at root). Use a list, or a multiline string (one fragment per line), or —
-for a single fragment — an inline string.
+or at root). Use a list, or a multiline string (one fragment per line), or -
+for a single fragment - an inline string.
 
-All `[optional]` forms have bare `(required)` equivalents — drop the brackets
+All `[optional]` forms have bare `(required)` equivalents - drop the brackets
 (or use parenthesised option groups where shown).
 
 ### Arguments

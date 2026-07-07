@@ -5,27 +5,27 @@
 //!
 //! ## Positional arguments
 //!
-//! - `<name>` — required positional
-//! - `[<name>]` — optional positional
-//! - `[<name='val'>]` — optional positional with default
-//! - `<name>...` / `[<name>...]` — repeating positional
-//! - `<name={a|b|c}>` / `[<name={a|b|c}>]` — value from set
-//! - `(a|b|c)` — required choice (becomes positional `choice`)
+//! - `<name>` - required positional
+//! - `[<name>]` - optional positional
+//! - `[<name='val'>]` - optional positional with default
+//! - `<name>...` / `[<name>...]` - repeating positional
+//! - `<name={a|b|c}>` / `[<name={a|b|c}>]` - value from set
+//! - `(a|b|c)` - required choice (becomes positional `choice`)
 //!
 //! ## Options
 //!
 //! All `[optional]` forms have bare `(required)` equivalents (drop the brackets).
 //!
-//! - `[-s | --long]` / `(-l | --long)` — bool flag (optional / required)
-//! - `[-s | --long <arg>]` — flag with value
-//! - `[-s | --long <arg='v'>]` — flag value with default
-//! - `[-s | --long <arg> ...]` — repeating values for one flag use
-//! - `[-s | --long <arg>]...` — repeating flag occurrences
+//! - `[-s | --long]` / `(-l | --long)` - bool flag (optional / required)
+//! - `[-s | --long <arg>]` - flag with value
+//! - `[-s | --long <arg='v'>]` - flag value with default
+//! - `[-s | --long <arg> ...]` - repeating values for one flag use
+//! - `[-s | --long <arg>]...` - repeating flag occurrences
 //! - `[--long={a|b|c}]` / `[--long=<arg>]` / `[--long=<arg='v'>]`
-//! - `[--input=<a> [--output=<b>]]` — nested bracket = dependency
-//! - `(--long | --short)` — required mutually exclusive flags
-//! - `(-l | --long | -s | --short)` — mutex with alias pairs
-//! - `--long` — required bare flag
+//! - `[--input=<a> [--output=<b>]]` - nested bracket = dependency
+//! - `(--long | --short)` - required mutually exclusive flags
+//! - `(-l | --long | -s | --short)` - mutex with alias pairs
+//! - `--long` - required bare flag
 //!
 //! [`OptionDef`]: crate::app::spec::OptionDef
 //! [`ArgDef`]: crate::app::spec::ArgDef
@@ -580,7 +580,7 @@ fn parse_single_option(tokens: &[String], optional: bool) -> Result<OptionDef> {
                     value_required = true;
                     // Anything after the closing `>` (e.g. literal `=<envvar>`)
                     // is treated as a literal continuation of the placeholder
-                    // text — we keep it as-is in the placeholder for help.
+                    // text - we keep it as-is in the placeholder for help.
                     let trailing = &after_eq[end + 1..];
                     if !trailing.is_empty() {
                         let cur = value_placeholder.take().unwrap_or_default();

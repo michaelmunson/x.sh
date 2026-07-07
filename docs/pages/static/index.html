@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>x.sh — Overview</title>
+  <title>x.sh - Overview</title>
   <style>
     * {
       box-sizing: border-box;
@@ -291,7 +291,7 @@
         <h3>What's new in v3</h3>
         <p>Project-local <code>x.yml</code> and app (<code>&lt;name&gt;.x.yml</code>) files now share <strong>one file format</strong>, powered by the same engine. This is a breaking change:</p>
         <ul>
-          <li><strong>Dot-prefixed commands:</strong> subcommands are declared with <code>.command-name:</code> keys directly on the parent node — the old top-level <code>commands:</code> mapping is <strong>removed</strong>.</li>
+          <li><strong>Dot-prefixed commands:</strong> subcommands are declared with <code>.command-name:</code> keys directly on the parent node - the old top-level <code>commands:</code> mapping is <strong>removed</strong>.</li>
           <li><strong>Inline scripts:</strong> each command carries its own <code>$:</code> script (or a bare string shorthand). The old top-level <code>$:</code> block used as a dotted-path handler map is <strong>removed</strong>; a top-level <code>$:</code> is now only ever the root command's own script.</li>
           <li><strong><code>x.yml</code> gets the full app engine:</strong> options, arguments, nested subcommands, auto-help, and validation all work in project-local <code>x.yml</code> now, not just flat inline scripts.</li>
           <li><strong>New aliases:</strong> <code>help</code>/<code>description</code>, <code>opts</code>/<code>options</code>, and <code>args</code>/<code>arguments</code> are interchangeable field names.</li>

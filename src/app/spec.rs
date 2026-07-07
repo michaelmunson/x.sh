@@ -11,7 +11,7 @@ use std::path::PathBuf;
 /// What kind of value, if any, an option takes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ValueKind {
-    /// Boolean flag — no value (e.g. `[-v | --version]`).
+    /// Boolean flag - no value (e.g. `[-v | --version]`).
     None,
     /// One value required when the option is given. The string is the
     /// placeholder name the spec used (e.g. `<file>`), used for help output.
@@ -30,7 +30,7 @@ pub struct OptionDef {
     pub default: Option<String>,
     /// If set, the value must be one of these.
     pub choices: Option<Vec<String>>,
-    /// `...` form — option may be repeated, values accumulate.
+    /// `...` form - option may be repeated, values accumulate.
     pub repeats: bool,
     /// Long names of other options that must be provided alongside this one.
     /// Derived from nested-bracket syntax: `[--input=<a> [--output=<b>]]`
@@ -55,7 +55,7 @@ impl OptionDef {
     }
 }
 
-/// Mutually exclusive option group — exactly one member must be provided when
+/// Mutually exclusive option group - exactly one member must be provided when
 /// `required` is true (e.g. `(--long | --short)`).
 #[derive(Debug, Clone)]
 pub struct OptionGroupDef {
@@ -71,7 +71,7 @@ pub struct ArgDef {
     pub name: String,
     pub required: bool,
     pub default: Option<String>,
-    /// `...` form — argument may repeat.
+    /// `...` form - argument may repeat.
     pub repeats: bool,
     /// If set, the value must be one of these.
     pub choices: Option<Vec<String>>,

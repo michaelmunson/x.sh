@@ -7,7 +7,7 @@
 //! 2. `~/.x.sh/apps/<name>.x.yml`
 //! 3. `~/.x.sh/scripts/<name>` (or with extension via `find_script`)
 //!
-//! Local `x.yml` keys are intentionally not matched — they are inline strings,
+//! Local `x.yml` keys are intentionally not matched - they are inline strings,
 //! not file paths.
 
 use anyhow::{anyhow, Context, Result};

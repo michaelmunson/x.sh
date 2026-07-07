@@ -4,7 +4,7 @@
   |
     topic=$(x-arg topic)
     note=$(x-opt global)
-    echo "exapp — topic=${topic:-overview}  global-note=${note:-∅}"
+    echo "exapp - topic=${topic:-overview}  global-note=${note:-∅}"
     echo "Try:  x exapp --help"
     echo "       x exapp demo --help"
 
