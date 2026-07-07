@@ -5341,7 +5341,7 @@ const SECTIONS = [
     {
         id: "project-local",
         title: "Project-local Scripts",
-        subtitle: "Define repo-specific commands in `./x.yml`."
+        subtitle: "Define repo-specific commands in `./x.yml` (same format as apps)."
     },
     {
         id: "app-framework",
@@ -5351,7 +5351,7 @@ const SECTIONS = [
     {
         id: "app-format",
         title: "App File Format",
-        subtitle: "Metadata, commands, handlers, imports, and env."
+        subtitle: "Dot-prefixed commands, inline scripts, imports, and env."
     },
     {
         id: "synopsis",
@@ -6120,41 +6120,42 @@ parcelHelpers.export(exports, "default", ()=>ProjectLocalPage);
 var _components = require("../components");
 function ProjectLocalPage() {
     return [
-        (0, _components.Paragraph)("You can define **project-local** commands in a YAML file named `x.yml` in the **current working directory**. When you run `x &lt;name&gt; \u2026`, `x` loads `./x.yml` (if present). If the file defines a top-level key matching `&lt;name&gt;`, that entry is resolved and executed. If there is no `x.yml`, or it does not define `&lt;name&gt;`, `x` looks up a **global** script under `~/.x.sh/scripts` as before."),
+        (0, _components.Paragraph)("You can define **project-local** commands in a YAML file named `x.yml` in the **current working directory**. When you run `x &lt;name&gt; \u2026`, `x` loads `./x.yml` (if present). If the file defines a top-level command matching `&lt;name&gt;`, that command is resolved and executed. If there is no `x.yml`, or it does not define `&lt;name&gt;`, `x` looks up an app or a **global** script under `~/.x.sh/scripts` as usual."),
+        (0, _components.Callout)("info", "`x.yml` uses **exactly the same file format** as app files (see [App File Format](/docs/app-format)) \u2014 the only difference is that it's invoked without an app name prefix, and `name:` is never required."),
         (0, _components.Heading)(3, "File format"),
-        (0, _components.Paragraph)("Each top-level key is a command name. The value is either:"),
+        (0, _components.Paragraph)("Commands are declared with **dot-prefixed keys**. Each `.command-name:` value is either:"),
         (0, _components.BulletList)([
-            "**A string** \u2014 inline script (often a block scalar with `|`). Extra CLI arguments after `&lt;name&gt;` are passed as positional parameters (`$1`, `$2`, \u2026).",
-            "**A mapping** \u2014 subcommands and an optional default: `$` runs when you invoke the parent with no further arguments; any other key is a nested subcommand (mappings can nest arbitrarily deep)."
+            "**A string** \u2014 shorthand inline script (often a block scalar with `|`). Extra CLI arguments after `&lt;name&gt;` are passed as positional parameters (`$1`, `$2`, \u2026), or parsed with `options`/`arguments` if declared.",
+            "**A mapping** \u2014 `description`/`help`, `options`/`opts`, `arguments`/`args`, `dir`, `env`, `alias`, an own `$:` script, and/or nested `.sub-command:` keys."
         ]),
-        (0, _components.CodeBlock)(`build: |
+        (0, _components.CodeBlock)(`.build: |
   VERSION="$1"
   npm run build
   npm version "$VERSION"
   git push --tags
 
-deploy:
+.deploy:
   $: |
     echo "Deploying (default)"
     x deploy dev
-  dev: npm run deploy:dev
-  prod: npm run deploy:prod
-  test:
-    unit: npx jest unit
-    integration: npx jest integration`, "x.yml", "xsh-local"),
+  .dev: npm run deploy:dev
+  .prod: npm run deploy:prod
+  .test:
+    .unit: npx jest unit
+    .integration: npx jest integration`, "x.yml", "xsh-local"),
         (0, _components.BulletList)([
             "`x build 1.2.3` runs `build` with `1.2.3` as `$1`.",
-            "`x deploy` runs `deploy.$`.",
+            "`x deploy` runs `deploy`'s own `$`.",
             "`x deploy prod` runs `deploy.prod`.",
             "`x deploy test unit` runs `deploy.test.unit`."
         ]),
-        (0, _components.Callout)("info", "If a mapping has **no** `$` key and you invoke the parent with no subcommand arguments (e.g. `x deploy` when only nested keys exist), `x` reports an error asking you to add `$` or pass a subcommand."),
+        (0, _components.Callout)("info", "If a command has subcommands but no `$:` of its own, invoking it bare (e.g. `x deploy` when only nested `.dev`/`.prod`/`.test` exist) auto-prints help instead of erroring."),
         (0, _components.Heading)(3, "Execution"),
-        (0, _components.Paragraph)("Local scripts are executed with your configured **default program** (`x --config`, or `default_program` in `~/.x.sh/config.json`), same as other inline shell-style usage \u2014 typically **`bash`**. The implementation runs `&lt;program&gt; -c '&lt;script&gt;' x &lt;args\u2026&gt;`, so `$1` in the script refers to the first argument after the command name."),
+        (0, _components.Paragraph)("Local scripts always run as **bash**, with the same `x-opt`/`x-arg`/`x-usage` preamble injected before every app script. Unlike global scripts (which respect `default_program` / per-script metadata), `x.yml` and app commands are bash-only."),
         (0, _components.Heading)(3, "Notes"),
         (0, _components.BulletList)([
-            "Local scripts do not use per-script metadata files; only the default program applies.",
-            "If `x.yml` exists but is invalid YAML, parsing fails before falling back to a global script \u2014 fix or rename the file.",
+            "Local scripts do not use per-script metadata files \u2014 the app engine always runs them as bash.",
+            "If `x.yml` exists but is invalid YAML (or uses removed v3 syntax like `commands:`), parsing fails with a clear error before falling back to a global script \u2014 fix the file.",
             "Activity tracking in `x --ls` applies to global scripts; local `x.yml` runs are not recorded there."
         ])
     ];
@@ -6167,7 +6168,7 @@ parcelHelpers.export(exports, "default", ()=>AppFrameworkPage);
 var _components = require("../components");
 function AppFrameworkPage() {
     return [
-        (0, _components.Paragraph)("Apps turn a single YAML file into a multi-command CLI. Unlike `x.yml` (which is a flat map of inline scripts), an app file declares **options**, **arguments**, **nested commands**, and a `$:` block of bash handlers. `x` parses the synopsis strings and validates the user's input *before* any handler runs."),
+        (0, _components.Paragraph)("Apps turn a single YAML file into a multi-command CLI. An app file declares **options**, **arguments**, **nested `.command:` keys**, and inline `$:` scripts per command. `x` parses the synopsis strings and validates the user's input *before* any script runs. Project-local `x.yml` files use this exact same format \u2014 see [Project-local Scripts](/docs/project-local)."),
         (0, _components.Heading)(3, "Where apps live"),
         (0, _components.BulletList)([
             "**Local:** `./&lt;name&gt;.x.yml` in the current directory.",
@@ -6196,6 +6197,7 @@ parcelHelpers.export(exports, "default", ()=>AppFormatPage);
 var _components = require("../components");
 function AppFormatPage() {
     return [
+        (0, _components.Paragraph)("This is the same file format used by project-local `x.yml` files \u2014 see [Project-local Scripts](/docs/project-local). Commands are declared with **dot-prefixed keys** (`.command-name:`), never `commands:`."),
         (0, _components.CodeBlock)(`name: my-app
 version: 0.0.0
 description: an example app
@@ -6203,79 +6205,79 @@ description: an example app
 options:
   - "[-v | --version]"
 
-commands:
-  build:
-    description: build the project
-    options:
-      - "[--input=<file> [--output=<dir>]]"
-      - "[--mode={fast|safe|deep}]"
-    arguments:
-      - "<assets>..."
-
-  create:
-    description: create things
-    commands:
-      file:
-        description: create a file
-        arguments: "<path> [<content='empty'>]"
-      folder:
-        arguments: "<path>"
-
-$:
-  build: |
+.build:
+  description: build the project
+  options:
+    - "[--input=<file> [--output=<dir>]]"
+    - "[--mode={fast|safe|deep}]"
+  arguments:
+    - "<assets>..."
+  $: |
     echo "mode=$(x-opt mode), assets=$(x-arg assets)"
-  create: x-usage create
-  create.file: |
-    echo "creating $(x-arg path) with $(x-arg content)"
-  create.folder: |
-    mkdir -p "$(x-arg path)"`, "Basic app", "xsh"),
+
+.create:
+  description: create things
+  $: x-usage create
+
+  .file:
+    description: create a file
+    arguments: "<path> [<content='empty'>]"
+    $: |
+      echo "creating $(x-arg path) with $(x-arg content)"
+
+  .folder:
+    arguments: "<path>"
+    $: |
+      mkdir -p "$(x-arg path)"`, "Basic app", "xsh"),
         (0, _components.Heading)(3, "Top-level fields"),
         (0, _components.BulletList)([
-            "`name`, `version`, `description` \u2014 metadata shown in help output.",
-            "`options` \u2014 flags available on the root command.",
-            "`arguments` \u2014 positional args on the root command.",
-            "`commands` \u2014 nested subcommand tree.",
-            "`dir` \u2014 working directory handlers run in (relative to the app file, or absolute).",
-            "`$` \u2014 inline bash handler map.",
-            "`import` \u2014 load handlers and/or env from external files.",
-            "`env` \u2014 inline environment variables and named groups."
+            "`name`, `version`, `description`/`help` \u2014 metadata shown in help output (`name` defaults to the filename without `.x.yml`/`.yml` if omitted; `help`/`description` are aliases).",
+            "`options`/`opts` \u2014 flags available on the root command (aliases; string, multiline string, or list).",
+            "`arguments`/`args` \u2014 positional args on the root command (aliases; string, multiline string, or list).",
+            "`dir` \u2014 working directory scripts run in (relative to the app file, or absolute).",
+            "`$` \u2014 the root command's own inline script, run on bare `x my-app`.",
+            "`import` \u2014 load scripts and/or env from external files.",
+            "`env` \u2014 inline environment variables and named groups.",
+            "`.command-name` \u2014 a subcommand: a string (shorthand inline script) or a mapping (see below)."
         ]),
+        (0, _components.Callout)("warn", "`commands:` and a top-level `$:` handler map are **removed** \u2014 define commands with `.command-name:` keys, and put each command's script inline under its own `$:`."),
         (0, _components.Heading)(3, "Command nodes"),
-        (0, _components.Paragraph)("Each entry under `commands` can have `description`, `options`, `arguments`, nested `commands`, or any combination. Leaf commands need a matching handler key in `$` (e.g. `build` \u2192 `$: build:`)."),
+        (0, _components.Paragraph)("Each `.command-name:` entry is either a **string** (shorthand for `{ $: <string> }`) or a **mapping** with any of `description`/`help`, `options`/`opts`, `arguments`/`args`, `dir`, `env`, `alias`, `$`, and nested `.sub-command:` keys. Every leaf command needs its own `$:` (or `alias:`)."),
+        (0, _components.CodeBlock)(`.docs: cargo doc --no-deps    # shorthand \u{2014} equivalent to { $: cargo doc --no-deps }`, undefined, "xsh"),
         (0, _components.Heading)(3, "Non-leaf groups"),
-        (0, _components.Paragraph)("A command with subcommands but no direct handler can use a one-liner like `create: x-usage create` to print help when invoked without a subcommand."),
+        (0, _components.Paragraph)("A command with subcommands but no `$:` of its own auto-prints help when invoked bare. To customize that, give it its own `$:` \u2014 a one-liner like `x-usage create` prints the same generated help explicitly."),
         (0, _components.Heading)(3, "Working directory (`dir`)"),
-        (0, _components.Paragraph)("Set `dir` to change the process working directory before any handler bash runs. Relative paths resolve from the directory containing the app file; absolute paths are used as-is. The directory must exist at load time."),
+        (0, _components.Paragraph)("Set `dir` to change the process working directory before a script runs. Relative paths resolve from the directory containing the app file; absolute paths are used as-is. The directory must exist at load time. `dir` set on a command applies to that command and all its subcommands, unless a subcommand sets its own."),
         (0, _components.CodeBlock)(`name: my-app
 dir: ./app
 
-commands:
-  show:
-    description: print the handler working directory
-
-$:
-  show: |
+.show:
+  description: print the handler working directory
+  $: |
     pwd`, "App with handler working directory", "xsh"),
-        (0, _components.Paragraph)("With the app file at `./my-app.x.yml` and a subdirectory `./app/`, running `x my-app show` executes the handler with `./app` as the current working directory."),
+        (0, _components.Paragraph)("With the app file at `./my-app.x.yml` and a subdirectory `./app/`, running `x my-app show` executes the script with `./app` as the current working directory."),
+        (0, _components.Heading)(3, "Alias commands"),
+        (0, _components.Paragraph)("An `alias:` command dispatches its remaining arguments to another x file, as if you'd invoked that file directly. Alias commands may define **only** `alias` and `help`/`description` \u2014 no `options`, `arguments`, `dir`, `env`, `$`, or nested commands."),
+        (0, _components.CodeBlock)(`.legacy:
+  alias: ./tools/legacy.x.yml`, undefined, "xsh"),
         (0, _components.Heading)(3, "Imports"),
-        (0, _components.Paragraph)("Split handlers into sidecar files instead of an inline `$:` block. Paths resolve relative to the app file. Duplicate keys across import files are an error; inline `$:` entries override imported handlers with the same key."),
+        (0, _components.Paragraph)("Split scripts into sidecar files instead of inline `$:` entries. Each import file is a flat YAML map of `dotted.path: <bash body>`. Paths resolve relative to the app file. Duplicate keys across import files are an error; inline `$:` entries override imported scripts with the same key."),
         (0, _components.CodeBlock)(`name: my-app
 version: 0.0.0
 
-commands:
-  greet:
-    arguments: "<name>"
+.greet:
+  arguments: "<name>"
 
 import:
   $:
     - ./handlers.yml`, "App with handler import", "xsh"),
         (0, _components.CodeBlock)(`greet: |
   echo "Hello, $(x-arg name)"`, "handlers.yml", "xsh-handlers"),
-        (0, _components.Paragraph)("Legacy form (still supported):"),
+        (0, _components.Paragraph)("Legacy form (still supported, mutually exclusive with `import.$`):"),
         (0, _components.CodeBlock)(`"$.import":
   - ./handlers.yml`, undefined, "xsh"),
         (0, _components.Heading)(3, "Environment"),
-        (0, _components.Paragraph)("Inline `env:` defines globals available before handlers run. Named groups (keys starting with `.`) are loaded on demand via `x-env-load`. You can also import a classic `.env` file through `import.env`."),
+        (0, _components.Paragraph)("Inline `env:` defines globals available before scripts run. Named groups (keys starting with `.`) are loaded on demand via `x-env-load`. You can also import a classic `.env` file through `import.env`. Like `dir`, `env` set on a command merges downward to its subcommands."),
         (0, _components.CodeBlock)(`name: my-app
 version: 0.0.0
 
@@ -6286,23 +6288,19 @@ env:
   .production:
     API_URL: https://example.com
 
-commands:
-  deploy:
-    arguments: "<target>"
+.deploy:
+  arguments: "<target>"
+  $: |
+    x-env-load ".$(x-arg target)"
+    echo "$HELLO \u{2192} $API_URL"
 
 import:
   env: ./shared.env
-  sh: 
+  sh:
     - ./helpers/example.sh
-    - ./helpers/example2.s
+    - ./helpers/example2.sh
   $:
-    - ./handlers/deploy.yml
-
-# or define inline
-# $:
-#   deploy: |
-#     x-env-load ".$(x-arg target)"
-#     echo "$HELLO \u{2192} $API_URL"`, "App with inline and imported env", "xsh"),
+    - ./handlers/deploy.yml`, "App with inline and imported env", "xsh"),
         (0, _components.CodeBlock)(`DATABASE_URL=postgres://localhost/mydb
 LOG_LEVEL=info`, "shared.env", "text"),
         (0, _components.Paragraph)("Imported `.env` globals merge first; inline `env:` values override on duplicate keys.")
@@ -6316,7 +6314,11 @@ parcelHelpers.export(exports, "default", ()=>SynopsisPage);
 var _components = require("../components");
 function SynopsisPage() {
     return [
-        (0, _components.Paragraph)("Every string in `options` and `arguments` arrays is a **synopsis** that `x` parses into a structured CLI spec. All `[optional]` forms have bare `(required)` equivalents \u2014 drop the brackets (or use parenthesised option groups where shown)."),
+        (0, _components.Paragraph)("Every string in `options`/`opts` and `arguments`/`args` is a **synopsis** that `x` parses into a structured CLI spec. These fields accept a list of strings, a single string, or a multiline string (one fragment per line) \u2014 all three forms are equivalent. All `[optional]` forms have bare `(required)` equivalents \u2014 drop the brackets (or use parenthesised option groups where shown)."),
+        (0, _components.CodeBlock)(`opts: |
+  [-n | --dry-run]
+  [-o | --out <path>]
+  --commit`, "Multiline opts (equivalent to a list)", "xsh"),
         (0, _components.Heading)(3, "Arguments"),
         (0, _components.DataTable)([
             "Synopsis",
@@ -6509,6 +6511,10 @@ function BuiltinsPage() {
             [
                 "`x-env-load .&lt;group&gt;`",
                 "Export variables from a named `env:` group (e.g. `x-env-load .env1`). Global `env:` vars are already in the shell before the handler runs."
+            ],
+            [
+                "`x-path-root`",
+                "Print the absolute path of the directory containing the x file (app or `x.yml`)."
             ]
         ]),
         (0, _components.Callout)("tip", "With `-v` / `--var`, results land in the **caller's** global shell variable \u2014 not stdout. Multi-select stores an indexed array."),
@@ -6559,11 +6565,14 @@ x my-app create file --help`, undefined, "shell"),
         (0, _components.Heading)(3, "Save-time validation"),
         (0, _components.Paragraph)("When you save an app via `x -i --app`, `x` parses the YAML, parses every synopsis string, and runs structural checks:"),
         (0, _components.BulletList)([
-            "Missing handlers for leaf commands.",
-            "Unknown handler keys.",
-            "Duplicate options within a command.",
+            "Removed v3 syntax: `commands:` mapping, or a top-level `$:` used as a handler map.",
+            "Leaf commands with no `$:` script and no `alias:`.",
+            "Script keys (inline or imported) that don't match any command path.",
+            "`alias:` commands that also define options/arguments/dir/env/`$`/subcommands.",
+            "Duplicate options or arguments within a command.",
             "Dangling `requires:` references.",
-            "Conflicting `$` / `$.import` usage."
+            "Conflicting `help`/`description`, `options`/`opts`, or `arguments`/`args` on the same node.",
+            "Conflicting `$.import` / `import.$` usage."
         ]),
         (0, _components.Paragraph)("On failure you can **edit** the file again or **revert** to the prior contents."),
         (0, _components.Heading)(3, "Runtime validation"),
