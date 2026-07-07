@@ -109,3 +109,12 @@ arguments: '[<topic="overview">]'
   description: debug the environment variables
   $: |
     echo "DEBUG = $DEBUG"
+
+.nested:
+  alias: ./handlers/nested-app.x.yml
+
+.list-handlers:
+  description: list the handlers
+  dir: ./handlers
+  $: |
+    ls -la

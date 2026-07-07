@@ -315,7 +315,6 @@ Injected via bash preamble before each script body:
 | `x-arg <name>` | Positional value; repeats → one per line |
 | `x-opts <assoc>` | Fill caller-named bash assoc array with all options |
 | `x-args <assoc>` | Fill caller-named bash assoc array with all args |
-| `x-run <cmd> …` | Run a command with `x-*` helpers still exported |
 | `x-usage <cmd.path>` | Print auto-generated help (e.g. `x-usage create.file`) |
 | `x-io-read …` | Prompt for a line; `-v NAME` assigns global scalar |
 | `x-io-confirm …` | Yes/no; `--default yes\|no` (default `no`) |
@@ -405,28 +404,17 @@ Checked on `x -i --app` save and every `x <app>`/project `x.yml` invocation:
 Fix with `x -i --app [--local|--global] <name>` or edit the YAML directly, then
 run `x <app> --help` to confirm.
 
-## Agent workflow
+## Example
+- this is an example from the official x.sh repository
+```yml
+name: xpkg
+version: 0.0.0
+description: x package meta app
+env:
+  HELLO: "world"
 
-When authoring or modifying an x file:
-
-1. **Pick scope** — `x.yml` for repo tooling (see `xpkg.x.yml`), an app for a
-   namespaced/shareable CLI, global app for personal utilities.
-2. **Design the command tree** — sketch `.command:` nesting before writing scripts.
-3. **Declare synopsis first** — `options`/`arguments` (or `opts`/`args`) on the
-   right command node (root vs leaf).
-4. **Add scripts last** — one `$:` (or string shorthand) per leaf; use
-   `x-usage` for non-leaf groups that need an explicit help-only body.
-5. **Keep scripts thin** — parse with `x-opt`/`x-arg`, delegate to `cargo`, `npm`, etc.
-6. **Split large files** — use `import.$` when scripts grow beyond ~100 lines.
-7. **Validate** — `x <app-or-cmd> --help` for each new subcommand; run a happy-path invocation.
-
-### Real-world pattern (this repo)
-
-`xpkg.x.yml` — nested `build .bin|.tool` and `test`, uses `x-opt` for `--compile`:
-
-```yaml
 .build:
-  description: build the binary/docs
+  help: build the binary/docs
   $: |
     x xpkg build bin
     x xpkg build tool
@@ -443,39 +431,51 @@ When authoring or modifying an x file:
       - '[--vscode]'
       - '[--compile <test>]'
     $: |
+      
+      if ! ls Cargo.toml >/dev/null 2>&1; then
+        echo "Error: Wrong Directory. Please navigate to the root of the project."
+        exit 1
+      fi
+      x-prt --style yellow,bold "Removing existing extension" && echo
+      rm tools/xsh-vscode-ext/xsh-vscode-ext-0.0.1.vsix
+      x-prt --style green,bold "Building extension" && echo
+      pushd tools/xsh-vscode-ext
       if [ "$(x-opt "compile")" = "true" ]; then
         npm run compile
       else
-        npm install && npm run compile && npm run package
+        npm install
+        npm run compile
+        npm run package
+        if [ "$(x-opt "cursor")" = "true" ]; then
+          npm run install-cursor-extension
+        elif [ "$(x-opt "vscode")" = "true" ]; then
+          npm run install-vscode-extension
+        else
+          echo "No extension selected, skipping installation"
+        fi
       fi
+      popd
+
+      
 
 .test:
   description: run the tests
-  arguments: "[<test>]"
+  arguments: >
+    [<test>]
+  options: |
+    [--complete]
+    [--integration]
+    [--test <test>]
   $: |
     if [ -n "$(x-arg test)" ]; then
       cargo test $(x-arg test)
+    elif [ "$(x-opt "test")" = "true" ]; then
+      cargo test --test $TEST
+    elif [ "$(x-opt "complete")" = "true" ]; then
+      cargo test complete:: # this is a test for the complete module
+    elif [ "$(x-opt "integration")" = "true" ]; then
+      cargo test cli_integration::complete # this is a test for the integration tests
     else
-      cargo test --bin x
+      cargo test --bin x # this is a test for the x binary
     fi
 ```
-
-## Pitfalls
-
-- **Script key typos** — `create.file` (used by `import.$` files) must match
-  the nested `.create: .file:` path exactly.
-- **Missing root script** — bare `x my-app` needs a root `$:` if the root
-  itself isn't just a group of subcommands.
-- **Greedy repeats** — `<rest>...` must be the last positional in the synopsis.
-- **Requires chains** — `--dst` nested inside `--src` means `--dst` alone is rejected.
-- **`commands:` / top-level `$:` map** — both are removed in v3; you'll get a
-  clean, explicit error telling you to switch to `.command:` keys and inline `$:`.
-- **Alias commands are exclusive** — adding `options`/`$`/etc. alongside
-  `alias:` on the same command is an error.
-- **CWD matters for local apps** — a local app in a parent dir is found when
-  running from a child dir, but edit the file at its actual path.
-
-## References
-
-- Full syntax demo: [docs/examples/app/exapp.x.yml](../examples/app/exapp.x.yml)
-- General `x` CLI (scripts, `x.yml`, install): [docs/skills/skill.md](skill.md)

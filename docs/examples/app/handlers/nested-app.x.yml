@@ -1,0 +1,15 @@
+
+# documentation: https://github.com/michaelmunson/x.sh/blob/main/README.md#app-framework
+# examples:      https://github.com/michaelmunson/x.sh/blob/main/docs/examples/app/exapp.x.yml
+
+name: simple
+version: 0.0.0
+description: an x app
+
+env:
+  HELLO: "global"
+
+.list-dir:
+  help: list the contents of this directory
+  $: |
+    ls -la
