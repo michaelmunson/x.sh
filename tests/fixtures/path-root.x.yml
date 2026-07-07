@@ -1,8 +1,7 @@
 name: path-root
 description: fixture app for x-path-root builtin
-commands:
-  show:
-    description: print the app root directory
-"$":
-  show: |
+
+.show:
+  description: print the app root directory
+  $: |
     x-path-root

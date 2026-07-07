@@ -4,7 +4,6 @@ mod config;
 mod configure;
 mod complete;
 mod execute;
-mod local_x;
 mod link;
 mod list;
 mod metadata;
@@ -18,8 +17,7 @@ use clap::Parser;
 use config::XConfig;
 
 #[derive(Parser)]
-#[command(name = "x")]
-#[command(about = "Create and run bash functions as commands\n\nSkills          https://github.com/michaelmunson/x.sh/tree/main/docs/skills\nExamples        https://github.com/michaelmunson/x.sh/tree/main/docs/examples\nDocumentation   https://michaelmunson.github.io/x.sh/")]
+#[command(name = "x", version, about = "Create and run bash functions as commands\n\nSkills          https://github.com/michaelmunson/x.sh/tree/main/docs/skills\nExamples        https://github.com/michaelmunson/x.sh/tree/main/docs/examples\nDocumentation   https://michaelmunson.github.io/x.sh/")]
 #[command(arg_required_else_help = false)]
 pub(crate) struct Cli {
     /// Initialize or create a script (opens your editor)
@@ -146,11 +144,14 @@ fn main() -> Result<()> {
             let script_args: Vec<String> = cli.args.iter().skip(1).cloned().collect();
             
             // Resolution order:
-            //   1. local x.yml entry (existing project-local feature)
-            //   2. local <name>.x.yml app (new)
-            //   3. global ~/.x.sh/apps/<name>.x.yml app (new)
-            //   4. global script (existing)
-            if local_x::try_run_local(&config, script_name, &script_args)? {
+            //   1. command in ./x.yml (project-local)
+            //   2. local <name>.x.yml app (CWD, then ancestors)
+            //   3. global ~/.x.sh/apps/<name>.x.yml app
+            //   4. global script
+            if app::loader::project_has_command(script_name)? {
+                let path = XConfig::project_x_yml_path()?
+                    .expect("x.yml exists when project_has_command is true");
+                app::run::run_app_file(&path, &cli.args)?;
                 return Ok(());
             }
             if config.find_app(script_name)?.is_some() {

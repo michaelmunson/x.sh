@@ -10,7 +10,7 @@ use crate::app::help;
 use crate::app::loader;
 use crate::app::parse::{self, Parsed};
 use crate::app::preamble::PREAMBLE;
-use crate::app::spec::App;
+use crate::app::spec::{App, AppEnv};
 use crate::app::validate;
 use crate::config::XConfig;
 
@@ -20,15 +20,24 @@ pub fn run_app(config: &XConfig, name: &str, argv: &[String]) -> Result<()> {
     let path = config
         .find_app(name)?
         .ok_or_else(|| anyhow!("app `{}` not found (looked in CWD and {})", name, config.apps_dir.display()))?;
+    run_app_file(&path, argv)
+}
 
-    let app = loader::load(&path).with_context(|| format!("loading app {}", path.display()))?;
+/// Run the app defined by an explicit x file path (used for `./x.yml` and
+/// alias dispatch).
+pub fn run_app_file(path: &Path, argv: &[String]) -> Result<()> {
+    let app = loader::load(path).with_context(|| format!("loading {}", path.display()))?;
 
     if let Err(errors) = validate::validate(&app) {
         eprintln!("{}", validate::format_errors(&errors));
-        anyhow::bail!("app `{}` failed validation; fix it with `x -i --app {}`", name, name);
+        anyhow::bail!("`{}` failed validation", path.display());
     }
 
     let parsed = parse::parse(&app, argv)?;
+
+    if let Some((target, remaining)) = &parsed.alias_redirect {
+        return run_app_file(target, remaining);
+    }
 
     if parsed.help {
         let text = help::render(&app, &parsed.command_path)?;
@@ -49,14 +58,13 @@ pub fn run_app(config: &XConfig, name: &str, argv: &[String]) -> Result<()> {
                 std::process::exit(0);
             }
             return Err(anyhow!(
-                "no handler defined for `{}`; add `{}: ...` under `$:`",
-                if handler_key.is_empty() { "$" } else { handler_key.as_str() },
-                if handler_key.is_empty() { "$" } else { handler_key.as_str() }
+                "no script defined for `{}`; add a `$: ...` entry to it",
+                if handler_key.is_empty() { "the root command" } else { handler_key.as_str() }
             ));
         }
     };
 
-    exec_handler(&app, &path, &parsed, &body)
+    exec_handler(&app, path, &parsed, &body)
 }
 
 fn resolve_command<'a>(app: &'a App, path: &[String]) -> Option<&'a crate::app::spec::Command> {
@@ -65,6 +73,30 @@ fn resolve_command<'a>(app: &'a App, path: &[String]) -> Option<&'a crate::app::
         cur = cur.subcommands.get(seg)?;
     }
     Some(cur)
+}
+
+/// Effective dir/env for the matched command: walk root → leaf, deepest `dir`
+/// wins, env entries merge with deeper values overriding.
+fn effective_dir_env(app: &App, path: &[String]) -> (Option<PathBuf>, AppEnv) {
+    let mut dir = app.root.dir.clone();
+    let mut env = app.root.env.clone();
+    let mut cur = &app.root;
+    for seg in path {
+        let Some(next) = cur.subcommands.get(seg) else {
+            break;
+        };
+        cur = next;
+        if cur.dir.is_some() {
+            dir = cur.dir.clone();
+        }
+        for (k, v) in &cur.env.globals {
+            env.globals.insert(k.clone(), v.clone());
+        }
+        for (group, vars) in &cur.env.groups {
+            env.groups.insert(group.clone(), vars.clone());
+        }
+    }
+    (dir, env)
 }
 
 fn exec_handler(app: &App, app_path: &Path, parsed: &Parsed, body: &str) -> Result<()> {
@@ -105,10 +137,11 @@ fn exec_handler(app: &App, app_path: &Path, parsed: &Parsed, body: &str) -> Resu
         cmd.env(format!("X_ARG_{}", env_key(k)), vs.join("\n"));
     }
 
-    for (k, v) in &app.env.globals {
+    let (dir, env) = effective_dir_env(app, &parsed.command_path);
+    for (k, v) in &env.globals {
         cmd.env(k, v);
     }
-    for (group, vars) in &app.env.groups {
+    for (group, vars) in &env.groups {
         let pairs: String = vars
             .iter()
             .map(|(k, v)| format!("{}={}", k, v))
@@ -121,7 +154,7 @@ fn exec_handler(app: &App, app_path: &Path, parsed: &Parsed, body: &str) -> Resu
     cmd.stdout(Stdio::inherit());
     cmd.stderr(Stdio::inherit());
 
-    if let Some(dir) = &app.dir {
+    if let Some(dir) = &dir {
         cmd.current_dir(dir);
     }
 

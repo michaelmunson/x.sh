@@ -80,9 +80,6 @@ pub struct ArgDef {
 /// A command (root or nested subcommand).
 #[derive(Debug, Clone)]
 pub struct Command {
-    /// Local name of the command (the YAML key under `commands:`). Kept for
-    /// debugging and future use (e.g. richer error messages); the help renderer
-    /// derives the displayed invocation from the dotted path instead.
     #[allow(dead_code)]
     pub name: String,
     pub description: Option<String>,
@@ -90,6 +87,9 @@ pub struct Command {
     pub option_groups: Vec<OptionGroupDef>,
     pub arguments: Vec<ArgDef>,
     pub subcommands: BTreeMap<String, Command>,
+    pub dir: Option<PathBuf>,
+    pub env: AppEnv,
+    pub alias: Option<PathBuf>,
 }
 
 impl Command {
@@ -101,6 +101,9 @@ impl Command {
             option_groups: Vec::new(),
             arguments: Vec::new(),
             subcommands: BTreeMap::new(),
+            dir: None,
+            env: AppEnv::default(),
+            alias: None,
         }
     }
 }
@@ -120,14 +123,12 @@ pub struct App {
     pub name: String,
     pub version: Option<String>,
     pub description: Option<String>,
-    /// Working directory for handler execution (resolved absolute path).
-    pub dir: Option<PathBuf>,
     /// Root command. The app name is treated as the root command's name.
+    /// Carries the top-level `dir:` and `env:` values.
     pub root: Command,
     /// Map from dotted command path (e.g. `""`, `"create"`, `"create.file"`)
     /// to bash handler body.
     pub handlers: BTreeMap<String, String>,
-    pub env: AppEnv,
     /// Bash/zsh scripts sourced before each handler runs (`import.sh`, in order).
     pub sh_imports: Vec<PathBuf>,
 }

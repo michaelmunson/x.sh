@@ -1,38 +1,6 @@
-//! Load a `<name>.x.yml` file into an [`App`].
-//!
-//! The on-disk YAML shape:
-//!
-//! ```yaml
-//! name: my-app
-//! version: 0.0.0
-//! description: ...
-//! dir: ./app
-//! options:
-//!   - "[-v | --version]"
-//! commands:
-//!   create:
-//!     description: ...
-//!     options: [...]
-//!     arguments: [...]
-//!     commands: { ... }
-//! import:
-//!   $:
-//!     - ./handlers.yml
-//!   env: ./.env
-//!   sh:
-//!     - ./helpers/example.sh
-//! env:
-//!   HELLO: global
-//!   .env1:
-//!     MY_NAME: env1
-//! $:
-//!   create.file: |
-//!     ...
-//! # OR legacy
-//! $.import: /path/to/handlers.yml
-//! ```
+//! Load an `x.yml` or `<name>.x.yml` file into an [`App`].
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -40,8 +8,18 @@ use anyhow::{anyhow, bail, Context, Result};
 use serde::Deserialize;
 use serde_yaml::Value;
 
-use crate::app::spec::{App, AppEnv, ArgDef, Command, OptionDef, OptionGroupDef};
+use crate::app::spec::{App, AppEnv, Command};
 use crate::app::synopsis::{self, SynopsisEntry};
+
+const ROOT_RESERVED: &[&str] = &[
+    "name", "version", "description", "help", "dir", "env", "import",
+    "options", "opts", "arguments", "args", "$",
+];
+
+const CMD_RESERVED: &[&str] = &[
+    "description", "help", "options", "opts", "arguments", "args",
+    "$", "dir", "env", "alias",
+];
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
@@ -57,13 +35,6 @@ impl SynopsisField {
             SynopsisField::Many(v) => v.clone(),
         }
     }
-
-    fn into_vec(self) -> Vec<String> {
-        match self {
-            SynopsisField::Single(s) => vec![s],
-            SynopsisField::Many(v) => v,
-        }
-    }
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -76,48 +47,6 @@ struct RawImport {
     sh: Option<SynopsisField>,
 }
 
-#[derive(Debug, Deserialize, Default)]
-struct RawCommand {
-    description: Option<String>,
-    #[serde(default)]
-    options: Option<SynopsisField>,
-    #[serde(default)]
-    arguments: Option<SynopsisField>,
-    #[serde(default)]
-    commands: Option<BTreeMap<String, RawCommand>>,
-}
-
-#[derive(Debug, Deserialize)]
-struct RawApp {
-    #[serde(default)]
-    name: Option<String>,
-    #[serde(default)]
-    version: Option<String>,
-    #[serde(default)]
-    description: Option<String>,
-    #[serde(default)]
-    dir: Option<String>,
-    #[serde(default)]
-    options: Option<SynopsisField>,
-    #[serde(default)]
-    arguments: Option<SynopsisField>,
-    #[serde(default)]
-    commands: Option<BTreeMap<String, RawCommand>>,
-    #[serde(default)]
-    import: Option<RawImport>,
-
-    /// Inline handlers map (`$:`).
-    #[serde(rename = "$", default)]
-    dollar: Option<BTreeMap<String, String>>,
-
-    /// External handler imports (`$.import`, legacy).
-    #[serde(rename = "$.import", default)]
-    dollar_import: Option<SynopsisField>,
-
-    #[serde(default)]
-    env: Option<Value>,
-}
-
 /// Load and parse an app config file.
 pub fn load(path: &Path) -> Result<App> {
     let content = fs::read_to_string(path)
@@ -125,123 +54,314 @@ pub fn load(path: &Path) -> Result<App> {
     parse(&content, path)
 }
 
-/// Parse YAML content. `path` is used only for resolving import entries
-/// relative to the file (and for error context).
+/// Parse YAML content. `path` is used only for resolving paths relative to the file.
 pub fn parse(content: &str, path: &Path) -> Result<App> {
-    let raw: RawApp = serde_yaml::from_str(content)
+    let value: Value = serde_yaml::from_str(content)
         .with_context(|| format!("failed to parse {}", path.display()))?;
 
-    let app_name = raw
-        .name
-        .clone()
-        .or_else(|| {
-            path.file_name()
-                .and_then(|s| s.to_str())
-                .and_then(|s| s.strip_suffix(".x.yml"))
-                .map(|s| s.to_string())
-        })
+    let mapping = value
+        .as_mapping()
+        .ok_or_else(|| anyhow!("app file must be a YAML mapping"))?;
+
+    if mapping.contains_key("commands") {
+        bail!(
+            "`commands:` was removed in v3; define commands with `.command-name:` keys instead"
+        );
+    }
+
+    if let Some(dollar) = mapping.get("$") {
+        if dollar.is_mapping() {
+            bail!(
+                "top-level `$:` handler map was removed in v3; define scripts inline with `$:` under each command"
+            );
+        }
+    }
+
+    let app_dir = app_dir(path);
+    let is_project = path.file_name().is_some_and(|n| n == "x.yml");
+
+    let app_name = mapping
+        .get("name")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .or_else(|| derive_name_from_path(path))
         .ok_or_else(|| anyhow!("app file is missing top-level `name:`"))?;
 
-    let handlers = resolve_handlers(path, &raw)?;
-    let env = resolve_env(path, &raw)?;
-    let sh_imports = resolve_sh_imports(path, &raw)?;
-    let dir = resolve_dir(path, raw.dir.as_deref())?;
+    let version = mapping
+        .get("version")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    let description = read_help(mapping)?;
+
+    let import = mapping
+        .get("import")
+        .map(parse_import)
+        .transpose()?;
+
+    let mut handlers = resolve_handler_imports(path, import.as_ref())?;
+    let sh_imports = resolve_sh_imports(path, import.as_ref())?;
+
+    let mut root_env = resolve_env_imports(path, import.as_ref())?;
+    if let Some(env_val) = mapping.get("env") {
+        let inline = parse_inline_env(env_val)?;
+        merge_env(&mut root_env, inline);
+    }
 
     let mut root = Command::new(app_name.clone());
-    root.description = raw.description.clone();
+    root.description = description.clone();
+    root.env = root_env;
+    if let Some(dir) = mapping.get("dir").and_then(|v| v.as_str()) {
+        root.dir = resolve_dir(path, Some(dir))?;
+    }
 
-    if let Some(opts) = raw.options {
-        for frag in opts.into_vec() {
-            let entries = synopsis::parse_fragment(&frag)
-                .with_context(|| "in root `options`")?;
-            apply_entries_to_command(&mut root, entries)?;
-        }
+    apply_synopsis_fields(mapping, &mut root, "root")?;
+
+    if let Some(script) = mapping.get("$").and_then(|v| v.as_str()) {
+        handlers.insert(String::new(), script.to_string());
     }
-    if let Some(args) = raw.arguments {
-        for frag in args.into_vec() {
-            let entries = synopsis::parse_fragment(&frag)
-                .with_context(|| "in root `arguments`")?;
-            apply_entries_to_command(&mut root, entries)?;
+
+    for (key, val) in mapping {
+        let key_str = key
+            .as_str()
+            .ok_or_else(|| anyhow!("YAML keys must be strings"))?;
+
+        if is_reserved(key_str, ROOT_RESERVED) {
+            continue;
         }
-    }
-    if let Some(commands) = raw.commands {
-        for (name, raw_sub) in commands {
-            let sub = build_command(&name, raw_sub)?;
-            root.subcommands.insert(name, sub);
+
+        if let Some(cmd_name) = key_str.strip_prefix('.') {
+            if cmd_name.is_empty() {
+                bail!("command name must not be empty after `.` prefix");
+            }
+            let cmd = parse_command_node(cmd_name, val, path, &app_dir, &mut handlers, cmd_name)?;
+            root.subcommands.insert(cmd_name.to_string(), cmd);
+        } else if is_project {
+            bail!(
+                "unknown key `{key_str}` in x.yml; v3 requires dot-prefixed command keys (e.g. `.{key_str}:`)"
+            );
+        } else {
+            bail!(
+                "unknown key `{key_str}`; use dot-prefixed command keys (e.g. `.{key_str}:`) or a reserved property"
+            );
         }
     }
 
     Ok(App {
         name: app_name,
-        version: raw.version,
-        description: raw.description,
-        dir,
+        version,
+        description,
         root,
         handlers,
-        env,
         sh_imports,
     })
 }
 
-fn resolve_handlers(path: &Path, raw: &RawApp) -> Result<BTreeMap<String, String>> {
-    let import_paths = handler_import_paths(raw)?;
-    let mut handlers = if import_paths.is_empty() {
-        BTreeMap::new()
-    } else {
-        load_handler_imports(path, import_paths)?
-    };
-    if let Some(dollar) = &raw.dollar {
-        for (k, v) in normalize_handlers(dollar.clone())? {
-            handlers.insert(k, v);
-        }
-    }
-    Ok(handlers)
+fn derive_name_from_path(path: &Path) -> Option<String> {
+    path.file_name()
+        .and_then(|s| s.to_str())
+        .and_then(|s| s.strip_suffix(".x.yml").or_else(|| s.strip_suffix(".yml")))
+        .map(|s| s.to_string())
 }
 
-fn handler_import_paths(raw: &RawApp) -> Result<Vec<String>> {
-    let from_legacy = raw
-        .dollar_import
-        .as_ref()
-        .map(SynopsisField::as_vec)
-        .unwrap_or_default();
-    let from_import = raw
-        .import
-        .as_ref()
+fn is_reserved(key: &str, reserved: &[&str]) -> bool {
+    reserved.contains(&key)
+}
+
+fn read_help(mapping: &serde_yaml::Mapping) -> Result<Option<String>> {
+    let help = mapping.get("help").and_then(|v| v.as_str());
+    let desc = mapping.get("description").and_then(|v| v.as_str());
+    if help.is_some() && desc.is_some() {
+        bail!("cannot use both `help:` and `description:`");
+    }
+    Ok(help.or(desc).map(|s| s.to_string()))
+}
+
+fn parse_import(value: &Value) -> Result<RawImport> {
+    serde_yaml::from_value(value.clone()).context("failed to parse `import:` block")
+}
+
+fn parse_command_node(
+    name: &str,
+    value: &Value,
+    app_path: &Path,
+    app_dir: &Path,
+    handlers: &mut BTreeMap<String, String>,
+    handler_key: &str,
+) -> Result<Command> {
+    match value {
+        Value::String(script) => {
+            handlers.insert(handler_key.to_string(), script.clone());
+            Ok(Command::new(name))
+        }
+        Value::Mapping(mapping) => {
+            let mut cmd = Command::new(name);
+            cmd.description = read_help(mapping)?;
+            apply_synopsis_fields(mapping, &mut cmd, name)?;
+            apply_dir_env_fields(mapping, app_path, &mut cmd)?;
+
+            if let Some(alias) = mapping.get("alias") {
+                let alias_str = alias
+                    .as_str()
+                    .ok_or_else(|| anyhow!("`alias` on `{name}` must be a string"))?;
+                let resolved = resolve_path(app_dir, alias_str);
+                if !resolved.is_file() {
+                    bail!("alias target `{}` is not a file", resolved.display());
+                }
+                cmd.alias = Some(resolved);
+            }
+
+            if let Some(script) = mapping.get("$").and_then(|v| v.as_str()) {
+                handlers.insert(handler_key.to_string(), script.to_string());
+            }
+
+            for (key, val) in mapping {
+                let key_str = key
+                    .as_str()
+                    .ok_or_else(|| anyhow!("YAML keys must be strings"))?;
+
+                if is_reserved(key_str, CMD_RESERVED) {
+                    continue;
+                }
+
+                if let Some(sub_name) = key_str.strip_prefix('.') {
+                    if sub_name.is_empty() {
+                        bail!("command name must not be empty after `.` prefix");
+                    }
+                    let sub_key = format!("{handler_key}.{sub_name}");
+                    let sub = parse_command_node(sub_name, val, app_path, app_dir, handlers, &sub_key)?;
+                    cmd.subcommands.insert(sub_name.to_string(), sub);
+                } else {
+                    bail!(
+                        "unknown key `{key_str}` on command `{name}`; use dot-prefixed subcommand keys (e.g. `.{key_str}:`)"
+                    );
+                }
+            }
+
+            Ok(cmd)
+        }
+        _ => bail!("command `{name}` must be a string or mapping"),
+    }
+}
+
+fn apply_synopsis_fields(
+    mapping: &serde_yaml::Mapping,
+    cmd: &mut Command,
+    context: &str,
+) -> Result<()> {
+    if mapping.contains_key("options") && mapping.contains_key("opts") {
+        bail!("cannot use both `options:` and `opts:` on `{context}`");
+    }
+    if mapping.contains_key("arguments") && mapping.contains_key("args") {
+        bail!("cannot use both `arguments:` and `args:` on `{context}`");
+    }
+
+    let opts_key = if mapping.contains_key("opts") {
+        "opts"
+    } else {
+        "options"
+    };
+    if let Some(opts) = mapping.get(opts_key) {
+        for frag in synopsis_strings(opts)? {
+            let entries = synopsis::parse_fragment(&frag)
+                .with_context(|| format!("in `{context}.{opts_key}`"))?;
+            apply_entries_to_command(cmd, entries)?;
+        }
+    }
+
+    let args_key = if mapping.contains_key("args") {
+        "args"
+    } else {
+        "arguments"
+    };
+    if let Some(args) = mapping.get(args_key) {
+        for frag in synopsis_strings(args)? {
+            let entries = synopsis::parse_fragment(&frag)
+                .with_context(|| format!("in `{context}.{args_key}`"))?;
+            apply_entries_to_command(cmd, entries)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn synopsis_strings(value: &Value) -> Result<Vec<String>> {
+    match value {
+        Value::String(s) => Ok(s
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty())
+            .map(|l| l.to_string())
+            .collect()),
+        Value::Sequence(seq) => {
+            let mut out = Vec::new();
+            for item in seq {
+                let s = item
+                    .as_str()
+                    .ok_or_else(|| anyhow!("synopsis list items must be strings"))?;
+                out.push(s.to_string());
+            }
+            Ok(out)
+        }
+        _ => bail!("synopsis field must be a string or list of strings"),
+    }
+}
+
+fn apply_dir_env_fields(
+    mapping: &serde_yaml::Mapping,
+    app_path: &Path,
+    cmd: &mut Command,
+) -> Result<()> {
+    if let Some(dir) = mapping.get("dir").and_then(|v| v.as_str()) {
+        cmd.dir = resolve_dir(app_path, Some(dir))?;
+    }
+    if let Some(env_val) = mapping.get("env") {
+        cmd.env = parse_inline_env(env_val)?;
+    }
+    Ok(())
+}
+
+fn apply_entries_to_command(cmd: &mut Command, entries: Vec<SynopsisEntry>) -> Result<()> {
+    for entry in entries {
+        match entry {
+            SynopsisEntry::Option(o) => cmd.options.push(o),
+            SynopsisEntry::Argument(a) => cmd.arguments.push(a),
+            SynopsisEntry::RequiredChoice(a) => cmd.arguments.push(a),
+            SynopsisEntry::OptionGroup(g) => cmd.option_groups.push(g),
+        }
+    }
+    Ok(())
+}
+
+fn merge_env(target: &mut AppEnv, overlay: AppEnv) {
+    for (k, v) in overlay.globals {
+        target.globals.insert(k, v);
+    }
+    for (group, vars) in overlay.groups {
+        target.groups.insert(group, vars);
+    }
+}
+
+fn resolve_handler_imports(app_path: &Path, import: Option<&RawImport>) -> Result<BTreeMap<String, String>> {
+    let paths = import
         .and_then(|i| i.dollar.as_ref())
         .map(SynopsisField::as_vec)
         .unwrap_or_default();
-    if !from_legacy.is_empty() && !from_import.is_empty() {
-        bail!("cannot use both `$.import` and `import.$`");
+    if paths.is_empty() {
+        return Ok(BTreeMap::new());
     }
-    Ok(if from_import.is_empty() {
-        from_legacy
-    } else {
-        from_import
-    })
+    load_handler_imports(app_path, paths)
 }
 
-fn env_import_paths(raw: &RawApp) -> Vec<String> {
-    raw.import
-        .as_ref()
-        .and_then(|i| i.env.as_ref())
-        .map(SynopsisField::as_vec)
-        .unwrap_or_default()
-}
-
-fn sh_import_paths(raw: &RawApp) -> Vec<String> {
-    raw.import
-        .as_ref()
+fn resolve_sh_imports(app_path: &Path, import: Option<&RawImport>) -> Result<Vec<PathBuf>> {
+    let paths = import
         .and_then(|i| i.sh.as_ref())
         .map(SynopsisField::as_vec)
-        .unwrap_or_default()
-}
-
-fn resolve_sh_imports(path: &Path, raw: &RawApp) -> Result<Vec<PathBuf>> {
-    let paths = sh_import_paths(raw);
+        .unwrap_or_default();
     if paths.is_empty() {
         return Ok(Vec::new());
     }
-    let app_dir = app_dir(path);
+    let app_dir = app_dir(app_path);
     let mut out = Vec::with_capacity(paths.len());
     for p in paths {
         let resolved = resolve_path(&app_dir, &p);
@@ -253,89 +373,19 @@ fn resolve_sh_imports(path: &Path, raw: &RawApp) -> Result<Vec<PathBuf>> {
     Ok(out)
 }
 
-fn resolve_env(path: &Path, raw: &RawApp) -> Result<AppEnv> {
-    let import_paths = env_import_paths(raw);
-    let mut globals = if import_paths.is_empty() {
-        BTreeMap::new()
-    } else {
-        load_env_imports(path, import_paths)?
-    };
-
-    let mut groups = BTreeMap::new();
-    if let Some(value) = &raw.env {
-        let inline = parse_inline_env(value)?;
-        for (k, v) in inline.globals {
-            globals.insert(k, v);
-        }
-        groups = inline.groups;
+fn resolve_env_imports(app_path: &Path, import: Option<&RawImport>) -> Result<AppEnv> {
+    let paths = import
+        .and_then(|i| i.env.as_ref())
+        .map(SynopsisField::as_vec)
+        .unwrap_or_default();
+    if paths.is_empty() {
+        return Ok(AppEnv::default());
     }
-
-    Ok(AppEnv { globals, groups })
-}
-
-fn build_command(name: &str, raw: RawCommand) -> Result<Command> {
-    let mut cmd = Command::new(name);
-    cmd.description = raw.description;
-    if let Some(opts) = raw.options {
-        for frag in opts.into_vec() {
-            let entries = synopsis::parse_fragment(&frag)
-                .with_context(|| format!("in `{}.options`", name))?;
-            apply_entries_to_command(&mut cmd, entries)?;
-        }
-    }
-    if let Some(args) = raw.arguments {
-        for frag in args.into_vec() {
-            let entries = synopsis::parse_fragment(&frag)
-                .with_context(|| format!("in `{}.arguments`", name))?;
-            apply_entries_to_command(&mut cmd, entries)?;
-        }
-    }
-    if let Some(commands) = raw.commands {
-        for (sub_name, raw_sub) in commands {
-            let sub = build_command(&sub_name, raw_sub)?;
-            cmd.subcommands.insert(sub_name, sub);
-        }
-    }
-    Ok(cmd)
-}
-
-fn apply_entries_to_command(cmd: &mut Command, entries: Vec<SynopsisEntry>) -> Result<()> {
-    for entry in entries {
-        match entry {
-            SynopsisEntry::Option(o) => push_option(cmd, o)?,
-            SynopsisEntry::Argument(a) => push_arg(cmd, a)?,
-            SynopsisEntry::RequiredChoice(a) => push_arg(cmd, a)?,
-            SynopsisEntry::OptionGroup(g) => push_option_group(cmd, g)?,
-        }
-    }
-    Ok(())
-}
-
-fn push_option(cmd: &mut Command, opt: OptionDef) -> Result<()> {
-    cmd.options.push(opt);
-    Ok(())
-}
-
-fn push_arg(cmd: &mut Command, arg: ArgDef) -> Result<()> {
-    cmd.arguments.push(arg);
-    Ok(())
-}
-
-fn push_option_group(cmd: &mut Command, group: OptionGroupDef) -> Result<()> {
-    cmd.option_groups.push(group);
-    Ok(())
-}
-
-fn normalize_handlers(raw: BTreeMap<String, String>) -> Result<BTreeMap<String, String>> {
-    let mut out = BTreeMap::new();
-    let mut seen = HashSet::new();
-    for (key, body) in raw {
-        if !seen.insert(key.clone()) {
-            bail!("duplicate handler key in `$:` block: {:?}", key);
-        }
-        out.insert(key, body);
-    }
-    Ok(out)
+    let globals = load_env_imports(app_path, paths)?;
+    Ok(AppEnv {
+        globals,
+        groups: BTreeMap::new(),
+    })
 }
 
 fn load_handler_imports(app_path: &Path, paths: Vec<String>) -> Result<BTreeMap<String, String>> {
@@ -558,6 +608,30 @@ fn resolve_path(app_dir: &Path, p: &str) -> PathBuf {
     }
 }
 
+/// Top-level command names defined in `./x.yml` in the current directory.
+pub fn list_project_commands() -> Result<Vec<String>> {
+    let cwd = std::env::current_dir().context("Could not get current directory")?;
+    let path = cwd.join("x.yml");
+    if !path.is_file() {
+        return Ok(Vec::new());
+    }
+    let app = load(&path)?;
+    let mut names: Vec<String> = app.root.subcommands.keys().cloned().collect();
+    names.sort();
+    Ok(names)
+}
+
+/// Returns true if `./x.yml` in CWD defines the given top-level command.
+pub fn project_has_command(name: &str) -> Result<bool> {
+    let cwd = std::env::current_dir().context("Could not get current directory")?;
+    let path = cwd.join("x.yml");
+    if !path.is_file() {
+        return Ok(false);
+    }
+    let app = load(&path)?;
+    Ok(app.root.subcommands.contains_key(name))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -571,34 +645,101 @@ mod tests {
         let app = p("name: foo\n");
         assert_eq!(app.name, "foo");
         assert!(app.root.subcommands.is_empty());
-        assert!(app.env.globals.is_empty());
-        assert!(app.env.groups.is_empty());
     }
 
     #[test]
-    fn loads_options_and_commands() {
-        let app = p(r#"
+    fn loads_dot_commands_with_inline_scripts() {
+        let app = p(
+            r#"
 name: my-app
 version: 0.0.0
-options:
+opts:
   - "[-v | --version]"
-commands:
-  build:
-    description: build it
-    options:
-      - "[--mode={fast|safe}]"
-    arguments:
-      - "<assets>..."
-"$":
-  build: "echo hi"
-"#);
+.cmd1:
+  help: command 1
+  args: <arg1> <arg2>
+  opts: |
+    --bool
+    [--str <arg>]
+  $: |
+    echo "cmd1"
+  .subcmd:
+    help: subcommand 1
+    opts:
+      - '--bool'
+    $: |
+      echo "subcmd1"
+"#,
+        );
         assert_eq!(app.name, "my-app");
         assert_eq!(app.root.options.len(), 1);
         assert_eq!(app.root.subcommands.len(), 1);
-        let build = &app.root.subcommands["build"];
-        assert_eq!(build.options.len(), 1);
-        assert_eq!(build.arguments.len(), 1);
-        assert_eq!(app.handlers.get("build").map(String::as_str), Some("echo hi"));
+        let cmd1 = &app.root.subcommands["cmd1"];
+        assert_eq!(cmd1.description.as_deref(), Some("command 1"));
+        assert_eq!(cmd1.arguments.len(), 2);
+        assert_eq!(cmd1.options.len(), 2);
+        assert_eq!(cmd1.subcommands.len(), 1);
+        assert_eq!(
+            app.handlers.get("cmd1").map(String::as_str),
+            Some("echo \"cmd1\"\n")
+        );
+        assert_eq!(
+            app.handlers.get("cmd1.subcmd").map(String::as_str),
+            Some("echo \"subcmd1\"\n")
+        );
+    }
+
+    #[test]
+    fn string_shorthand_for_command() {
+        let app = p(
+            r#"
+name: t
+.build: cargo build
+"#,
+        );
+        assert_eq!(
+            app.handlers.get("build").map(String::as_str),
+            Some("cargo build")
+        );
+    }
+
+    #[test]
+    fn rejects_commands_key() {
+        let err = parse("name: x\ncommands:\n  run: {}\n", Path::new("t.x.yml")).unwrap_err();
+        assert!(err.to_string().contains("commands:"));
+    }
+
+    #[test]
+    fn rejects_top_level_dollar_map() {
+        let err = parse(
+            r#"
+name: x
+$:
+  run: echo
+"#,
+            Path::new("t.x.yml"),
+        )
+        .unwrap_err();
+        assert!(err.to_string().contains("handler map"));
+    }
+
+    #[test]
+    fn rejects_plain_key_in_x_yml() {
+        let err = parse("build: echo hi\n", Path::new("x.yml")).unwrap_err();
+        assert!(err.to_string().contains("dot-prefixed"));
+    }
+
+    #[test]
+    fn derives_name_from_filename() {
+        let app = parse("version: 0.1.0\n", Path::new("widget.x.yml")).unwrap();
+        assert_eq!(app.name, "widget");
+    }
+
+    #[test]
+    fn loads_x_yml_without_name() {
+        let app = parse(".hello: echo hi\n", Path::new("x.yml")).unwrap();
+        assert_eq!(app.name, "x");
+        assert!(app.root.subcommands.contains_key("hello"));
     }
 
     #[test]
@@ -613,8 +754,8 @@ commands:
 name: merged
 import:
   $: ./handlers.yml
-"$":
-  run: echo inline
+.run:
+  $: echo inline
 "#,
         )
         .unwrap();
@@ -630,268 +771,47 @@ import:
     }
 
     #[test]
-    fn rejects_both_dollar_import_and_import_dollar() {
-        let err = parse(
-            r#"
-name: x
-import:
-  $: ./foo.yml
-"$.import": "./bar.yml"
-"#,
-            Path::new("t.x.yml"),
-        )
-        .unwrap_err();
-        assert!(err.to_string().contains("cannot use both"));
-    }
-
-    #[test]
-    fn derives_name_from_filename() {
-        let app = parse("version: 0.1.0\n", Path::new("widget.x.yml")).unwrap();
-        assert_eq!(app.name, "widget");
-    }
-
-    #[test]
-    fn loads_dollar_import_relative_to_app_file() {
+    fn loads_per_command_dir_and_env() {
         let dir = tempfile::tempdir().unwrap();
-        let handlers = dir.path().join("handlers.yml");
-        std::fs::write(&handlers, "run: echo imported\n").unwrap();
+        let sub = dir.path().join("sub");
+        std::fs::create_dir(&sub).unwrap();
         let app_file = dir.path().join("app.x.yml");
         std::fs::write(
             &app_file,
             r#"
-name: imported-app
-"$.import": "./handlers.yml"
-"#,
-        )
-        .unwrap();
-        let app = load(&app_file).unwrap();
-        assert_eq!(
-            app.handlers.get("run").map(String::as_str),
-            Some("echo imported")
-        );
-    }
-
-    #[test]
-    fn rejects_duplicate_handler_key_in_import_merge() {
-        let dir = tempfile::tempdir().unwrap();
-        std::fs::write(dir.path().join("a.yml"), "run: echo a\n").unwrap();
-        std::fs::write(dir.path().join("b.yml"), "run: echo b\n").unwrap();
-        let app_file = dir.path().join("app.x.yml");
-        std::fs::write(
-            &app_file,
-            r#"
-name: dup
-"$.import":
-  - "./a.yml"
-  - "./b.yml"
-"#,
-        )
-        .unwrap();
-        let err = load(&app_file).unwrap_err();
-        assert!(err.to_string().contains("duplicate handler key"));
-    }
-
-    #[test]
-    fn loads_inline_env_globals_and_groups() {
-        let app = p(
-            r#"
-name: env-app
-env:
-  HELLO: global
-  .env1:
-    - MY_NAME: env1
-  .env2:
-    MY_NAME: env2
-    OTHER: val
-commands:
-  run:
-    description: run
-"$":
-  run: echo
-"#,
-        );
-        assert_eq!(app.env.globals.get("HELLO").map(String::as_str), Some("global"));
-        assert_eq!(
-            app.env.groups.get("env1").and_then(|g| g.get("MY_NAME")).map(String::as_str),
-            Some("env1")
-        );
-        assert_eq!(
-            app.env.groups.get("env2").and_then(|g| g.get("MY_NAME")).map(String::as_str),
-            Some("env2")
-        );
-        assert_eq!(
-            app.env.groups.get("env2").and_then(|g| g.get("OTHER")).map(String::as_str),
-            Some("val")
-        );
-    }
-
-    #[test]
-    fn loads_env_import_from_dotenv() {
-        let dir = tempfile::tempdir().unwrap();
-        std::fs::write(dir.path().join(".env"), "HELLO=imported\nFOO=bar\n").unwrap();
-        let app_file = dir.path().join("app.x.yml");
-        std::fs::write(
-            &app_file,
-            r#"
-name: env-import
-import:
-  env: ./.env
-commands:
-  run:
-    description: run
-"$":
-  run: echo
-"#,
-        )
-        .unwrap();
-        let app = load(&app_file).unwrap();
-        assert_eq!(
-            app.env.globals.get("HELLO").map(String::as_str),
-            Some("imported")
-        );
-        assert_eq!(app.env.globals.get("FOO").map(String::as_str), Some("bar"));
-    }
-
-    #[test]
-    fn inline_env_overrides_import() {
-        let dir = tempfile::tempdir().unwrap();
-        std::fs::write(dir.path().join(".env"), "HELLO=imported\n").unwrap();
-        let app_file = dir.path().join("app.x.yml");
-        std::fs::write(
-            &app_file,
-            r#"
-name: env-overlay
-import:
-  env: ./.env
-env:
-  HELLO: inline
-commands:
-  run:
-    description: run
-"$":
-  run: echo
-"#,
-        )
-        .unwrap();
-        let app = load(&app_file).unwrap();
-        assert_eq!(
-            app.env.globals.get("HELLO").map(String::as_str),
-            Some("inline")
-        );
-    }
-
-    #[test]
-    fn rejects_duplicate_env_key_in_import_merge() {
-        let dir = tempfile::tempdir().unwrap();
-        std::fs::write(dir.path().join("a.env"), "HELLO=a\n").unwrap();
-        std::fs::write(dir.path().join("b.env"), "HELLO=b\n").unwrap();
-        let app_file = dir.path().join("app.x.yml");
-        std::fs::write(
-            &app_file,
-            r#"
-name: dup-env
-import:
+name: envdir
+.run:
+  dir: ./sub
   env:
-    - ./a.env
-    - ./b.env
-commands:
-  run:
-    description: run
-"$":
-  run: echo
-"#,
-        )
-        .unwrap();
-        let err = load(&app_file).unwrap_err();
-        assert!(err.to_string().contains("duplicate env key"));
-    }
-
-    #[test]
-    fn loads_sh_import_paths() {
-        let dir = tempfile::tempdir().unwrap();
-        let helpers = dir.path().join("helpers");
-        std::fs::create_dir_all(&helpers).unwrap();
-        std::fs::write(helpers.join("example.sh"), "example_fn() { echo ok; }\n").unwrap();
-        let app_file = dir.path().join("app.x.yml");
-        std::fs::write(
-            &app_file,
-            r#"
-name: sh-import
-import:
-  sh:
-    - ./helpers/example.sh
-commands:
-  run:
-    description: run
-"$":
-  run: example_fn
+    FOO: bar
+  $: echo
 "#,
         )
         .unwrap();
         let app = load(&app_file).unwrap();
-        assert_eq!(app.sh_imports.len(), 1);
-        assert_eq!(
-            app.sh_imports[0],
-            helpers.join("example.sh")
-        );
+        let run = &app.root.subcommands["run"];
+        assert_eq!(run.dir.as_deref(), Some(sub.as_path()));
+        assert_eq!(run.env.globals.get("FOO").map(String::as_str), Some("bar"));
     }
 
     #[test]
-    fn rejects_missing_sh_import_file() {
+    fn loads_alias_command() {
         let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("other.x.yml");
+        std::fs::write(&target, "name: other\n.run: echo\n").unwrap();
         let app_file = dir.path().join("app.x.yml");
         std::fs::write(
             &app_file,
             r#"
-name: missing-sh
-import:
-  sh: ./nope.sh
-"#,
-        )
-        .unwrap();
-        let err = load(&app_file).unwrap_err();
-        assert!(err.to_string().contains("sh import"));
-    }
-
-    #[test]
-    fn loads_dir_relative_to_app_file() {
-        let dir = tempfile::tempdir().unwrap();
-        let app_sub = dir.path().join("app");
-        std::fs::create_dir(&app_sub).unwrap();
-        let app_file = dir.path().join("apps.x.yml");
-        std::fs::write(
-            &app_file,
-            r#"
-name: apps
-dir: ./app
-commands:
-  run:
-    description: run
-"$":
-  run: echo
+name: app
+.alias-cmd:
+  alias: ./other.x.yml
 "#,
         )
         .unwrap();
         let app = load(&app_file).unwrap();
-        assert_eq!(app.dir.as_deref(), Some(app_sub.as_path()));
-    }
-
-    #[test]
-    fn rejects_dir_that_is_not_a_directory() {
-        let dir = tempfile::tempdir().unwrap();
-        std::fs::write(dir.path().join("not-a-dir"), "nope\n").unwrap();
-        let app_file = dir.path().join("apps.x.yml");
-        std::fs::write(
-            &app_file,
-            r#"
-name: apps
-dir: ./not-a-dir
-"#,
-        )
-        .unwrap();
-        let err = load(&app_file).unwrap_err();
-        assert!(err.to_string().contains("`dir`"));
-        assert!(err.to_string().contains("not a directory"));
+        let alias_cmd = &app.root.subcommands["alias-cmd"];
+        assert_eq!(alias_cmd.alias.as_deref(), Some(target.as_path()));
     }
 
     #[test]
@@ -901,6 +821,5 @@ dir: ./not-a-dir
         let app = load(&path).unwrap();
         assert_eq!(app.name, "exapp");
         assert!(app.handlers.contains_key("demo.opts"));
-        assert!(app.root.subcommands.contains_key("demo"));
     }
 }

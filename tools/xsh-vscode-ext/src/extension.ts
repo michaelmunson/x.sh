@@ -1,33 +1,10 @@
-import * as path from 'path';
 import * as vscode from 'vscode';
 import * as yaml from 'js-yaml';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface CommandDef {
-  description?: string;
-  options?: string[];
-  arguments?: string | string[];
-  commands?: Record<string, CommandDef>;
-}
-
-interface XAppDoc {
-  name?: string;
-  version?: string;
-  description?: string;
-  dir?: string;
-  options?: string[];
-  arguments?: string | string[];
-  commands?: Record<string, CommandDef>;
-  import?: {
-    $?: string | string[];
-    env?: string | string[];
-    sh?: string | string[];
-  };
-  env?: Record<string, unknown>;
-  $?: Record<string, string>;
-  '$.import'?: string | string[];
-}
+/** A YAML mapping node — either a command's body or the document root. */
+type YamlNode = Record<string, unknown>;
 
 interface ParsedOption {
   long?: string;
@@ -38,6 +15,16 @@ interface ParsedOption {
 interface ParsedOptionGroup {
   members: string[];
 }
+
+const RESERVED_ROOT_KEYS = new Set([
+  'name', 'version', 'description', 'help', 'dir', 'env', 'import',
+  'options', 'opts', 'arguments', 'args', '$', '$.import',
+]);
+
+const RESERVED_COMMAND_KEYS = new Set([
+  'description', 'help', 'options', 'opts', 'arguments', 'args',
+  '$', 'dir', 'env', 'alias',
+]);
 
 function stripRepeatSuffix(s: string): [string, boolean] {
   const trimmed = s.trimEnd();
@@ -85,26 +72,27 @@ function collectMutexAlternatives(tokens: string[]): string[][] {
   return alternatives;
 }
 
+/** Split a multiline `opts:`/`args:` string into individual expressions, or pass an array through as-is. */
+function normalizeSynopsisValue(value: unknown): string[] {
+  if (typeof value === 'string') {
+    return value
+      .split('\n')
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+  }
+  if (Array.isArray(value)) {
+    return value.filter((v): v is string => typeof v === 'string');
+  }
+  return [];
+}
+
 const DIAG = 'x.sh';
 
-/** `# x.sh` first line — keep in sync with xsh-local firstLine in package.json. */
+/** `# x.sh` first line — kept for documents without a `.x.yml`/`x.yml` filename. */
 const XSH_LOCAL_FIRST_LINE = /^#\s*x\.sh\b/i;
 
 function hasLocalFirstLine(document: vscode.TextDocument): boolean {
   return document.lineCount > 0 && XSH_LOCAL_FIRST_LINE.test(document.lineAt(0).text);
-}
-
-function isLocalXyml(document: vscode.TextDocument): boolean {
-  if (document.languageId === 'xsh-local') {
-    return true;
-  }
-  if (path.basename(document.fileName) === 'x.yml') {
-    return true;
-  }
-  if (hasLocalFirstLine(document)) {
-    return true;
-  }
-  return false;
 }
 
 function isXshDocument(document: vscode.TextDocument): boolean {
@@ -158,6 +146,12 @@ export function deactivate() {
 }
 
 // ─── Linting ─────────────────────────────────────────────────────────────────
+//
+// Both apps (*.x.yml) and project-local scripts (x.yml) share the same
+// grammar in v3: commands are `.name:` keys (string shorthand for `$`, or a
+// mapping with help/args/opts/dir/env/alias/$ and further `.name:` children).
+// This mirrors the structural checks in src/app/loader.rs and
+// src/app/validate.rs.
 
 function lintDocument(document: vscode.TextDocument) {
   if (!isXshDocument(document)) return;
@@ -171,9 +165,9 @@ function lintDocument(document: vscode.TextDocument) {
   const diagnostics: vscode.Diagnostic[] = [];
   const text = document.getText();
 
-  let parsed: XAppDoc;
+  let parsed: unknown;
   try {
-    parsed = yaml.load(text) as XAppDoc;
+    parsed = yaml.load(text);
   } catch (e: unknown) {
     const yamlError = e as { mark?: { line: number; column: number }; message: string };
     const line = yamlError.mark?.line ?? 0;
@@ -184,24 +178,32 @@ function lintDocument(document: vscode.TextDocument) {
     return;
   }
 
-  if (!parsed || typeof parsed !== 'object') {
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
     diagnosticCollection.set(document.uri, diagnostics);
     return;
   }
 
-  if (isLocalXyml(document)) {
-    lintLocalXyml(document, parsed as Record<string, unknown>, diagnostics);
-    diagnosticCollection.set(document.uri, diagnostics);
-    return;
+  const root = parsed as YamlNode;
+
+  if ('commands' in root) {
+    const line = findKeyLine(document, 'commands');
+    diagnostics.push(new vscode.Diagnostic(
+      lineRange(document, line),
+      `${DIAG}: "commands:" was removed in v3 — define commands with ".command-name:" keys instead`,
+      vscode.DiagnosticSeverity.Error
+    ));
   }
 
-  const parsedApp = parsed as XAppDoc;
-
-  if (!parsedApp.name) {
-    diagnostics.push(new vscode.Diagnostic(new vscode.Range(0, 0, 0, 0), `${DIAG}: missing required field "name"`, vscode.DiagnosticSeverity.Error));
+  if (root.$ !== undefined && typeof root.$ === 'object' && root.$ !== null && !Array.isArray(root.$)) {
+    const line = findKeyLine(document, '$');
+    diagnostics.push(new vscode.Diagnostic(
+      lineRange(document, line),
+      `${DIAG}: top-level "$:" handler map was removed in v3 — define scripts inline with "$:" under each command`,
+      vscode.DiagnosticSeverity.Error
+    ));
   }
 
-  if (parsedApp.name && !/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(parsedApp.name)) {
+  if (root.name !== undefined && typeof root.name === 'string' && !/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(root.name)) {
     const nameLine = findKeyLine(document, 'name');
     diagnostics.push(new vscode.Diagnostic(
       lineRange(document, nameLine),
@@ -210,7 +212,7 @@ function lintDocument(document: vscode.TextDocument) {
     ));
   }
 
-  if (parsedApp.version && !/^\d+\.\d+\.\d+/.test(parsedApp.version)) {
+  if (root.version !== undefined && typeof root.version === 'string' && !/^\d+\.\d+\.\d+/.test(root.version)) {
     const verLine = findKeyLine(document, 'version');
     diagnostics.push(new vscode.Diagnostic(
       lineRange(document, verLine),
@@ -219,283 +221,174 @@ function lintDocument(document: vscode.TextDocument) {
     ));
   }
 
-  if (parsedApp['$.import'] && parsedApp.import?.$) {
+  const importBlock = root.import as { $?: unknown; env?: unknown; sh?: unknown } | undefined;
+  if (root['$.import'] !== undefined && importBlock?.$ !== undefined) {
     const line = findKeyLine(document, '$.import') || findKeyLine(document, 'import');
     diagnostics.push(new vscode.Diagnostic(
       lineRange(document, line),
-      `${DIAG}: cannot use both "$.import:" and "import.$:" in the same app file`,
+      `${DIAG}: cannot use both "$.import:" and "import.$:" in the same file`,
+      vscode.DiagnosticSeverity.Error
+    ));
+  }
+  const hasHandlerImport = Boolean(
+    root['$.import'] ||
+    (importBlock?.$ && (Array.isArray(importBlock.$) ? importBlock.$.length : true))
+  );
+
+  checkAliasPair(document, root, '(root)', 'description', 'help', diagnostics);
+  checkAliasPair(document, root, '(root)', 'options', 'opts', diagnostics);
+  checkAliasPair(document, root, '(root)', 'arguments', 'args', diagnostics);
+
+  for (const key of Object.keys(root)) {
+    if (RESERVED_ROOT_KEYS.has(key)) continue;
+    if (key.startsWith('.')) continue;
+    const line = findKeyLine(document, key);
+    diagnostics.push(new vscode.Diagnostic(
+      lineRange(document, line),
+      `${DIAG}: unknown key "${key}" — use a dot-prefixed command key (e.g. ".${key}:") or a reserved property`,
       vscode.DiagnosticSeverity.Error
     ));
   }
 
-  const hasHandlerImport = Boolean(
-    parsedApp['$.import'] ||
-    (parsedApp.import?.$ && (Array.isArray(parsedApp.import.$) ? parsedApp.import.$.length : true))
-  );
+  const options = normalizeSynopsisValue(root.opts ?? root.options);
+  const args = normalizeSynopsisValue(root.args ?? root.arguments);
+  validateCommandScope(document, '(root)', options, args, diagnostics);
 
-  const allPaths = new Set<string>(['']);
-  if (parsedApp.commands) {
-    collectAllPaths(parsedApp.commands, '', allPaths);
-  }
-
-  const leafPaths = new Set<string>();
-  if (!parsedApp.commands || Object.keys(parsedApp.commands).length === 0) {
-    leafPaths.add('');
-  } else {
-    collectLeafPaths(parsedApp.commands, '', leafPaths);
-  }
-
-  const handlerKeys = new Set<string>(Object.keys(parsedApp.$ ?? {}));
-
-  if (parsedApp.$) {
-    const seen = new Set<string>();
-    for (const key of Object.keys(parsedApp.$)) {
-      if (seen.has(key)) {
-        const handlerLine = findHandlerKeyLine(document, key);
-        diagnostics.push(new vscode.Diagnostic(
-          lineRange(document, handlerLine),
-          `${DIAG}: duplicate handler key in "$:" block: "${key}"`,
-          vscode.DiagnosticSeverity.Error
-        ));
-      }
-      seen.add(key);
-    }
-  }
-
-  if (config.get<boolean>('warnOnUnreferencedHandlers', true)) {
-    for (const key of handlerKeys) {
-      if (!allPaths.has(key)) {
-        const handlerLine = findHandlerKeyLine(document, key);
-        diagnostics.push(new vscode.Diagnostic(
-          lineRange(document, handlerLine),
-          `${DIAG}: handler key "${displayPath(key)}" does not match any command in "commands:"`,
-          vscode.DiagnosticSeverity.Error
-        ));
-      }
-    }
-  }
-
-  if (config.get<boolean>('warnOnMissingHandlers', true) && !hasHandlerImport) {
-    for (const path of leafPaths) {
-      if (!handlerKeys.has(path)) {
-        const cmdLine = findCommandLine(document, path);
-        diagnostics.push(new vscode.Diagnostic(
-          lineRange(document, cmdLine),
-          `${DIAG}: leaf command has no handler — add "${displayPath(path)}: ..." under "$:"`,
-          vscode.DiagnosticSeverity.Error
-        ));
-      }
-    }
-  }
-
-  if (config.get<boolean>('requireDescription', false)) {
-    lintDescriptions(document, parsedApp.commands ?? {}, '', diagnostics);
-  }
-
-  validateCommandScope(document, '', parsedApp.options ?? [], normalizeArguments(parsedApp.arguments), diagnostics);
-  if (parsedApp.commands) {
-    lintCommandScopes(document, parsedApp.commands, '', diagnostics);
-  }
-
-  lintHandlerValues(document, parsedApp.$ ?? {}, diagnostics);
-
-  diagnosticCollection.set(document.uri, diagnostics);
-}
-
-function displayPath(path: string): string {
-  return path === '' ? '$' : path;
-}
-
-// ─── Local x.yml linting (see src/local_x.rs) ────────────────────────────────
-
-const LOCAL_APP_ONLY_KEYS = ['commands', 'options', 'arguments', '$.import', 'import', 'env'] as const;
-
-function lintLocalXyml(
-  document: vscode.TextDocument,
-  parsed: Record<string, unknown>,
-  diagnostics: vscode.Diagnostic[]
-) {
-  for (const key of LOCAL_APP_ONLY_KEYS) {
-    if (key in parsed) {
-      const line = findKeyLine(document, key);
-      diagnostics.push(new vscode.Diagnostic(
-        lineRange(document, line),
-        `${DIAG}: "${key}" belongs in a *.x.yml app file — x.yml uses top-level command keys with inline scripts`,
-        vscode.DiagnosticSeverity.Warning
-      ));
-    }
-  }
-
-  if ('$' in parsed && parsed.$ !== null && typeof parsed.$ === 'object' && !Array.isArray(parsed.$)) {
-    const line = findKeyLine(document, '$');
+  const rootChildren = dotCommandEntries(root);
+  const hasRootScript = typeof root.$ === 'string';
+  if (rootChildren.length === 0 && !hasRootScript && !hasHandlerImport) {
     diagnostics.push(new vscode.Diagnostic(
-      lineRange(document, line),
-      `${DIAG}: root "$:" is for *.x.yml apps — in x.yml use "$" only as a nested default under a command group`,
+      lineRange(document, 0),
+      `${DIAG}: this file defines no commands and no root "$:" script`,
       vscode.DiagnosticSeverity.Warning
     ));
   }
 
-  for (const [name, entry] of Object.entries(parsed)) {
-    if (!/^[a-zA-Z][a-zA-Z0-9._-]*$/.test(name)) {
-      const line = findLocalKeyLine(document, name);
-      diagnostics.push(new vscode.Diagnostic(
-        lineRange(document, line),
-        `${DIAG}: command name "${name}" should start with a letter and contain only letters, digits, hyphens, and underscores`,
-        vscode.DiagnosticSeverity.Error
-      ));
-    }
-    lintLocalEntry(document, name, entry, diagnostics);
+  for (const [name, value] of rootChildren) {
+    lintCommandNode(document, name, value, config, hasHandlerImport, diagnostics);
+  }
+
+  diagnosticCollection.set(document.uri, diagnostics);
+}
+
+/** `.name:` entries of a mapping node, in declaration order. */
+function dotCommandEntries(node: YamlNode): [string, unknown][] {
+  return Object.entries(node).filter(([key]) => key.startsWith('.') && key.length > 1);
+}
+
+function checkAliasPair(
+  document: vscode.TextDocument,
+  node: YamlNode,
+  path: string,
+  a: string,
+  b: string,
+  diagnostics: vscode.Diagnostic[]
+) {
+  if (node[a] !== undefined && node[b] !== undefined) {
+    const line = findKeyLine(document, b);
+    diagnostics.push(new vscode.Diagnostic(
+      lineRange(document, line),
+      `${DIAG}: cannot use both "${a}:" and "${b}:" on ${path}`,
+      vscode.DiagnosticSeverity.Error
+    ));
   }
 }
 
-function lintLocalEntry(
+function lintCommandNode(
   document: vscode.TextDocument,
-  commandPath: string,
-  entry: unknown,
+  path: string,
+  value: unknown,
+  config: vscode.WorkspaceConfiguration,
+  hasHandlerImport: boolean,
   diagnostics: vscode.Diagnostic[]
 ) {
-  if (typeof entry === 'string') {
-    if (!entry.trim()) {
-      const line = findLocalKeyLine(document, commandPath.split('.').pop() ?? commandPath);
+  const displayPath = path.replace(/^\./, '').replace(/\.\./g, '.');
+  const leaf = path.split('.').pop() ?? path;
+
+  if (typeof value === 'string') {
+    // Shorthand: `.cmd: <script>` — equivalent to `.cmd: { $: <script> }`.
+    if (!value.trim()) {
+      const line = findCommandLine(document, leaf);
       diagnostics.push(new vscode.Diagnostic(
         lineRange(document, line),
-        `${DIAG}: script for "${commandPath}" is empty`,
+        `${DIAG}: script for "${displayPath}" is empty`,
         vscode.DiagnosticSeverity.Warning
       ));
     }
     return;
   }
 
-  if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
-    const line = findLocalKeyLine(document, commandPath.split('.').pop() ?? commandPath);
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    const line = findCommandLine(document, leaf);
     diagnostics.push(new vscode.Diagnostic(
       lineRange(document, line),
-      `${DIAG}: "${commandPath}" must be a script string or a nested command map`,
+      `${DIAG}: "${displayPath}" must be a script string or a mapping`,
       vscode.DiagnosticSeverity.Error
     ));
     return;
   }
 
-  const map = entry as Record<string, unknown>;
-  const subcommands = Object.keys(map).filter(k => k !== '$');
+  const node = value as YamlNode;
 
-  if (subcommands.length > 0 && !('$' in map)) {
-    const line = findLocalKeyLine(document, commandPath.split('.').pop() ?? commandPath);
+  for (const key of Object.keys(node)) {
+    if (RESERVED_COMMAND_KEYS.has(key)) continue;
+    if (key.startsWith('.')) continue;
+    const line = findNestedKeyLine(document, leaf, key);
     diagnostics.push(new vscode.Diagnostic(
       lineRange(document, line),
-      `${DIAG}: "${commandPath}" has subcommands but no "$" default — add "$:" so "x ${commandPath}" works without a subcommand`,
+      `${DIAG}: unknown key "${key}" on command "${displayPath}" — use a dot-prefixed subcommand key (e.g. ".${key}:")`,
       vscode.DiagnosticSeverity.Error
     ));
   }
 
-  for (const [key, value] of Object.entries(map)) {
-    const childPath = key === '$' ? commandPath : `${commandPath}.${key}`;
-    if (key !== '$' && !/^[a-zA-Z][a-zA-Z0-9._-]*$/.test(key)) {
-      const line = findNestedLocalKeyLine(document, commandPath.split('.').pop() ?? commandPath, key);
+  checkAliasPair(document, node, `"${displayPath}"`, 'description', 'help', diagnostics);
+  checkAliasPair(document, node, `"${displayPath}"`, 'options', 'opts', diagnostics);
+  checkAliasPair(document, node, `"${displayPath}"`, 'arguments', 'args', diagnostics);
+
+  const children = dotCommandEntries(node);
+  const hasScript = typeof node.$ === 'string';
+  const hasAlias = typeof node.alias === 'string';
+
+  if (hasAlias) {
+    const extras = ['options', 'opts', 'arguments', 'args', 'dir', 'env', '$'].filter(k => node[k] !== undefined);
+    if (extras.length > 0 || children.length > 0) {
+      const line = findCommandLine(document, leaf);
       diagnostics.push(new vscode.Diagnostic(
         lineRange(document, line),
-        `${DIAG}: subcommand name "${key}" should start with a letter and contain only letters, digits, hyphens, and underscores`,
+        `${DIAG}: alias command "${displayPath}" may only define "alias" and "help"/"description"`,
         vscode.DiagnosticSeverity.Error
       ));
     }
-    lintLocalEntry(document, childPath, value, diagnostics);
-  }
-}
-
-function findLocalKeyLine(document: vscode.TextDocument, key: string): number {
-  const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const re = new RegExp(`^${escaped}\\s*:`);
-  for (let i = 0; i < document.lineCount; i++) {
-    if (re.test(document.lineAt(i).text.trim())) {
-      return i;
+  } else {
+    if (config.get<boolean>('warnOnMissingHandlers', true) && children.length === 0 && !hasScript && !hasHandlerImport) {
+      const line = findCommandLine(document, leaf);
+      diagnostics.push(new vscode.Diagnostic(
+        lineRange(document, line),
+        `${DIAG}: leaf command "${displayPath}" has no script — add a "$: ..." entry (or "alias:")`,
+        vscode.DiagnosticSeverity.Error
+      ));
     }
-  }
-  return 0;
-}
 
-function findNestedLocalKeyLine(
-  document: vscode.TextDocument,
-  parentKey: string,
-  childKey: string
-): number {
-  const parentEscaped = parentKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const childEscaped = childKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const parentRe = new RegExp(`^${parentEscaped}\\s*:`);
-  let parentLine = -1;
-  for (let i = 0; i < document.lineCount; i++) {
-    if (parentRe.test(document.lineAt(i).text.trim())) {
-      parentLine = i;
-      break;
+    if (config.get<boolean>('requireDescription', false) && node.description === undefined && node.help === undefined) {
+      const line = findCommandLine(document, leaf);
+      diagnostics.push(new vscode.Diagnostic(
+        lineRange(document, line),
+        `${DIAG}: command "${displayPath}" is missing a description`,
+        vscode.DiagnosticSeverity.Warning
+      ));
     }
-  }
-  if (parentLine < 0) {
-    return findLocalKeyLine(document, childKey);
+
+    const options = normalizeSynopsisValue(node.opts ?? node.options);
+    const args = normalizeSynopsisValue(node.args ?? node.arguments);
+    validateCommandScope(document, `"${displayPath}"`, options, args, diagnostics);
   }
 
-  const childRe = new RegExp(`^\\s+${childEscaped}\\s*:`);
-  for (let i = parentLine + 1; i < document.lineCount; i++) {
-    if (childRe.test(document.lineAt(i).text)) {
-      return i;
-    }
-    if (/^\S/.test(document.lineAt(i).text)) {
-      break;
-    }
+  for (const [name, child] of children) {
+    lintCommandNode(document, `${path}${name}`, child, config, hasHandlerImport, diagnostics);
   }
-  return findLocalKeyLine(document, childKey);
-}
-
-// ─── Command path collection ─────────────────────────────────────────────────
-
-function collectAllPaths(
-  commands: Record<string, CommandDef>,
-  prefix: string,
-  out: Set<string>
-) {
-  for (const [name, def] of Object.entries(commands)) {
-    const path = prefix ? `${prefix}.${name}` : name;
-    out.add(path);
-    if (def?.commands) {
-      collectAllPaths(def.commands, path, out);
-    }
-  }
-}
-
-function collectLeafPaths(
-  commands: Record<string, CommandDef>,
-  prefix: string,
-  out: Set<string>
-) {
-  for (const [name, def] of Object.entries(commands)) {
-    const path = prefix ? `${prefix}.${name}` : name;
-    if (def?.commands && Object.keys(def.commands).length > 0) {
-      collectLeafPaths(def.commands, path, out);
-    } else {
-      out.add(path);
-    }
-  }
-}
-
-function normalizeArguments(args: string | string[] | undefined): string[] {
-  if (!args) return [];
-  return Array.isArray(args) ? args : [args];
 }
 
 // ─── Per-command validation (mirrors src/app/validate.rs) ────────────────────
-
-function lintCommandScopes(
-  document: vscode.TextDocument,
-  commands: Record<string, CommandDef>,
-  prefix: string,
-  diagnostics: vscode.Diagnostic[]
-) {
-  for (const [name, def] of Object.entries(commands)) {
-    const path = prefix ? `${prefix}.${name}` : name;
-    validateCommandScope(document, path, def?.options ?? [], normalizeArguments(def?.arguments), diagnostics);
-    if (def?.commands) {
-      lintCommandScopes(document, def.commands, path, diagnostics);
-    }
-  }
-}
 
 function validateCommandScope(
   document: vscode.TextDocument,
@@ -838,30 +731,6 @@ function stripOuter(s: string, open: string, close: string): string | undefined 
   return undefined;
 }
 
-// ─── Description linting ─────────────────────────────────────────────────────
-
-function lintDescriptions(
-  document: vscode.TextDocument,
-  commands: Record<string, CommandDef>,
-  prefix: string,
-  diagnostics: vscode.Diagnostic[]
-) {
-  for (const [name, def] of Object.entries(commands)) {
-    const path = prefix ? `${prefix}.${name}` : name;
-    if (!def?.description) {
-      const line = findCommandLine(document, path);
-      diagnostics.push(new vscode.Diagnostic(
-        lineRange(document, line),
-        `${DIAG}: command "${path}" is missing a description`,
-        vscode.DiagnosticSeverity.Warning
-      ));
-    }
-    if (def?.commands) {
-      lintDescriptions(document, def.commands, path, diagnostics);
-    }
-  }
-}
-
 // ─── Bracket balance checks ──────────────────────────────────────────────────
 
 function lintOptionExpressions(
@@ -912,37 +781,6 @@ function lintBracketBalance(
   }
 }
 
-// ─── Handler value linting ───────────────────────────────────────────────────
-
-function lintHandlerValues(
-  document: vscode.TextDocument,
-  handlers: Record<string, string>,
-  diagnostics: vscode.Diagnostic[]
-) {
-  for (const [key, value] of Object.entries(handlers)) {
-    if (typeof value !== 'string') {
-      const line = findHandlerKeyLine(document, key);
-      diagnostics.push(new vscode.Diagnostic(
-        lineRange(document, line),
-        `${DIAG}: handler "${displayPath(key)}" value must be a string`,
-        vscode.DiagnosticSeverity.Error
-      ));
-      continue;
-    }
-    const trimmed = value.trim();
-    if (!trimmed.startsWith('x-') && !trimmed.includes('\n') && trimmed !== '') {
-      if (/^[a-zA-Z][a-zA-Z0-9_-]+$/.test(trimmed)) {
-        const line = findHandlerKeyLine(document, key);
-        diagnostics.push(new vscode.Diagnostic(
-          lineRange(document, line),
-          `${DIAG}: handler "${displayPath(key)}" looks like a bare word — did you mean "x-${trimmed}" or a multiline bash script (use |)?`,
-          vscode.DiagnosticSeverity.Hint
-        ));
-      }
-    }
-  }
-}
-
 // ─── Line finding ────────────────────────────────────────────────────────────
 
 function findKeyLine(document: vscode.TextDocument, key: string): number {
@@ -984,23 +822,44 @@ function findArgumentLine(document: vscode.TextDocument, arg: string): number {
   return 0;
 }
 
-function findCommandLine(document: vscode.TextDocument, path: string): number {
-  if (path === '') return findKeyLine(document, 'name');
-  const leaf = path.split('.').pop()!;
-  const re = new RegExp(`^\\s+${leaf}\\s*:`);
+/** Best-effort line lookup for a `.name:` command key (ignores exact nesting depth, like the old local-file finder). */
+function findCommandLine(document: vscode.TextDocument, name: string): number {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`^\\s*\\.${escaped}\\s*:`);
   for (let i = 0; i < document.lineCount; i++) {
     if (re.test(document.lineAt(i).text)) return i;
   }
   return 0;
 }
 
-function findHandlerKeyLine(document: vscode.TextDocument, key: string): number {
-  const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const re = new RegExp(`^\\s+"?${escaped}"?\\s*:`);
+function findNestedKeyLine(document: vscode.TextDocument, parentName: string, childKey: string): number {
+  const parentEscaped = parentName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const parentRe = new RegExp(`^(\\s*)\\.${parentEscaped}\\s*:`);
+  let parentLine = -1;
+  let parentIndent = 0;
   for (let i = 0; i < document.lineCount; i++) {
-    if (re.test(document.lineAt(i).text)) return i;
+    const match = parentRe.exec(document.lineAt(i).text);
+    if (match) {
+      parentLine = i;
+      parentIndent = match[1].length;
+      break;
+    }
   }
-  return 0;
+  if (parentLine < 0) {
+    return findKeyLine(document, childKey);
+  }
+
+  const childEscaped = childKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const childRe = new RegExp(`^\\s*"?${childEscaped}"?\\s*:`);
+  for (let i = parentLine + 1; i < document.lineCount; i++) {
+    const lineText = document.lineAt(i).text;
+    if (/\S/.test(lineText)) {
+      const indent = lineText.length - lineText.trimStart().length;
+      if (indent <= parentIndent) break;
+    }
+    if (childRe.test(lineText)) return i;
+  }
+  return findKeyLine(document, childKey);
 }
 
 function lineRange(document: vscode.TextDocument, line: number): vscode.Range {

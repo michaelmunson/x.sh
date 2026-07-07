@@ -1,8 +1,12 @@
-import { Paragraph, Heading, DataTable, BulletList } from "../components";
+import { Paragraph, Heading, DataTable, BulletList, CodeBlock } from "../components";
 
 export default function SynopsisPage() {
     return [
-        Paragraph("Every string in `options` and `arguments` arrays is a **synopsis** that `x` parses into a structured CLI spec. All `[optional]` forms have bare `(required)` equivalents — drop the brackets (or use parenthesised option groups where shown)."),
+        Paragraph("Every string in `options`/`opts` and `arguments`/`args` is a **synopsis** that `x` parses into a structured CLI spec. These fields accept a list of strings, a single string, or a multiline string (one fragment per line) — all three forms are equivalent. All `[optional]` forms have bare `(required)` equivalents — drop the brackets (or use parenthesised option groups where shown)."),
+        CodeBlock(`opts: |
+  [-n | --dry-run]
+  [-o | --out <path>]
+  --commit`, "Multiline opts (equivalent to a list)", "xsh"),
         Heading(3, "Arguments"),
         DataTable(["Synopsis", "Meaning", "Example"], [
             ["`&lt;name&gt;`", "Required positional", "`x app file.txt`"],

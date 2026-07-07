@@ -60,6 +60,14 @@ impl XConfig {
         Ok(cwd.join(format!("{}.x.yml", name)))
     }
     
+    /// Path of `./x.yml` in the current working directory, if it exists.
+    pub fn project_x_yml_path() -> Result<Option<PathBuf>> {
+        let cwd = std::env::current_dir()
+            .context("Could not get current directory")?;
+        let path = cwd.join("x.yml");
+        Ok(if path.is_file() { Some(path) } else { None })
+    }
+    
     /// Find an app config file by name.
     ///
     /// Resolution order:

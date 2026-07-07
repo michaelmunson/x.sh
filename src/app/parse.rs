@@ -13,15 +13,12 @@ use crate::app::spec::{App, Command, OptionDef, ValueKind};
 /// Result of parsing user argv.
 #[derive(Debug, Clone)]
 pub struct Parsed {
-    /// Dotted path of the matched command (root = empty vec).
     pub command_path: Vec<String>,
-    /// Option name (long if present, else single-char short) → values. Boolean
-    /// flags are recorded as `["true"]`.
     pub options: BTreeMap<String, Vec<String>>,
-    /// Argument name → values.
     pub arguments: BTreeMap<String, Vec<String>>,
-    /// True if `-h` or `--help` was seen at any level.
     pub help: bool,
+    /// When set, dispatch remaining argv to this x file instead of running a handler.
+    pub alias_redirect: Option<(std::path::PathBuf, Vec<String>)>,
 }
 
 pub fn parse(app: &App, argv: &[String]) -> Result<Parsed> {
@@ -37,10 +34,21 @@ pub fn parse(app: &App, argv: &[String]) -> Result<Parsed> {
                 options: BTreeMap::new(),
                 arguments: BTreeMap::new(),
                 help: true,
+                alias_redirect: None,
             });
         }
         if let Some(sub) = cmd.subcommands.get(head) {
             path.push(head.clone());
+            if let Some(target) = &sub.alias {
+                let remaining = argv[idx + 1..].to_vec();
+                return Ok(Parsed {
+                    command_path: path,
+                    options: BTreeMap::new(),
+                    arguments: BTreeMap::new(),
+                    help: false,
+                    alias_redirect: Some((target.clone(), remaining)),
+                });
+            }
             cmd = sub;
             idx += 1;
         } else {
@@ -57,6 +65,7 @@ pub fn parse(app: &App, argv: &[String]) -> Result<Parsed> {
             options: BTreeMap::new(),
             arguments: BTreeMap::new(),
             help: true,
+            alias_redirect: None,
         });
     }
 
@@ -73,6 +82,7 @@ pub fn parse(app: &App, argv: &[String]) -> Result<Parsed> {
         options,
         arguments,
         help: false,
+        alias_redirect: None,
     })
 }
 
@@ -401,21 +411,18 @@ options:
   - "--commit"
 arguments:
   - "<one> [<two>] [<three='3'>] [<rest>...]"
-commands:
-  pick:
+$: echo root
+.pick:
+  arguments:
+    - "(north|south|east|west)"
+  $: echo pick
+.group:
+  .alpha:
+    options:
+      - "[-V | --verbose]"
     arguments:
-      - "(north|south|east|west)"
-  group:
-    commands:
-      alpha:
-        options:
-          - "[-V | --verbose]"
-        arguments:
-          - "<msg>"
-"$":
-  "": echo root
-  pick: echo pick
-  group.alpha: echo alpha
+      - "<msg>"
+    $: echo alpha
 "#;
 
     #[test]
@@ -556,8 +563,7 @@ commands:
 name: t
 arguments:
   - "<one> [<two>]"
-"$":
-  "": echo
+$: echo
 "#,
             &["--", "--not-an-option", "tail"],
         );
@@ -588,8 +594,7 @@ arguments:
 name: t
 arguments:
   - "<one>"
-"$":
-  "": echo
+$: echo
 "#,
             &["a", "b"],
         );
@@ -603,8 +608,7 @@ arguments:
 name: t
 arguments:
   - "<file>"
-"$":
-  "": echo
+$: echo
 "#,
             &[],
         );
@@ -617,8 +621,7 @@ arguments:
 name: t
 options:
   - "(--long | --short)"
-"$":
-  "": echo
+$: echo
 "#;
         let p = parse_argv(yaml, &["--long"]);
         assert_eq!(p.options.get("long").map(|v| v[0].as_str()), Some("true"));
@@ -633,8 +636,7 @@ options:
 name: t
 options:
   - "(--long | --short)"
-"$":
-  "": echo
+$: echo
 "#,
             &[],
         );
@@ -648,8 +650,7 @@ options:
 name: t
 options:
   - "(--long | --short)"
-"$":
-  "": echo
+$: echo
 "#,
             &["--long", "--short"],
         );
@@ -663,8 +664,7 @@ options:
 name: t
 options:
   - "[--tag <label>]..."
-"$":
-  "": echo
+$: echo
 "#,
             &["--tag", "a", "--tag", "b"],
         );
@@ -681,8 +681,7 @@ options:
 name: t
 arguments:
   - "<mode={read|write}>"
-"$":
-  "": echo
+$: echo
 "#,
             &["write"],
         );

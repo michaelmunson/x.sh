@@ -2,7 +2,7 @@ import { Paragraph, Heading, CodeBlock, BulletList } from "../components";
 
 export default function AppFrameworkPage() {
     return [
-        Paragraph("Apps turn a single YAML file into a multi-command CLI. Unlike `x.yml` (which is a flat map of inline scripts), an app file declares **options**, **arguments**, **nested commands**, and a `$:` block of bash handlers. `x` parses the synopsis strings and validates the user's input *before* any handler runs."),
+        Paragraph("Apps turn a single YAML file into a multi-command CLI. An app file declares **options**, **arguments**, **nested `.command:` keys**, and inline `$:` scripts per command. `x` parses the synopsis strings and validates the user's input *before* any script runs. Project-local `x.yml` files use this exact same format — see [Project-local Scripts](/docs/project-local)."),
         Heading(3, "Where apps live"),
         BulletList([
             "**Local:** `./&lt;name&gt;.x.yml` in the current directory.",

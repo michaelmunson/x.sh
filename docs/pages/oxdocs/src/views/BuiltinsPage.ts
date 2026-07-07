@@ -16,6 +16,7 @@ export default function BuiltinsPage() {
             ["`x-prt …`", "Styled print via ANSI SGR codes. `(-s|--style) &lt;style&gt;` sets comma-separated styles; sticky until next `--style`. No implicit newline."],
             ["`x-tui …`", "Terminal control via ANSI escapes (`--init`, `--exit`, `--clear`, cursor moves, etc.). Unrecognized args print as literal text."],
             ["`x-env-load .&lt;group&gt;`", "Export variables from a named `env:` group (e.g. `x-env-load .env1`). Global `env:` vars are already in the shell before the handler runs."],
+            ["`x-path-root`", "Print the absolute path of the directory containing the x file (app or `x.yml`)."],
         ]),
         Callout("tip", "With `-v` / `--var`, results land in the **caller's** global shell variable — not stdout. Multi-select stores an indexed array."),
         Heading(3, "Reading options and arguments"),

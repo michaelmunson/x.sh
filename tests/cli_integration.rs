@@ -260,6 +260,116 @@ fn fixture_sh_import_sources_script_before_handler() {
 }
 
 #[test]
+fn project_x_yml_runs_dot_command() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(
+        dir.path().join("x.yml"),
+        ".greet: echo \"hi from x.yml\"\n",
+    )
+    .unwrap();
+
+    x_cmd()
+        .current_dir(dir.path())
+        .arg("greet")
+        .assert()
+        .success()
+        .stdout("hi from x.yml\n");
+}
+
+#[test]
+fn project_x_yml_nested_subcommand() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(
+        dir.path().join("x.yml"),
+        r#"
+.deploy:
+  .prod:
+    $: echo "deploying prod"
+"#,
+    )
+    .unwrap();
+
+    x_cmd()
+        .current_dir(dir.path())
+        .args(["deploy", "prod"])
+        .assert()
+        .success()
+        .stdout("deploying prod\n");
+}
+
+#[test]
+fn alias_command_dispatches_to_another_x_file() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(
+        dir.path().join("other.x.yml"),
+        r#"
+name: other
+.hello:
+  arguments: "<name>"
+  $: echo "hello $(x-arg name)"
+"#,
+    )
+    .unwrap();
+    fs::write(
+        dir.path().join("x.yml"),
+        r#"
+.sub:
+  alias: ./other.x.yml
+"#,
+    )
+    .unwrap();
+
+    x_cmd()
+        .current_dir(dir.path())
+        .args(["sub", "hello", "world"])
+        .assert()
+        .success()
+        .stdout("hello world\n");
+}
+
+#[test]
+fn multiline_opts_string_parses_like_a_list() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(
+        dir.path().join("multi.x.yml"),
+        r#"
+name: multi
+.run:
+  opts: |
+    [--bool]
+    [--str <arg>]
+  $: |
+    echo "bool=$(x-opt bool) str=$(x-opt str)"
+"#,
+    )
+    .unwrap();
+
+    x_cmd()
+        .current_dir(dir.path())
+        .args(["multi", "run", "--bool", "--str", "hi"])
+        .assert()
+        .success()
+        .stdout("bool=true str=hi\n");
+}
+
+#[test]
+fn commands_key_is_rejected_with_helpful_error() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(
+        dir.path().join("old.x.yml"),
+        "name: old\ncommands:\n  run: {}\n",
+    )
+    .unwrap();
+
+    x_cmd()
+        .current_dir(dir.path())
+        .args(["old", "run"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("`commands:` was removed in v3"));
+}
+
+#[test]
 fn simple_app_get_env() {
     x_cmd()
         .current_dir(simple_dir())

@@ -7,7 +7,6 @@ use std::collections::HashSet;
 use crate::app::loader;
 use crate::app::spec::Command;
 use crate::config::XConfig;
-use crate::local_x::{self, LocalEntry};
 use crate::Cli;
 
 /// Handle `x __complete …` (hidden).
@@ -137,7 +136,7 @@ fn all_top_level_commands(config: &XConfig) -> Result<Vec<String>> {
     let mut seen = HashSet::new();
     let mut out = Vec::new();
 
-    for name in local_x::list_top_level_commands()? {
+    for name in loader::list_project_commands().unwrap_or_default() {
         if seen.insert(name.clone()) {
             out.push(name);
         }
@@ -160,8 +159,14 @@ fn subcommand_candidates(
     cmd_name: &str,
     sub_args: &[&str],
 ) -> Result<Vec<String>> {
-    if let Some(entry) = local_x::resolve_local_entry(cmd_name)? {
-        return Ok(local_subcommands(&entry, sub_args));
+    if let Ok(Some(path)) = XConfig::project_x_yml_path() {
+        if let Ok(app) = loader::load(&path) {
+            if app.root.subcommands.contains_key(cmd_name) {
+                let mut all_args = vec![cmd_name];
+                all_args.extend_from_slice(sub_args);
+                return Ok(app_subcommands(&app.root, &all_args));
+            }
+        }
     }
 
     if let Some(path) = config.find_app(cmd_name)? {
@@ -170,13 +175,6 @@ fn subcommand_candidates(
     }
 
     Ok(Vec::new())
-}
-
-fn local_subcommands(entry: &LocalEntry, sub_args: &[&str]) -> Vec<String> {
-    match local_x::descend_local_entry(entry, sub_args) {
-        Some(current) => local_x::list_subcommands(current),
-        None => Vec::new(),
-    }
 }
 
 fn app_subcommands(root: &Command, sub_args: &[&str]) -> Vec<String> {
@@ -268,9 +266,9 @@ mod tests {
     #[test]
     fn top_level_resolution_order_dedupes() {
         let tmp = TempDir::new().unwrap();
-        write_x_yml(tmp.path(), "build: echo build\n");
-        write_app(tmp.path(), "build", "name: build\ncommands: {}\n$:\n  '': echo\n");
-        write_app(tmp.path(), "other", "name: other\ncommands: {}\n$:\n  '': echo\n");
+        write_x_yml(tmp.path(), ".build: echo build\n");
+        write_app(tmp.path(), "build", "name: build\n$: echo\n");
+        write_app(tmp.path(), "other", "name: other\n$: echo\n");
 
         let scripts_dir = tmp.path().join("scripts");
         fs::create_dir_all(&scripts_dir).unwrap();
@@ -307,13 +305,13 @@ mod tests {
         write_x_yml(
             tmp.path(),
             r"
-deploy:
+.deploy:
   $: echo root
-  dev: echo dev
-  prod: echo prod
-  test:
-    unit: npx jest unit
-    integration: npx jest integration
+  .dev: echo dev
+  .prod: echo prod
+  .test:
+    .unit: npx jest unit
+    .integration: npx jest integration
 ",
         );
 
@@ -360,17 +358,14 @@ deploy:
             "xpkg",
             r"
 name: xpkg
-commands:
-  build:
-    commands:
-      docs: {}
-      bin: {}
-  test: {}
-$:
-  build: echo
-  build.docs: echo
-  build.bin: echo
-  test: echo
+.build:
+  $: echo
+  .docs:
+    $: echo
+  .bin:
+    $: echo
+.test:
+  $: echo
 ",
         );
 

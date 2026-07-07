@@ -2,14 +2,12 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "xsh-app-schema",
   "title": "x.sh App",
-  "description": "Schema for x.sh app definition files (*.x.yml)",
+  "description": "Schema for x.sh app definition files (*.x.yml, x.yml)",
   "type": "object",
-  "required": ["name"],
-  "additionalProperties": false,
   "properties": {
     "name": {
       "type": "string",
-      "description": "The name of the x.sh app",
+      "description": "The name of the app. Defaults to the filename (without the .x.yml suffix) when omitted",
       "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$"
     },
     "version": {
@@ -19,27 +17,35 @@
     },
     "description": {
       "type": "string",
-      "description": "Human-readable description of the app"
+      "description": "Human-readable description of the app (alternative: `help`)"
+    },
+    "help": {
+      "type": "string",
+      "description": "Human-readable description of the app (alternative: `description`)"
     },
     "dir": {
       "type": "string",
       "description": "Working directory to cd into before running handlers (relative to the app file or absolute)"
     },
     "options": {
-      "$ref": "#/definitions/optionsList",
-      "description": "Top-level options for the root command"
+      "$ref": "#/definitions/synopsisValue",
+      "description": "Top-level options for the root command (alternative: `opts`)"
+    },
+    "opts": {
+      "$ref": "#/definitions/synopsisValue",
+      "description": "Top-level options for the root command (alternative: `options`)"
     },
     "arguments": {
-      "$ref": "#/definitions/argumentsValue",
-      "description": "Top-level positional arguments for the root command"
+      "$ref": "#/definitions/synopsisValue",
+      "description": "Top-level positional arguments for the root command (alternative: `args`)"
     },
-    "commands": {
-      "$ref": "#/definitions/commandsMap",
-      "description": "Subcommand definitions"
+    "args": {
+      "$ref": "#/definitions/synopsisValue",
+      "description": "Top-level positional arguments for the root command (alternative: `arguments`)"
     },
     "$": {
-      "$ref": "#/definitions/handlersMap",
-      "description": "Bash handler scripts keyed by dotted command path"
+      "type": "string",
+      "description": "Inline bash script run when the root command is invoked directly"
     },
     "$.import": {
       "$ref": "#/definitions/importValue",
@@ -54,7 +60,78 @@
       "description": "Global environment variables and .group named sets"
     }
   },
+  "patternProperties": {
+    "^\\.[a-zA-Z][a-zA-Z0-9_-]*$": {
+      "$ref": "#/definitions/commandValue",
+      "description": "A subcommand, defined with a `.` prefix"
+    }
+  },
+  "additionalProperties": false,
   "definitions": {
+    "commandValue": {
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "Shorthand for a command whose only behavior is this inline script (equivalent to `$: <script>`)"
+        },
+        {
+          "$ref": "#/definitions/commandDefinition"
+        }
+      ]
+    },
+    "commandDefinition": {
+      "type": "object",
+      "description": "Definition of a single command",
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of the command (alternative: `help`)"
+        },
+        "help": {
+          "type": "string",
+          "description": "Human-readable description of the command (alternative: `description`)"
+        },
+        "options": {
+          "$ref": "#/definitions/synopsisValue",
+          "description": "Options accepted by this command (alternative: `opts`)"
+        },
+        "opts": {
+          "$ref": "#/definitions/synopsisValue",
+          "description": "Options accepted by this command (alternative: `options`)"
+        },
+        "arguments": {
+          "$ref": "#/definitions/synopsisValue",
+          "description": "Positional arguments accepted by this command (alternative: `args`)"
+        },
+        "args": {
+          "$ref": "#/definitions/synopsisValue",
+          "description": "Positional arguments accepted by this command (alternative: `arguments`)"
+        },
+        "dir": {
+          "type": "string",
+          "description": "Working directory for this command's handler (and its subcommands, unless overridden). Relative to the app file or absolute"
+        },
+        "env": {
+          "$ref": "#/definitions/envBlock",
+          "description": "Environment variables for this command's handler (and its subcommands, unless overridden)"
+        },
+        "alias": {
+          "type": "string",
+          "description": "Path to another x file; remaining arguments are dispatched to it as if `cd`'d into its directory"
+        },
+        "$": {
+          "type": "string",
+          "description": "Inline bash script run when this command is invoked"
+        }
+      },
+      "patternProperties": {
+        "^\\.[a-zA-Z][a-zA-Z0-9_-]*$": {
+          "$ref": "#/definitions/commandValue",
+          "description": "A nested subcommand, defined with a `.` prefix"
+        }
+      },
+      "additionalProperties": false
+    },
     "importBlock": {
       "type": "object",
       "description": "Import handlers, .env files, and/or shell scripts",
@@ -79,23 +156,15 @@
       "description": "Environment configuration",
       "additionalProperties": true
     },
-    "optionsList": {
-      "type": "array",
-      "description": "A list of option expression strings",
-      "items": {
-        "type": "string",
-        "description": "Option expression, e.g. '[-v | --verbose]' or '[--output=<dir>]'"
-      }
-    },
-    "argumentsValue": {
+    "synopsisValue": {
       "oneOf": [
         {
           "type": "string",
-          "description": "Inline argument expression string"
+          "description": "Inline expression string, or a multiline string split on newlines into a list of expressions"
         },
         {
           "type": "array",
-          "description": "List of argument expression strings",
+          "description": "List of expression strings",
           "items": {
             "type": "string"
           }
@@ -106,64 +175,16 @@
       "oneOf": [
         {
           "type": "string",
-          "description": "Path to a handler YAML file"
+          "description": "Path to a file"
         },
         {
           "type": "array",
-          "description": "Paths to handler YAML files",
+          "description": "Paths to files",
           "items": {
             "type": "string"
           }
         }
       ]
-    },
-    "commandsMap": {
-      "type": "object",
-      "description": "Map of command names to command definitions",
-      "patternProperties": {
-        "^[a-zA-Z][a-zA-Z0-9_-]*$": {
-          "$ref": "#/definitions/commandDefinition"
-        }
-      },
-      "additionalProperties": false
-    },
-    "commandDefinition": {
-      "type": "object",
-      "description": "Definition of a single command",
-      "additionalProperties": false,
-      "properties": {
-        "description": {
-          "type": "string",
-          "description": "Human-readable description of the command"
-        },
-        "options": {
-          "$ref": "#/definitions/optionsList",
-          "description": "Options accepted by this command"
-        },
-        "arguments": {
-          "$ref": "#/definitions/argumentsValue",
-          "description": "Positional arguments accepted by this command"
-        },
-        "commands": {
-          "$ref": "#/definitions/commandsMap",
-          "description": "Nested subcommands"
-        }
-      }
-    },
-    "handlersMap": {
-      "type": "object",
-      "description": "Map of dotted command paths to bash scripts or built-in directives",
-      "patternProperties": {
-        "^[a-zA-Z0-9_.-]*$": {
-          "oneOf": [
-            {
-              "type": "string",
-              "description": "Inline bash script or x-* built-in directive"
-            }
-          ]
-        }
-      },
-      "additionalProperties": false
     }
   }
 }

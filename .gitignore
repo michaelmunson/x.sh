@@ -11,3 +11,5 @@ node_modules/
 
 target/
 Cargo.lock
+
+cargo.sh

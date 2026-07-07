@@ -1,47 +1,56 @@
 ---
 name: x-app
 description: >-
-  Design, author, and debug `x` apps — YAML-defined multi-command CLIs in
-  `<name>.x.yml` files with synopsis DSL, bash handlers, and built-in validation.
-  Use when creating or editing `.x.yml` apps, app handlers, `$.import`, synopsis
-  strings, `x-opt`/`x-arg`/`x-io-*` builtins, or running `x -i --app`.
+  Design, author, and debug `x` files — YAML-defined multi-command CLIs using
+  dot-prefixed `.command:` keys, inline `$:` scripts, synopsis DSL, and
+  built-in validation. Covers both `<name>.x.yml` apps and project-local
+  `x.yml` (same syntax). Use when creating or editing these files, working
+  with `$.import`/`import.$`, `alias:`, synopsis strings, or `x-opt`/`x-arg`/
+  `x-io-*` builtins, or running `x -i --app`.
 ---
 
-# `x` App Framework Skill
+# `x` File Syntax Skill
 
-An **app** is a single `<name>.x.yml` file that becomes a multi-command CLI.
-`x` parses options and arguments from synopsis strings, validates user input,
-then runs a matching **bash handler** from the `$:` block (or imported files).
+An **x file** (`<name>.x.yml`, or the project-local `x.yml`) becomes a
+multi-command CLI. `x` parses options and arguments from synopsis strings,
+validates user input, then runs a matching **inline bash script** (or an
+imported handler, or an `alias:` redirect to another x file).
 
-Invoke: `x <name> [subcommands…] [options] [args…]`
+- App: `x <name> [subcommands…] [options] [args…]`
+- Project-local: `x <command> [subcommands…] [options] [args…]` (no name prefix)
 
-## When to build an app
+Both share **exactly the same syntax** described below. The differences are
+purely about *where the file lives* and *how it's invoked* — see
+[skill.md](skill.md) for resolution/scope details.
 
-Build an app (not `./x.yml` or a global script) when you need:
+## When to build one
+
+Reach for the full `.command:` syntax (in either an app or `x.yml`) when you need:
 
 - Nested subcommands with auto-generated `-h` / `--help`
 - Typed flags, positional args, defaults, choices, or `requires:` chains
 - Pre-run validation (unknown flags, missing required args, bad choices)
 - Interactive prompts (`x-io-read`, `x-io-confirm`, `x-io-select`)
+- Per-command working directory (`dir:`) or environment (`env:`)
 - A reusable CLI shared across a repo or globally
-
-Use `./x.yml` for a handful of inline shell one-liners without arg parsing.
 
 ## File locations
 
 | Scope | Path | Create with |
 |-------|------|-------------|
-| Local (project) | `./<name>.x.yml` | `x -i --app --local <name>` |
-| Global (personal) | `~/.x.sh/apps/<name>.x.yml` | `x -i --app --global <name>` |
+| Project-local commands | `./x.yml` | edit directly, or `x -i --app --local` style is not needed — just create the file |
+| Local app | `./<name>.x.yml` | `x -i --app --local <name>` |
+| Global app | `~/.x.sh/apps/<name>.x.yml` | `x -i --app --global <name>` |
 
-**Resolution** when running `x <name>`: walk from CWD up through parent
-directories for `<name>.x.yml`, then check `~/.x.sh/apps/`. Nearest file wins.
-
-Note: `./x.yml` entries take priority over apps with the same top-level name.
+**Resolution** when running `x <name>`: `./x.yml` command named `<name>` wins
+first, then walk from CWD up through parent directories for `<name>.x.yml`,
+then check `~/.x.sh/apps/`. Nearest file wins.
 
 Locate a file: `x --src <name>`
 
 App names: letters, numbers, dashes, underscores. Saved as `<name>.x.yml`.
+`name:` is optional — it defaults to the filename without the `.x.yml`/`.yml`
+suffix if omitted.
 
 ## Create and edit
 
@@ -55,6 +64,13 @@ Flow: seed template → open `$EDITOR` → validate → on failure offer **Edit 
 or **Revert**. Every `x <app>` run also re-validates the file.
 
 ## File structure
+
+Commands are declared with **dot-prefixed keys** (`.name:`) — never
+`commands:` (removed in v3). A command's value is either:
+
+- a **string** — shorthand for `{ $: <string> }` (inline script)
+- a **mapping** with any of: `description`/`help`, `options`/`opts`,
+  `arguments`/`args`, `dir`, `env`, `alias`, `$`, and nested `.sub-command:` keys
 
 ```yaml
 name: my-app
@@ -76,62 +92,97 @@ options:
 arguments:
   - "[<topic='overview'>]"
 
-commands:
-  get-env:
-    description: print the environment variable
-  
-  run-test:
-    # handler imported
-    description: run a test
-  
-  build:
-    description: build the project
-    options:
-      - "[--mode={fast|safe|deep}]"
-    arguments:
-      - "<assets>..."
+$: |
+  echo "root handler — topic=$(x-arg topic)"
 
-  create:
-    description: create things
-    commands:
-      file:
-        description: create a file
-        arguments: "<path> [<content='empty'>]"
-      folder:
-        arguments: "<path>"
-
-# Handlers — bash bodies keyed by dotted command path
-$:
-  "": |
-    echo "root handler — topic=$(x-arg topic)"
-  build: |
-    echo "mode=$(x-opt mode), assets=$(x-arg assets)"
-  create: x-usage create
-  create.file: |
-    echo "creating $(x-arg path)"
-  create.folder: |
-    mkdir -p "$(x-arg path)"
-  get-env: |
+.get-env:
+  description: print the environment variable
+  $: |
     echo "HELLO = $HELLO"
     x-env-load .env1
     echo "MY_NAME = $MY_NAME"
-    echo "IS_DEBUG = $IS_DEBUG"
+
+.run-test:
+  description: run a test   # handler comes from the imported handlers/test.yml
+
+.build:
+  description: build the project
+  options:
+    - "[--mode={fast|safe|deep}]"
+  arguments:
+    - "<assets>..."
+  $: |
+    echo "mode=$(x-opt mode), assets=$(x-arg assets)"
+
+.create:
+  description: create things
+  $: x-usage create        # non-leaf default: print help when called bare
+
+  .file:
+    description: create a file
+    arguments: "<path> [<content='empty'>]"
+    $: |
+      echo "creating $(x-arg path)"
+
+  .folder:
+    arguments: "<path>"
+    $: |
+      mkdir -p "$(x-arg path)"
 ```
 
 ### Top-level keys
 
 | Key | Purpose |
 |-----|---------|
-| `name` | App name (falls back to filename without `.x.yml`) |
-| `version`, `description` | Metadata shown in help |
-| `options`, `arguments` | Root command synopsis (string or list of strings) |
-| `commands` | Nested subcommand tree |
-| `import` | Unified imports: `$` (handler YAML files), `env` (`.env` files) |
-| `$:` | Inline handler map (overrides imported handlers on duplicate keys) |
+| `name` | App name (falls back to filename without `.x.yml`/`.yml`) |
+| `version`, `description`/`help` | Metadata shown in help (`help`/`description` are aliases — pick one) |
+| `options`/`opts`, `arguments`/`args` | Root command synopsis — string, multiline string, or list of strings (aliases — pick one of each pair) |
+| `dir` | Working directory for the root handler (and all commands, unless overridden) |
+| `env` | Global vars and `.group` named sets |
+| `import` | Unified imports: `$` (handler YAML files), `env` (`.env` files), `sh` (scripts to source) |
+| `$` | Root command's inline script (runs on bare `x my-app` invocation) |
 | `$.import` | Legacy handler imports (use `import.$` instead) |
-| `env` | Global vars and `.group` named sets (inline only for groups) |
+| `.command-name` | A subcommand — string shorthand or a command mapping (see below) |
 
-**`$:` and `import.$` / `$.import` may be combined** — inline handlers override imports.
+**Removed in v3** (clean break, no fallback): `commands:` mapping, and a
+top-level `$:` used as a handler map (`$:` is now only ever the root's own
+inline script string).
+
+### Command mapping keys
+
+| Key | Purpose |
+|-----|---------|
+| `description`/`help` | One-line description shown in help (aliases — pick one) |
+| `options`/`opts`, `arguments`/`args` | This command's synopsis (aliases — pick one of each pair) |
+| `dir` | Working directory for this command's handler and its subcommands (relative to the file, or absolute) |
+| `env` | Environment for this command's handler and its subcommands (merges over parent's) |
+| `alias` | Path to another x file; remaining args are dispatched there (mutually exclusive with everything except `help`/`description`) |
+| `$` | This command's inline bash script |
+| `.sub-command` | A nested subcommand (same shape, recursively) |
+
+**`$:` and `import.$` / `$.import` may be combined** — inline `$:` overrides
+an imported handler with the same dotted-path key.
+
+### Multiline `opts`/`args` shorthand
+
+`opts`/`options` and `args`/`arguments` accept a single multiline string as an
+alternative to a YAML list — each non-empty line becomes one synopsis fragment:
+
+```yaml
+opts: |
+  [-n | --dry-run]
+  [-o | --out <path>]
+  --commit
+```
+
+is equivalent to:
+
+```yaml
+options:
+  - "[-n | --dry-run]"
+  - "[-o | --out <path>]"
+  - "--commit"
+```
 
 ### Environment
 
@@ -145,8 +196,8 @@ env:
     - MY_NAME: env1
 ```
 
-Global vars from `.env` imports and inline `env:` are exported before the handler
-runs (inline wins on duplicate keys). Named groups load on demand:
+Global vars from `.env` imports and inline `env:` are exported before the
+handler runs (inline wins on duplicate keys). Named groups load on demand:
 
 ```bash
 echo "$HELLO"
@@ -154,24 +205,34 @@ x-env-load .env1
 echo "$MY_NAME"
 ```
 
+Per-command `dir:`/`env:` merge downward: a subcommand inherits its parent's
+`dir`/`env` unless it defines its own (its own values win, but parent
+`env` vars not overridden still apply).
+
 Reference: `docs/examples/app/simple.x.yml`.
 
-### Handler keys
+### Alias commands — dispatch to another x file
 
-| Key | Runs when |
-|-----|-----------|
-| `""` (empty string) | User invokes `x my-app` with no subcommand |
-| `build` | `x my-app build …` |
-| `create.file` | `x my-app create file …` |
+```yaml
+.legacy:
+  alias: ./tools/legacy.x.yml
+```
 
-Handler values are either:
+`x my-app legacy <rest…>` runs `<rest…>` against `legacy.x.yml` as if you'd
+run it directly (as its own root command). An alias command may define
+**only** `alias` and `help`/`description` — no `options`, `arguments`, `dir`,
+`env`, `$`, or nested `.sub-command` keys.
 
-- **Multi-line bash** (`\|`) — most common
-- **One-liner** — e.g. `create: x-usage create` prints help for that group
+### Script shorthand
 
-**All handlers are bash.** They call external tools (`cargo`, `npm`, etc.) as needed.
+```yaml
+.docs: cargo doc --no-deps      # shorthand for { $: cargo doc --no-deps }
+```
 
-### Split handlers with `import` or `$.import`
+`x` treats any string value on a `.command:` key as its inline script — no
+need to write `$: cargo doc --no-deps` for one-liners.
+
+### Split scripts with `import` or `$.import`
 
 ```yaml
 import:
@@ -180,7 +241,7 @@ import:
     - ./handlers/create.yml
 ```
 
-Legacy:
+Legacy (still supported, mutually exclusive with `import.$`):
 
 ```yaml
 $.import:
@@ -188,19 +249,22 @@ $.import:
   - ./handlers/create.yml
 ```
 
-Each import file is a flat YAML map of `dotted.path: <bash body>`. Paths resolve
-relative to the app file. Duplicate keys across imports are an error; inline `$:`
-entries override imported handlers with the same key.
+Each import file is a flat YAML map of `dotted.path: <bash body>` — same
+dotted-path keys as before v3 (these files are **not** rewritten to
+dot-prefixed keys; they're just plain script lookups). Paths resolve relative
+to the x file. Duplicate keys across imports are an error; inline `$:`
+entries override imported scripts with the same key.
 
 Reference: `docs/examples/app/exapp.x.yml` + `exapp.handlers-a.yml` / `exapp.handlers-b.yml`.
 
 ## Synopsis DSL
 
-Synopsis strings live in `options:` and `arguments:` (per command or at root).
-Each entry is one fragment; use a list for multiple items or a single string for
-a combined positional spec.
+Synopsis strings live in `options`/`opts` and `arguments`/`args` (per command
+or at root). Use a list, or a multiline string (one fragment per line), or —
+for a single fragment — an inline string.
 
-All `[optional]` forms have bare `(required)` equivalents — drop the brackets (or use parenthesised option groups where shown).
+All `[optional]` forms have bare `(required)` equivalents — drop the brackets
+(or use parenthesised option groups where shown).
 
 ### Arguments
 
@@ -237,13 +301,13 @@ All `[optional]` forms have bare `(required)` equivalents — drop the brackets 
 
 - Quote synopsis strings that start with `[` or contain `{` to avoid YAML parsing issues.
 - YAML anchors work for shared option lists (see `exapp.x.yml` `&demo_verbose`).
-- `arguments` may be a single string: `arguments: "<path> [<content='empty'>]"`.
+- `args`/`arguments` may be a single string: `args: "<path> [<content='empty'>]"`.
 
 `x` enforces synopsis rules **before** any handler runs.
 
 ## Handler builtins
 
-Injected via bash preamble before each handler body:
+Injected via bash preamble before each script body:
 
 | Builtin | Purpose |
 |---------|---------|
@@ -258,6 +322,7 @@ Injected via bash preamble before each handler body:
 | `x-io-select …` | Menu of `id=label` pairs; `--multi` for indexed array |
 | `x-prt …` | Styled print; `(-s\|--style) <style>` with comma-separated names (`red`, `bold`, `bg-white`, …) |
 | `x-tui …` | Terminal control (`--init`, `--exit`, `--clear`, cursor moves, …) |
+| `x-path-root` | Print the x file's containing directory |
 
 ### Reading values
 
@@ -296,27 +361,13 @@ x-io-select --multi -v colors "Pick colors" "red=Red" "blue=Blue"
 echo "${colors[0]}"
 ```
 
-### Styling Output
+### Styling output
+
 ```bash
 x-prt --style red,underline,bg-white "Hello" --style blue,bg-yellow " World" --newline
-x-prt --style green,bold "exapp prt demo"
-x-prt --style red,bold " exapp prt demo (red)" --newline
-sleep 2
+x-prt --style green,bold "app prt demo"
 x-tui --init --clear
 x-tui --home
-x-prt --style green,bold "exapp TUI demo"
-x-io-select "Action" "stay=Stay" "go=Go" -v action
-echo "Action = $action"
-if [ "$action" = "go" ]; then
-  echo "Going!"
-  x-prt --style red,bold "Going!"
-else
-  echo "Staying!"
-  x-prt --style green,bold "Staying!"
-  sleep 2
-  x-run x exapp demo style tui
-fi
-sleep 2
 x-tui --exit
 ```
 
@@ -330,21 +381,25 @@ x my-app build --help
 x my-app create file --help
 ```
 
-Non-leaf commands **without** a handler auto-print help when invoked bare.
-For explicit help-only leaves, set handler to `x-usage <path>`.
+Non-leaf commands **without** their own `$:` auto-print help when invoked
+bare. For explicit help-only leaves, set the script to `x-usage <path>`.
 
 ## Validation rules
 
-Checked on `x -i --app` save and every `x <app>` invocation:
+Checked on `x -i --app` save and every `x <app>`/project `x.yml` invocation:
 
 | Rule | Error |
 |------|-------|
-| Every **leaf** command has a `$:` handler | `leaf command has no handler` |
-| Every handler key matches a command path | `handler key … does not match` |
+| `commands:` used anywhere | `` `commands:` was removed in v3 `` |
+| Top-level `$:` used as a mapping | `` top-level `$:` handler map was removed in v3 `` |
+| Every **leaf** command has a `$:` script or `alias:` | `leaf command has no script` |
+| Every script key (inline or imported) matches a command path | `script key … does not match any defined command` |
+| Both `help:`/`description:`, `options:`/`opts:`, or `arguments:`/`args:` on one node | `cannot use both …` |
+| Alias command defines anything besides `alias`/`help`/`description` | (alias commands may only define those) |
 | No duplicate `--long` or `-s` on same command | `duplicate option` |
 | No duplicate positional names | `duplicate argument` |
 | `requires:` references a defined sibling option | `requires --foo, but --foo is not defined` |
-| No duplicate keys in `$:` or across imports | `duplicate handler key` |
+| No duplicate keys across imports | `duplicate handler key` |
 | Both `$.import` and `import.$` present | `cannot use both` |
 
 Fix with `x -i --app [--local|--global] <name>` or edit the YAML directly, then
@@ -352,52 +407,75 @@ run `x <app> --help` to confirm.
 
 ## Agent workflow
 
-When authoring or modifying an app:
+When authoring or modifying an x file:
 
-1. **Pick scope** — local for repo tooling (`xpkg.x.yml`), global for personal utilities.
-2. **Design the command tree** — sketch subcommands before writing handlers.
-3. **Declare synopsis first** — options/arguments on the right command node (root vs leaf).
-4. **Add handlers last** — one `$:` key per leaf; use `x-usage` for non-leaf groups.
-5. **Keep handlers thin** — parse with `x-opt`/`x-arg`, delegate to `cargo`, `npm`, etc.
-6. **Split large apps** — use `$.import` when handlers grow beyond ~100 lines.
-7. **Validate** — `x <app> --help` for each new subcommand; run a happy-path invocation.
+1. **Pick scope** — `x.yml` for repo tooling (see `xpkg.x.yml`), an app for a
+   namespaced/shareable CLI, global app for personal utilities.
+2. **Design the command tree** — sketch `.command:` nesting before writing scripts.
+3. **Declare synopsis first** — `options`/`arguments` (or `opts`/`args`) on the
+   right command node (root vs leaf).
+4. **Add scripts last** — one `$:` (or string shorthand) per leaf; use
+   `x-usage` for non-leaf groups that need an explicit help-only body.
+5. **Keep scripts thin** — parse with `x-opt`/`x-arg`, delegate to `cargo`, `npm`, etc.
+6. **Split large files** — use `import.$` when scripts grow beyond ~100 lines.
+7. **Validate** — `x <app-or-cmd> --help` for each new subcommand; run a happy-path invocation.
 
 ### Real-world pattern (this repo)
 
-`xpkg.x.yml` — nested `build docs|bin` and `test`, uses `x-opt` for `--start`:
+`xpkg.x.yml` — nested `build .bin|.tool` and `test`, uses `x-opt` for `--compile`:
 
 ```yaml
-commands:
-  build:
-    commands:
-      docs:
-        options: ['[--start]']
-      bin: {}
-  test: {}
-
-$:
-  build: |
-    x xpkg build docs
+.build:
+  description: build the binary/docs
+  $: |
     x xpkg build bin
-  build.docs: |
-    pushd docs/pages && npm install
-    if [ "$(x-opt start)" = "true" ]; then npm run start; else npm run build; fi
-    popd
-  build.bin: cargo build --release
-  test: cargo test --bin x
+    x xpkg build tool
+
+  .bin:
+    description: build the binary
+    $: |
+      cargo build --release
+
+  .tool:
+    description: build the tools
+    options:
+      - '[--cursor]'
+      - '[--vscode]'
+      - '[--compile <test>]'
+    $: |
+      if [ "$(x-opt "compile")" = "true" ]; then
+        npm run compile
+      else
+        npm install && npm run compile && npm run package
+      fi
+
+.test:
+  description: run the tests
+  arguments: "[<test>]"
+  $: |
+    if [ -n "$(x-arg test)" ]; then
+      cargo test $(x-arg test)
+    else
+      cargo test --bin x
+    fi
 ```
 
 ## Pitfalls
 
-- **Handler key typos** — `create.file` must match the nested `commands:` path exactly.
-- **Missing root handler** — bare `x my-app` needs `$:` key `""` if root has no subcommands-only design.
+- **Script key typos** — `create.file` (used by `import.$` files) must match
+  the nested `.create: .file:` path exactly.
+- **Missing root script** — bare `x my-app` needs a root `$:` if the root
+  itself isn't just a group of subcommands.
 - **Greedy repeats** — `<rest>...` must be the last positional in the synopsis.
 - **Requires chains** — `--dst` nested inside `--src` means `--dst` alone is rejected.
-- **Not `x.yml`** — apps use `<name>.x.yml`; `x.yml` is a separate, simpler mechanism.
-- **CWD matters for local apps** — a local app in a parent dir is found when running from a child dir, but edit the file at its actual path.
+- **`commands:` / top-level `$:` map** — both are removed in v3; you'll get a
+  clean, explicit error telling you to switch to `.command:` keys and inline `$:`.
+- **Alias commands are exclusive** — adding `options`/`$`/etc. alongside
+  `alias:` on the same command is an error.
+- **CWD matters for local apps** — a local app in a parent dir is found when
+  running from a child dir, but edit the file at its actual path.
 
 ## References
 
-- App framework docs: [README.md](../../README.md#app-framework)
-- Full synopsis demo: [docs/examples/app/exapp.x.yml](../examples/app/exapp.x.yml)
+- Full syntax demo: [docs/examples/app/exapp.x.yml](../examples/app/exapp.x.yml)
 - General `x` CLI (scripts, `x.yml`, install): [docs/skills/skill.md](skill.md)

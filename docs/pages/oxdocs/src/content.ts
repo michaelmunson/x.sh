@@ -48,7 +48,7 @@ export const SECTIONS: DocSectionMeta[] = [
     {
         id: "project-local",
         title: "Project-local Scripts",
-        subtitle: "Define repo-specific commands in `./x.yml`.",
+        subtitle: "Define repo-specific commands in `./x.yml` (same format as apps).",
     },
     {
         id: "app-framework",
@@ -58,7 +58,7 @@ export const SECTIONS: DocSectionMeta[] = [
     {
         id: "app-format",
         title: "App File Format",
-        subtitle: "Metadata, commands, handlers, imports, and env.",
+        subtitle: "Dot-prefixed commands, inline scripts, imports, and env.",
     },
     {
         id: "synopsis",
