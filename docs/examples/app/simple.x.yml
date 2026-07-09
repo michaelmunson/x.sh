@@ -29,5 +29,8 @@ env:
 
 .hello-world:
   description: say hello to the world
+  opts: |
+    (-n <name="world">)
   $: |
-    hello_world
+    hello_world $(x-opt n)
+

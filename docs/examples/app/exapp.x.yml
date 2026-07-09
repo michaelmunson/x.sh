@@ -27,6 +27,7 @@ arguments: '[<topic="overview">]'
       Option forms - bool pair, value, defaulted value, repeating values,
       enum choice, `=` default, requires-chain, and a required bare flag.
     opts: |
+      --commit
       [-n | --dry-run]
       [-o | --out <path>]
       [-c | --count <n="1">]
@@ -35,10 +36,8 @@ arguments: '[<topic="overview">]'
       [--label=<text="demo">]
       [--src=<path> [--dst=<path>]]
       [--default={yes|no}]
-      --commit
-      (-f | --force)
-      (--fmt | --format)
       (-q | --quiet | -v | --verbose)
+      (--fmt <format>...)
       [--tag <label>]...
 
   .args:
