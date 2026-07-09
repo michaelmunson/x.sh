@@ -10,15 +10,9 @@ env:
 .build:
   help: build the binary/docs
   $: |
-    x xpkg build bin
-    x xpkg build tool
+    x build bin
 
-  .bin:
-    description: build the binary
-    $: |
-      cargo build --release
-
-  .tool:
+  .extension:
     description: build the tools
     options:
       - '[--cursor]'

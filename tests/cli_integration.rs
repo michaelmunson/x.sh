@@ -115,24 +115,56 @@ fn exapp_invalid_choice_exits_with_error() {
 }
 
 #[test]
-fn complete_xpkg_build_subcommand() {
+fn complete_project_build_subcommand() {
     x_cmd()
         .current_dir(manifest_dir())
-        .args(["__complete", "bash", "x", "xpkg", "bu", "2"])
+        .args(["__complete", "bash", "x", "bu", "1"])
         .assert()
         .success()
         .stdout(predicate::str::contains("build"));
 }
 
 #[test]
-fn complete_xpkg_nested_build_subcommands() {
+fn complete_project_nested_build_subcommands() {
     x_cmd()
         .current_dir(manifest_dir())
-        .args(["__complete", "bash", "x", "xpkg", "build", "", "3"])
+        .args(["__complete", "bash", "x", "build", "", "2"])
         .assert()
         .success()
-        .stdout(predicate::str::contains("docs"))
+        .stdout(predicate::str::contains("tool"))
         .stdout(predicate::str::contains("bin"));
+}
+
+#[test]
+fn complete_project_command_options() {
+    x_cmd()
+        .current_dir(manifest_dir())
+        .args(["__complete", "bash", "x", "test", "--", "2"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--complete"))
+        .stdout(predicate::str::contains("--integration"));
+}
+
+#[test]
+fn complete_through_alias_subcommands() {
+    x_cmd()
+        .current_dir(manifest_dir())
+        .args(["__complete", "bash", "x", "exapp", "", "2"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("demo"))
+        .stdout(predicate::str::contains("nested"));
+}
+
+#[test]
+fn complete_nested_alias_target_subcommands() {
+    x_cmd()
+        .current_dir(manifest_dir())
+        .args(["__complete", "bash", "x", "exapp", "nested", "", "3"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("list-dir"));
 }
 
 #[test]
