@@ -7,6 +7,7 @@ mod execute;
 mod link;
 mod list;
 mod metadata;
+mod plugin;
 mod rm;
 mod srcpath;
 mod utils;
@@ -47,6 +48,10 @@ pub(crate) struct Cli {
     /// With --init: create an app config (`<name>.x.yml`) instead of a script
     #[arg(long = "app")]
     app: bool,
+
+    /// Install (`-i --plugin`) or run (`--plugin`) a plugin
+    #[arg(long = "plugin")]
+    plugin: bool,
     
     /// With --init --app: create the app in the current directory
     #[arg(long = "local", conflicts_with = "global")]
@@ -87,7 +92,16 @@ fn main() -> Result<()> {
     let config = XConfig::new()?;
     
     // Handle option flags
-    if cli.init && cli.app {
+    if cli.init && cli.plugin {
+        let name = cli.args.first()
+            .ok_or_else(|| anyhow::anyhow!("Plugin name required: x -i --plugin <plugin>"))?;
+        plugin::install_plugin(&config, name)?;
+    } else if cli.plugin {
+        let name = cli.args.first()
+            .ok_or_else(|| anyhow::anyhow!("Plugin name required: x --plugin <plugin> …"))?;
+        let plugin_args: Vec<String> = cli.args.iter().skip(1).cloned().collect();
+        plugin::run_plugin(&config, name, &plugin_args)?;
+    } else if cli.init && cli.app {
         let scope = if cli.local {
             Some(app::init::Scope::Local)
         } else if cli.global {

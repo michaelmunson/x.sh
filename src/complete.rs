@@ -129,6 +129,11 @@ fn names_for_flag_value(config: &XConfig) -> Vec<String> {
             names.push(name);
         }
     }
+    for name in config.list_plugin_names().unwrap_or_default() {
+        if seen.insert(name.clone()) {
+            names.push(name);
+        }
+    }
     names
 }
 
@@ -279,6 +284,7 @@ mod tests {
             base_dir: tmp.path().join(".x.sh"),
             scripts_dir: scripts_dir.clone(),
             apps_dir: tmp.path().join("apps"),
+            plugins_dir: tmp.path().join("plugins"),
             metadata_dir: tmp.path().join("metadata"),
             activity_metadata_path: tmp.path().join("metadata.json"),
             config_path: tmp.path().join("config.json"),
@@ -319,6 +325,7 @@ mod tests {
             base_dir: tmp.path().join(".x.sh"),
             scripts_dir: tmp.path().join("scripts"),
             apps_dir: tmp.path().join("apps"),
+            plugins_dir: tmp.path().join("plugins"),
             metadata_dir: tmp.path().join("metadata"),
             activity_metadata_path: tmp.path().join("metadata.json"),
             config_path: tmp.path().join("config.json"),
@@ -373,6 +380,7 @@ name: xpkg
             base_dir: tmp.path().join(".x.sh"),
             scripts_dir: tmp.path().join("scripts"),
             apps_dir: tmp.path().join("apps"),
+            plugins_dir: tmp.path().join("plugins"),
             metadata_dir: tmp.path().join("metadata"),
             activity_metadata_path: tmp.path().join("metadata.json"),
             config_path: tmp.path().join("config.json"),

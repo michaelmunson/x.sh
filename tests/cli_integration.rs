@@ -378,3 +378,65 @@ fn simple_app_get_env() {
         .success()
         .stdout("global\nenv1\n");
 }
+
+#[test]
+fn plugin_missing_errors_helpfully() {
+    let home = tempfile::tempdir().unwrap();
+    x_cmd()
+        .env("HOME", home.path())
+        .args(["--plugin", "openapi", "--help"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("not installed"))
+        .stderr(predicate::str::contains("x -i --plugin openapi"));
+}
+
+#[test]
+fn plugin_openapi_converts_petstore_fixture() {
+    let home = tempfile::tempdir().unwrap();
+    let plugins = home.path().join(".x.sh/plugins");
+    fs::create_dir_all(&plugins).unwrap();
+
+    // Use the workspace-built openapi binary as an "installed" plugin.
+    let built = manifest_dir().join("target/debug/openapi");
+    let built_release = manifest_dir().join("target/release/openapi");
+    let src = if built.is_file() {
+        built
+    } else if built_release.is_file() {
+        built_release
+    } else {
+        // Ensure the plugin binary exists for this test.
+        let status = std::process::Command::new("cargo")
+            .args(["build", "-p", "x-plugin-openapi"])
+            .current_dir(manifest_dir())
+            .status()
+            .expect("cargo build openapi");
+        assert!(status.success());
+        manifest_dir().join("target/debug/openapi")
+    };
+    fs::copy(&src, plugins.join("openapi")).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(plugins.join("openapi")).unwrap().permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(plugins.join("openapi"), perms).unwrap();
+    }
+
+    let work = tempfile::tempdir().unwrap();
+    let spec = manifest_dir().join("plugins/openapi/tests/fixtures/petstore.openapi.yaml");
+    fs::copy(&spec, work.path().join("petstore.openapi.yaml")).unwrap();
+
+    x_cmd()
+        .env("HOME", home.path())
+        .current_dir(work.path())
+        .args(["--plugin", "openapi", "petstore.openapi.yaml"])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("Wrote"));
+
+    let out = fs::read_to_string(work.path().join("petstore.x.yml")).unwrap();
+    assert!(out.contains("name: petstore"));
+    assert!(out.contains(".list-pets:"));
+    assert!(out.contains("BASE_URL: https://api.example.com/v1"));
+}

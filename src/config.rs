@@ -8,6 +8,7 @@ pub struct XConfig {
     pub base_dir: PathBuf,
     pub scripts_dir: PathBuf,
     pub apps_dir: PathBuf,
+    pub plugins_dir: PathBuf,
     pub metadata_dir: PathBuf,
     pub activity_metadata_path: PathBuf,
     pub config_path: PathBuf,
@@ -20,6 +21,7 @@ impl XConfig {
         let base_dir = home.join(".x.sh");
         let scripts_dir = base_dir.join("scripts");
         let apps_dir = base_dir.join("apps");
+        let plugins_dir = base_dir.join("plugins");
         let metadata_dir = base_dir.join("metadata");
         let activity_metadata_path = base_dir.join("metadata.json");
         let config_path = base_dir.join("config.json");
@@ -28,6 +30,7 @@ impl XConfig {
             base_dir,
             scripts_dir,
             apps_dir,
+            plugins_dir,
             metadata_dir,
             activity_metadata_path,
             config_path,
@@ -46,6 +49,37 @@ impl XConfig {
         fs::create_dir_all(&self.apps_dir)
             .context("Failed to create apps directory")?;
         Ok(())
+    }
+
+    pub fn ensure_plugin_dirs(&self) -> Result<()> {
+        fs::create_dir_all(&self.plugins_dir)
+            .context("Failed to create plugins directory")?;
+        Ok(())
+    }
+
+    /// Path of an installed plugin binary (`~/.x.sh/plugins/<name>`).
+    pub fn plugin_path(&self, name: &str) -> PathBuf {
+        self.plugins_dir.join(name)
+    }
+
+    /// Names of installed plugins (binaries under `~/.x.sh/plugins`).
+    pub fn list_plugin_names(&self) -> Result<Vec<String>> {
+        if !self.plugins_dir.is_dir() {
+            return Ok(Vec::new());
+        }
+        let mut names: Vec<String> = fs::read_dir(&self.plugins_dir)
+            .context("Failed to read plugins directory")?
+            .filter_map(|entry| {
+                let entry = entry.ok()?;
+                let path = entry.path();
+                if !path.is_file() {
+                    return None;
+                }
+                path.file_name()?.to_str().map(|s| s.to_string())
+            })
+            .collect();
+        names.sort();
+        Ok(names)
     }
     
     /// Compute the path of an app config file in the global apps directory.

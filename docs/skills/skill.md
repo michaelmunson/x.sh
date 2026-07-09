@@ -22,6 +22,7 @@ Global state lives under `~/.x.sh/`. Project-local commands live in `./x.yml` or
 | Reusable personal script (any language) | `x -i <name>` | `~/.x.sh/scripts/<name>` + `~/.x.sh/metadata/<name>.toml` |
 | A few project commands, run as `x <cmd>` | `./x.yml` | `.command:` keys in repo root |
 | Structured CLI with flags, help, validation, run as `x <app> <cmd>` | `x -i --app [--local\|--global] <name>` | `./<name>.x.yml` or `~/.x.sh/apps/<name>.x.yml` |
+| Convert OpenAPI → x app | `x -i --plugin openapi` then `x --plugin openapi <spec>` | writes `./<name>.x.yml` |
 | Run without `x` prefix | `x --ln <name> [alias]` | Symlink in `~/.local/bin/` |
 
 **Prefer `x.yml`** for a few repo-specific commands. **Prefer an app**
@@ -55,9 +56,25 @@ x -d --ln <name>          # remove symlink only
 x --src <name>            # print absolute path to app or script file
 x --config                # default language + LLM provider
 x -i --app [--local|--global] [name]   # create/edit app YAML
+x -i --plugin <name>                   # install plugin into ~/.x.sh/plugins/
+x --plugin <name> [args…]              # run an installed plugin
 ```
 
 Script names: letters, numbers, dashes only. App names also allow underscores.
+
+## Plugins
+
+Plugins are separate Rust packages under `plugins/` in the x.sh repo. They install
+into `~/.x.sh/plugins/<name>` (never on `PATH`) and are always invoked via `x`:
+
+```bash
+x -i --plugin openapi
+x --plugin openapi ./openapi.yaml          # → ./<name>.x.yml
+x --plugin openapi ./spec.json -o api.x.yml
+x --plugin openapi ./spec.yaml --stdout
+```
+
+See [plugins/README.md](../../plugins/README.md).
 
 ## Global layout
 
@@ -66,6 +83,7 @@ Script names: letters, numbers, dashes only. App names also allow underscores.
 ├── scripts/          # script files (no extension required)
 ├── metadata/         # <name>.toml per script (description, program, groups)
 ├── apps/             # global <name>.x.yml apps
+├── plugins/          # installed plugin binaries (not on PATH)
 ├── config.json       # default_program, etc.
 ├── config/llm.sh     # LLM hook: receives prompt as $1, prints to stdout
 └── metadata.json     # activity timestamps for global scripts

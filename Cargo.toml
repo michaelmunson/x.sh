@@ -1,3 +1,8 @@
+[workspace]
+members = [".", "plugins/openapi"]
+default-members = ["."]
+resolver = "2"
+
 [package]
 name = "x"
 version = "3.0.0"
@@ -20,4 +25,3 @@ comfy-table = "7.1"
 assert_cmd = "2.0"
 predicates = "3.1"
 tempfile = "3.0"
-
