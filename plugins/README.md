@@ -44,6 +44,6 @@ Mapping overview:
 | `in: query` | `options` |
 | `in: path` | `arguments` |
 | `requestBody` JSON properties | `[-d \| --data <fieldval>...]` |
-| every operation | `[-i \| --interactive]` |
-| every operation | `[-q \| --query <expr>]` (jq query on response) |
-| every operation | `[-o \| --output {text\|json}]` (response format) |
+| every operation | `[-i]` |
+| every operation | `[-q <expr>]` (jq query on response) |
+| every operation | `[-o <{text\|json}>]` (response format) |

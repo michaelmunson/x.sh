@@ -45,9 +45,9 @@ fn assert_petstore_app(yaml: &str) {
     assert!(yaml.contains(".create-pet:"));
     assert!(yaml.contains(".get-pet:"));
     assert!(yaml.contains(".delete-pet:"));
-    assert!(yaml.contains("[-i | --interactive]"));
-    assert!(yaml.contains("[-q | --query <expr>]"));
-    assert!(yaml.contains("[-o | --output {text|json}]"));
+    assert!(yaml.contains("[-i]"));
+    assert!(yaml.contains("[-q <expr>]"));
+    assert!(yaml.contains("[-o <{text|json}>]"));
     assert!(yaml.contains("[--limit=<n='10'>]"));
     assert!(yaml.contains("[--status={available|pending|sold}]"));
     assert!(yaml.contains("[-d | --data <fieldval>...]"));
@@ -68,8 +68,8 @@ fn assert_petstore_app(yaml: &str) {
     assert!(yaml.contains("response=$(x-run-self __request -s -X POST \"${BASE_URL}/pets\""));
     assert!(yaml.contains("response=$(x-run-self __request -s \"${BASE_URL}/pets/${petId}\")"));
     assert!(yaml.contains("response=$(x-run-self __request -s -X DELETE \"${BASE_URL}/pets/${petId}\")"));
-    assert!(yaml.contains("query=$(x-opt query)"));
-    assert!(yaml.contains("output=$(x-opt output)"));
+    assert!(yaml.contains("query=$(x-opt q)"));
+    assert!(yaml.contains("output=$(x-opt o)"));
     assert!(yaml.contains("jq \"$query\" <<< \"$response\""));
     assert!(yaml.contains("jq -r \"$query\" <<< \"$response\""));
     assert!(yaml.contains("missing required field: name"));
