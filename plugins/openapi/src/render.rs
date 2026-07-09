@@ -65,6 +65,8 @@ fn render_command(out: &mut String, cmd: &XCommand) {
 
     out.push_str("  options:\n");
     out.push_str("    - \"[-i | --interactive]\"\n");
+    out.push_str("    - \"[-q | --query <expr>]\"\n");
+    out.push_str("    - \"[-o | --output {text|json}]\"\n");
 
     for q in &cmd.query_params {
         out.push_str(&format!("    - \"{}\"\n", query_option_synopsis(q)));
@@ -246,27 +248,55 @@ fn render_script(cmd: &XCommand) -> String {
 
     match cmd.method.as_str() {
         "GET" => {
-            s.push_str(&format!("x-run-self __request -s {}\n", url));
+            s.push_str(&format!("response=$(x-run-self __request -s {})\n", url));
         }
         "DELETE" => {
-            s.push_str(&format!("x-run-self __request -s -X DELETE {}\n", url));
+            s.push_str(&format!(
+                "response=$(x-run-self __request -s -X DELETE {})\n",
+                url
+            ));
         }
         "HEAD" => {
-            s.push_str(&format!("x-run-self __request -s -I {}\n", url));
+            s.push_str(&format!("response=$(x-run-self __request -s -I {})\n", url));
         }
         method => {
             if cmd.has_json_body {
                 s.push_str(&format!(
-                    "x-run-self __request -s -X {} {} \\\n  -H 'Content-Type: application/json' \\\n  -d \"$body\"\n",
+                    "response=$(x-run-self __request -s -X {} {} \\\n  -H 'Content-Type: application/json' \\\n  -d \"$body\")\n",
                     method, url
                 ));
             } else {
-                s.push_str(&format!("x-run-self __request -s -X {} {}\n", method, url));
+                s.push_str(&format!(
+                    "response=$(x-run-self __request -s -X {} {})\n",
+                    method, url
+                ));
             }
         }
     }
 
+    s.push_str(&render_response_format());
+
     s
+}
+
+fn render_response_format() -> String {
+    r#"query=$(x-opt query)
+output=$(x-opt output)
+if [[ -n "$query" ]]; then
+  if [[ "$output" == "json" ]]; then
+    jq "$query" <<< "$response"
+  else
+    jq -r "$query" <<< "$response"
+  fi
+elif [[ "$output" == "json" ]]; then
+  jq . <<< "$response"
+elif [[ "$output" == "text" ]]; then
+  jq -r . <<< "$response" 2>/dev/null || printf '%s\n' "$response"
+else
+  printf '%s\n' "$response"
+fi
+"#
+    .to_string()
 }
 
 fn render_interactive_query(s: &mut String, q: &ParamField) {
