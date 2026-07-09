@@ -64,9 +64,9 @@ fn render_command(out: &mut String, cmd: &XCommand) {
     }
 
     out.push_str("  options:\n");
-    out.push_str("    - \"[-i | --interactive]\"\n");
-    out.push_str("    - \"[-q | --query <expr>]\"\n");
-    out.push_str("    - \"[-o | --output {text|json}]\"\n");
+    out.push_str("    - \"[-i]\"\n");
+    out.push_str("    - \"[-q <expr>]\"\n");
+    out.push_str("    - \"[-o <{text|json}>]\"\n");
 
     for q in &cmd.query_params {
         out.push_str(&format!("    - \"{}\"\n", query_option_synopsis(q)));
@@ -134,7 +134,7 @@ fn path_arg_synopsis(p: &ParamField) -> String {
 
 fn render_script(cmd: &XCommand) -> String {
     let mut s = String::new();
-    s.push_str("if [[ $(x-opt interactive) == true ]]; then\n");
+    s.push_str("if [[ $(x-opt i) == true ]]; then\n");
 
     for p in &cmd.path_params {
         let label = human_label(&p.name);
@@ -280,8 +280,8 @@ fn render_script(cmd: &XCommand) -> String {
 }
 
 fn render_response_format() -> String {
-    r#"query=$(x-opt query)
-output=$(x-opt output)
+    r#"query=$(x-opt q)
+output=$(x-opt o)
 if [[ -n "$query" ]]; then
   if [[ "$output" == "json" ]]; then
     jq "$query" <<< "$response"
