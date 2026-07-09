@@ -7,6 +7,7 @@
 #   x-opts <assoc-name>    populates a caller-named bash assoc array (nameref)
 #   x-args <assoc-name>    populates a caller-named bash assoc array (nameref)
 #   x-run <cmd> [args...]  runs a command with x-* helpers in scope
+#   x-run-self <cmd> [args...]  run another command in the same app
 #   x-usage <cmd-path>     prints generated --help for the given path
 #   x-io-read [-v|--var NAME] [...]           prompt text; `-v NAME` assigns to global shell var
 #   x-io-confirm [-v|--var NAME] [...]       yes/no; `-v NAME` assigns `true` or `false`
@@ -72,6 +73,12 @@ x-run() {
     return 2
   fi
   "$@"
+}
+
+x-run-self() {
+  local cmd_path="${1:?usage: x-run-self <command> [args...]}"
+  shift
+  "$X_BIN" __run_self "$X_APP_FILE" "$cmd_path" "$@"
 }
 
 x-path-root() {
@@ -415,4 +422,4 @@ x-env-load() {
   done <<< "$pairs"
 }
 
-export -f x-opt x-arg x-opts x-args x-run x-usage x-io-read x-io-confirm x-io-select x-prt x-tui x-env-load x-path-root
+export -f x-opt x-arg x-opts x-args x-run x-run-self x-usage x-io-read x-io-confirm x-io-select x-prt x-tui x-env-load x-path-root

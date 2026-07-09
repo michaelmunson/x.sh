@@ -471,4 +471,54 @@ fn plugin_openapi_converts_petstore_fixture() {
     assert!(out.contains("name: petstore"));
     assert!(out.contains(".list-pets:"));
     assert!(out.contains("BASE_URL: https://api.example.com/v1"));
+    assert!(out.contains(".__request:"));
+    assert!(out.contains("x-run-self __request"));
+}
+
+fn run_self_fixture() -> PathBuf {
+    manifest_dir().join("tests/fixtures/run-self.x.yml")
+}
+
+#[test]
+fn run_self_dispatches_subcommand() {
+    x_cmd()
+        .args(["__run_self", &run_self_fixture().to_string_lossy(), "via-self"])
+        .assert()
+        .success()
+        .stdout("hello from self\n");
+}
+
+#[test]
+fn run_self_via_app_file() {
+    x_cmd()
+        .args(["__run_self", &run_self_fixture().to_string_lossy(), "__echo", "direct"])
+        .assert()
+        .success()
+        .stdout("direct\n");
+}
+
+#[test]
+fn run_self_from_handler_builtin() {
+    let fixture_dir = manifest_dir().join("tests/fixtures");
+    x_cmd()
+        .current_dir(&fixture_dir)
+        .args(["run-self", "via-self"])
+        .assert()
+        .success()
+        .stdout("hello from self\n");
+}
+
+#[test]
+fn run_self_request_accepts_curl_options() {
+    x_cmd()
+        .args([
+            "__run_self",
+            &run_self_fixture().to_string_lossy(),
+            "__request",
+            "-s",
+            "https://httpbin.org/get",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("httpbin.org"));
 }

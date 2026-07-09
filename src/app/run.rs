@@ -186,6 +186,19 @@ fn shell_single_quote(path: &Path) -> String {
     )
 }
 
+/// Hidden `x __run_self <app-file> <cmd-path> [args…]` entry point used by the
+/// bash `x-run-self` builtin.
+pub fn run_self(app_file: &Path, cmd_path: &str, argv: &[String]) -> Result<()> {
+    let mut full_argv = Vec::new();
+    if cmd_path.is_empty() {
+        full_argv.extend(argv.iter().cloned());
+    } else {
+        full_argv.extend(cmd_path.split('.').map(|s| s.to_string()));
+        full_argv.extend(argv.iter().cloned());
+    }
+    run_app_file(app_file, &full_argv)
+}
+
 /// Hidden `x __usage <app-file> <cmd-path>` entry point used by the bash
 /// `x-usage` builtin.
 pub fn print_usage(app_file: &Path, cmd_path: &str) -> Result<()> {

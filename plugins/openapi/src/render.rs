@@ -18,12 +18,43 @@ pub fn render(app: &XApp) -> String {
         out.push('\n');
     }
 
+    render_request_utility(&mut out);
+    out.push('\n');
+
     for cmd in &app.commands {
         render_command(&mut out, cmd);
         out.push('\n');
     }
 
     out
+}
+
+fn render_request_utility(out: &mut String) {
+    out.push_str(".__request:\n");
+    out.push_str("  help: underlying curl command\n");
+    out.push_str("  options:\n");
+    out.push_str("    - \"[-s | --silent]\"\n");
+    out.push_str("    - \"[-I | --head]\"\n");
+    out.push_str("    - \"[-X | --request <method>]\"\n");
+    out.push_str("    - \"[-H | --header <header>...]\"\n");
+    out.push_str("    - \"[-d | --data <data>]\"\n");
+    out.push_str("  arguments:\n");
+    out.push_str("    - \"[<url>]\"\n");
+    out.push_str("  $: |\n");
+    out.push_str("    args=()\n");
+    out.push_str("    [[ $(x-opt silent) == true ]] && args+=(-s)\n");
+    out.push_str("    [[ $(x-opt head) == true ]] && args+=(-I)\n");
+    out.push_str("    method=$(x-opt request)\n");
+    out.push_str("    [[ -n \"$method\" ]] && args+=(-X \"$method\")\n");
+    out.push_str("    mapfile -t headers < <(x-opt header)\n");
+    out.push_str("    for h in \"${headers[@]}\"; do\n");
+    out.push_str("      args+=(-H \"$h\")\n");
+    out.push_str("    done\n");
+    out.push_str("    data=$(x-opt data)\n");
+    out.push_str("    [[ -n \"$data\" ]] && args+=(-d \"$data\")\n");
+    out.push_str("    url=$(x-arg url)\n");
+    out.push_str("    [[ -n \"$url\" ]] && args+=(\"$url\")\n");
+    out.push_str("    curl \"${args[@]}\"\n");
 }
 
 fn render_command(out: &mut String, cmd: &XCommand) {
@@ -215,22 +246,22 @@ fn render_script(cmd: &XCommand) -> String {
 
     match cmd.method.as_str() {
         "GET" => {
-            s.push_str(&format!("curl -s {}\n", url));
+            s.push_str(&format!("x-run-self __request -s {}\n", url));
         }
         "DELETE" => {
-            s.push_str(&format!("curl -s -X DELETE {}\n", url));
+            s.push_str(&format!("x-run-self __request -s -X DELETE {}\n", url));
         }
         "HEAD" => {
-            s.push_str(&format!("curl -s -I {}\n", url));
+            s.push_str(&format!("x-run-self __request -s -I {}\n", url));
         }
         method => {
             if cmd.has_json_body {
                 s.push_str(&format!(
-                    "curl -s -X {} {} \\\n  -H 'Content-Type: application/json' \\\n  -d \"$body\"\n",
+                    "x-run-self __request -s -X {} {} \\\n  -H 'Content-Type: application/json' \\\n  -d \"$body\"\n",
                     method, url
                 ));
             } else {
-                s.push_str(&format!("curl -s -X {} {}\n", method, url));
+                s.push_str(&format!("x-run-self __request -s -X {} {}\n", method, url));
             }
         }
     }

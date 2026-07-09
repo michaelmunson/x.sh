@@ -1,0 +1,39 @@
+name: run-self
+description: fixture for x-run-self integration tests
+
+.__echo:
+  arguments:
+    - "<msg>"
+  $: echo "$(x-arg msg)"
+
+.via-self:
+  $: x-run-self __echo "hello from self"
+
+.__request:
+  help: underlying curl command
+  options:
+    - "[-s | --silent]"
+    - "[-I | --head]"
+    - "[-X | --request <method>]"
+    - "[-H | --header <header>...]"
+    - "[-d | --data <data>]"
+  arguments:
+    - "[<url>]"
+  $: |
+    args=()
+    [[ $(x-opt silent) == true ]] && args+=(-s)
+    [[ $(x-opt head) == true ]] && args+=(-I)
+    method=$(x-opt request)
+    [[ -n "$method" ]] && args+=(-X "$method")
+    mapfile -t headers < <(x-opt header)
+    for h in "${headers[@]}"; do
+      args+=(-H "$h")
+    done
+    data=$(x-opt data)
+    [[ -n "$data" ]] && args+=(-d "$data")
+    url=$(x-arg url)
+    [[ -n "$url" ]] && args+=("$url")
+    curl "${args[@]}"
+
+.via-request:
+  $: x-run-self __request -s "https://example.com/test"

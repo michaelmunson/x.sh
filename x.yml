@@ -44,6 +44,27 @@ env:
       fi
       popd
 
+  .plugins:
+    description: build plugin packages
+    arguments:
+      - "[<plugin>]"
+    $: |
+      if ! ls Cargo.toml >/dev/null 2>&1; then
+        echo "Error: Wrong Directory. Please navigate to the root of the project."
+        exit 1
+      fi
+      build_plugin() {
+        cargo build --release -p "x-plugin-$1"
+      }
+      if [ -n "$(x-arg plugin)" ]; then
+        build_plugin "$(x-arg plugin)"
+      else
+        for dir in plugins/*/; do
+          [ -f "${dir}Cargo.toml" ] || continue
+          build_plugin "$(basename "$dir")"
+        done
+      fi
+
       
 
 .test:
@@ -66,6 +87,27 @@ env:
     else
       cargo test --bin x # this is a test for the x binary
     fi
+
+  .plugins:
+    description: run plugin tests
+    arguments:
+      - "[<plugin>]"
+    $: |
+      if ! ls Cargo.toml >/dev/null 2>&1; then
+        echo "Error: Wrong Directory. Please navigate to the root of the project."
+        exit 1
+      fi
+      test_plugin() {
+        cargo test -p "x-plugin-$1"
+      }
+      if [ -n "$(x-arg plugin)" ]; then
+        test_plugin "$(x-arg plugin)"
+      else
+        for dir in plugins/*/; do
+          [ -f "${dir}Cargo.toml" ] || continue
+          test_plugin "$(basename "$dir")"
+        done
+      fi
 
 .exapp:
   alias: ./docs/examples/app/exapp.x.yml

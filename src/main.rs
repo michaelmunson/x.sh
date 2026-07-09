@@ -74,6 +74,12 @@ fn main() -> Result<()> {
     // Hidden subcommand used by the bash `x-usage` builtin.
     // Form: `x __usage <app-file> <cmd-path>` (cmd-path may be empty)
     let raw_args: Vec<String> = std::env::args().collect();
+    if raw_args.len() >= 4 && raw_args[1] == "__run_self" {
+        let app_file = std::path::PathBuf::from(&raw_args[2]);
+        let cmd_path = raw_args[3].clone();
+        let argv: Vec<String> = raw_args.iter().skip(4).cloned().collect();
+        return app::run::run_self(&app_file, &cmd_path, &argv);
+    }
     if raw_args.len() >= 3 && raw_args[1] == "__usage" {
         let app_file = std::path::PathBuf::from(&raw_args[2]);
         let cmd_path = raw_args.get(3).cloned().unwrap_or_default();

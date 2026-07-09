@@ -55,10 +55,16 @@ fn assert_petstore_app(yaml: &str) {
     assert!(yaml.contains("x-io-read \"Name:\" -v name"));
     assert!(yaml.contains("x-io-read \"Tag (optional):\" -v tag"));
     assert!(yaml.contains("x-io-read \"Pet ID:\" -v petId"));
-    assert!(yaml.contains("curl -s \"${BASE_URL}/pets?${query}\""));
-    assert!(yaml.contains("curl -s -X POST \"${BASE_URL}/pets\""));
-    assert!(yaml.contains("curl -s \"${BASE_URL}/pets/${petId}\""));
-    assert!(yaml.contains("curl -s -X DELETE \"${BASE_URL}/pets/${petId}\""));
+    assert!(yaml.contains(".__request:"));
+    assert!(yaml.contains("help: underlying curl command"));
+    assert!(yaml.contains("[-s | --silent]"));
+    assert!(yaml.contains("[-H | --header <header>...]"));
+    assert!(yaml.contains("[<url>]"));
+    assert!(yaml.contains("curl \"${args[@]}\""));
+    assert!(yaml.contains("x-run-self __request -s \"${BASE_URL}/pets?${query}\""));
+    assert!(yaml.contains("x-run-self __request -s -X POST \"${BASE_URL}/pets\""));
+    assert!(yaml.contains("x-run-self __request -s \"${BASE_URL}/pets/${petId}\""));
+    assert!(yaml.contains("x-run-self __request -s -X DELETE \"${BASE_URL}/pets/${petId}\""));
     assert!(yaml.contains("missing required field: name"));
     assert!(yaml.contains("query=\"limit=${limit}\""));
 }
