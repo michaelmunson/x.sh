@@ -30,8 +30,10 @@ pub struct OptionDef {
     pub default: Option<String>,
     /// If set, the value must be one of these.
     pub choices: Option<Vec<String>>,
-    /// `...` form - option may be repeated, values accumulate.
+    /// `[opt]...` form - the flag may appear multiple times; values accumulate.
     pub repeats: bool,
+    /// `<arg> ...` form - one flag use may consume multiple following values.
+    pub value_repeats: bool,
     /// Long names of other options that must be provided alongside this one.
     /// Derived from nested-bracket syntax: `[--input=<a> [--output=<b>]]`
     /// records `requires: ["input"]` on `output`.

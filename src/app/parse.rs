@@ -130,7 +130,8 @@ fn parse_command_args(
                 },
             };
             validate_choice(opt, &value)?;
-            push_value(&mut options, canonical, value, opt.repeats);
+            push_value(&mut options, &canonical, value, accumulates_values(opt));
+            consume_value_repeats(argv, &mut i, opt, &mut options, &canonical)?;
             i += 1;
             continue;
         }
@@ -164,7 +165,8 @@ fn parse_command_args(
                 }
             };
             validate_choice(opt, &value)?;
-            push_value(&mut options, canonical, value, opt.repeats);
+            push_value(&mut options, &canonical, value, accumulates_values(opt));
+            consume_value_repeats(argv, &mut i, opt, &mut options, &canonical)?;
             i += 1;
             continue;
         }
@@ -187,16 +189,47 @@ fn canonical_name(opt: &OptionDef) -> String {
     opt.canonical_name()
 }
 
+fn looks_like_option_token(tok: &str) -> bool {
+    tok.starts_with('-')
+}
+
+fn accumulates_values(opt: &OptionDef) -> bool {
+    opt.repeats || opt.value_repeats
+}
+
+fn consume_value_repeats(
+    argv: &[String],
+    i: &mut usize,
+    opt: &OptionDef,
+    options: &mut BTreeMap<String, Vec<String>>,
+    canonical: &str,
+) -> Result<()> {
+    if !opt.value_repeats {
+        return Ok(());
+    }
+    while *i + 1 < argv.len() {
+        let next = &argv[*i + 1];
+        if next == "--" || looks_like_option_token(next) {
+            break;
+        }
+        *i += 1;
+        let value = argv[*i].clone();
+        validate_choice(opt, &value)?;
+        push_value(options, canonical, value, true);
+    }
+    Ok(())
+}
+
 fn push_value(
     options: &mut BTreeMap<String, Vec<String>>,
-    name: String,
+    name: &str,
     value: String,
     repeats: bool,
 ) {
     if repeats {
-        options.entry(name).or_default().push(value);
+        options.entry(name.to_string()).or_default().push(value);
     } else {
-        options.insert(name, vec![value]);
+        options.insert(name.to_string(), vec![value]);
     }
 }
 
@@ -492,6 +525,15 @@ $: echo root
     #[test]
     fn repeating_option_accumulates() {
         let p = parse_argv(FULL_SPEC, &["one", "--commit", "-D", "a=1", "-D", "b=2"]);
+        assert_eq!(
+            p.options.get("define").map(|v| v.as_slice()),
+            Some(&["a=1".to_string(), "b=2".to_string()][..])
+        );
+    }
+
+    #[test]
+    fn repeating_option_value_form() {
+        let p = parse_argv(FULL_SPEC, &["one", "--commit", "-D", "a=1", "b=2"]);
         assert_eq!(
             p.options.get("define").map(|v| v.as_slice()),
             Some(&["a=1".to_string(), "b=2".to_string()][..])

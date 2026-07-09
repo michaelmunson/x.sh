@@ -523,7 +523,7 @@ fn parse_single_option(tokens: &[String], optional: bool) -> Result<OptionDef> {
     let mut value_default: Option<String> = None;
     let mut value_choices: Option<Vec<String>> = None;
     let mut value_required = false;
-    let mut repeats = false;
+    let mut value_repeats = false;
 
     let mut i = 0;
     while i < tokens.len() {
@@ -535,7 +535,7 @@ fn parse_single_option(tokens: &[String], optional: bool) -> Result<OptionDef> {
         }
 
         if t == "..." {
-            repeats = true;
+            value_repeats = true;
             i += 1;
             continue;
         }
@@ -550,7 +550,7 @@ fn parse_single_option(tokens: &[String], optional: bool) -> Result<OptionDef> {
             value_choices = choices;
             value_required = true;
             if t_repeats {
-                repeats = true;
+                value_repeats = true;
             }
             i += 1;
             continue;
@@ -649,7 +649,8 @@ fn parse_single_option(tokens: &[String], optional: bool) -> Result<OptionDef> {
         takes_value,
         default: value_default,
         choices: value_choices,
-        repeats,
+        repeats: false,
+        value_repeats,
         requires: Vec::new(),
         required: !optional,
         description: None,
@@ -772,7 +773,8 @@ mod tests {
         let e = parse_fragment("[-d | --dir <path> ...]").unwrap();
         let o = opt(&e);
         assert_eq!(o.len(), 1);
-        assert!(o[0].repeats);
+        assert!(o[0].value_repeats);
+        assert!(!o[0].repeats);
         match &o[0].takes_value {
             ValueKind::Required(p) => assert_eq!(p, "path"),
             _ => panic!("expected required value"),
@@ -957,6 +959,7 @@ mod tests {
         let o = opt(&e);
         assert_eq!(o.len(), 1);
         assert!(o[0].repeats);
+        assert!(!o[0].value_repeats);
     }
 
     #[test]
