@@ -173,7 +173,7 @@ fn format_option_synopsis(opt: &OptionDef) -> String {
         }
     };
     let mut out = format!("{}{}", name, value_part);
-    if opt.repeats {
+    if opt.repeats || opt.value_repeats {
         out.push_str(" ...");
     }
     out
@@ -211,7 +211,7 @@ fn format_option(opt: &OptionDef) -> String {
         }
     };
     let mut suffix = String::new();
-    if opt.repeats {
+    if opt.repeats || opt.value_repeats {
         suffix.push_str(" ...");
     }
     if let Some(default) = &opt.default {

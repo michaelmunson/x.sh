@@ -10,15 +10,9 @@ env:
 .build:
   help: build the binary/docs
   $: |
-    x xpkg build bin
-    x xpkg build tool
+    cargo build --release
 
-  .bin:
-    description: build the binary
-    $: |
-      cargo build --release
-
-  .tool:
+  .extension:
     description: build the tools
     options:
       - '[--cursor]'
@@ -73,17 +67,5 @@ env:
       cargo test --bin x # this is a test for the x binary
     fi
 
-.random:
-  arguments: |
-    [<arg>...]
-  options: |
-    [--foo <arg> ...]
-    [--bar <arg>]
-  $: |
-    x-prt --style green,bold -n "Root: $(x-path-root)"
-    x-prt --style yellow -n "Foo: $(x-opt "foo")"
-    x-prt --style blue -n "Bar: $(x-opt "bar")"
-
-    if [ -n "$(x-arg arg)" ]; then
-      x-prt --style green,bold -n "Arg: $(x-arg arg)"
-    fi
+.exapp:
+  alias: ./docs/examples/app/exapp.x.yml

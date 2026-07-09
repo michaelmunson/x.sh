@@ -1,4 +1,5 @@
 
 hello_world(){
-  echo "Hello, World!"
+  local name=${1:-"World"}
+  echo "Hello, $name!"
 }

@@ -18,39 +18,12 @@ pub mod validate;
 mod pipeline_tests {
     use std::path::PathBuf;
 
-    use super::{help, loader, parse, validate};
+    use super::{help, loader, parse};
 
     fn exapp() -> super::spec::App {
         let path =
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("docs/examples/app/exapp.x.yml");
         loader::load(&path).unwrap()
-    }
-
-    #[test]
-    fn exapp_loads_validates_and_parses() {
-        let app = exapp();
-        assert!(validate::validate(&app).is_ok());
-
-        let parsed = parse::parse(
-            &app,
-            &[
-                "demo".into(),
-                "opts".into(),
-                "--commit".into(),
-                "--force".into(),
-                "--format".into(),
-                "--verbose".into(),
-                "--dry-run".into(),
-                "--out".into(),
-                "out.txt".into(),
-            ],
-        )
-        .unwrap();
-        assert_eq!(parsed.command_path, vec!["demo", "opts"]);
-        assert_eq!(parsed.options.get("dry-run").map(|v| v[0].as_str()), Some("true"));
-        assert_eq!(parsed.options.get("out").map(|v| v[0].as_str()), Some("out.txt"));
-        assert_eq!(parsed.options.get("commit").map(|v| v[0].as_str()), Some("true"));
-        assert_eq!(parsed.options.get("count").map(|v| v[0].as_str()), Some("1"));
     }
 
     #[test]

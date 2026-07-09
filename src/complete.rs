@@ -5,7 +5,7 @@ use clap::CommandFactory;
 use std::collections::HashSet;
 
 use crate::app::loader;
-use crate::app::spec::Command;
+use crate::app::spec::{Command, OptionDef, ValueKind};
 use crate::config::XConfig;
 use crate::Cli;
 
@@ -48,52 +48,75 @@ pub fn candidates(config: &XConfig, words: &[String], cword: usize) -> Result<Ve
     let rest_cword = cword.saturating_sub(rest_start);
     let cur = rest.get(rest_cword).map(String::as_str).unwrap_or("");
 
-    let structure = structure_positionals(rest, rest_cword);
+    let before = if rest_cword <= rest.len() {
+        &rest[..rest_cword]
+    } else {
+        rest
+    };
+    let after_cli = skip_leading_cli_flags(before);
 
-    if cur.starts_with('-') && structure.is_empty() {
-        return Ok(filter_prefix(cli_flag_completions(), cur));
+    if after_cli.is_empty() {
+        if cur.starts_with('-') {
+            return Ok(filter_prefix(cli_flag_completions(), cur));
+        }
+        if let Some(prev) = before.last() {
+            if cli_flag_takes_value(prev) {
+                return Ok(filter_prefix(names_for_flag_value(config), cur));
+            }
+        }
+        return Ok(filter_prefix(all_top_level_commands(config)?, cur));
+    }
+
+    let cmd_name = after_cli[0].as_str();
+    let trail: Vec<&str> = after_cli[1..].iter().map(String::as_str).collect();
+
+    let Some(cmd) = resolve_command(config, cmd_name, &trail)? else {
+        return Ok(Vec::new());
+    };
+
+    if let Some(eq_completions) = complete_inline_option_value(&cmd, cur) {
+        return Ok(eq_completions);
     }
 
     if rest_cword >= 1 {
         let prev = &rest[rest_cword - 1];
-        if flag_takes_value(prev) {
-            return Ok(filter_prefix(names_for_flag_value(config), cur));
-        }
-    }
-
-    if structure.is_empty() {
-        return Ok(filter_prefix(all_top_level_commands(config)?, cur));
-    }
-
-    let cmd_name = structure[0];
-    let sub_args: Vec<&str> = structure[1..].iter().copied().collect();
-    Ok(filter_prefix(
-        subcommand_candidates(config, cmd_name, &sub_args)?,
-        cur,
-    ))
-}
-
-/// Non-flag positional tokens before the word being completed.
-fn structure_positionals(rest: &[String], rest_cword: usize) -> Vec<&str> {
-    let mut positionals = Vec::new();
-    let mut i = 0;
-    while i < rest_cword && i < rest.len() {
-        let w = &rest[i];
-        if w.starts_with('-') {
-            if flag_takes_value(w) {
-                i += 2;
-            } else {
-                i += 1;
+        if let Some(opt) = find_option_by_token(&cmd, prev) {
+            if !matches!(opt.takes_value, ValueKind::None) {
+                if let Some(choices) = &opt.choices {
+                    return Ok(filter_prefix(choices.clone(), cur));
+                }
+                return Ok(Vec::new());
             }
-            continue;
         }
-        positionals.push(w.as_str());
-        i += 1;
     }
-    positionals
+
+    if cur.starts_with('-') {
+        return Ok(filter_prefix(option_completions(&cmd), cur));
+    }
+
+    let mut names: Vec<String> = cmd.subcommands.keys().cloned().collect();
+    names.sort();
+    Ok(filter_prefix(names, cur))
 }
 
-fn flag_takes_value(flag: &str) -> bool {
+/// Skip leading top-level `x` CLI flags (and their values) before the first command.
+fn skip_leading_cli_flags(before: &[String]) -> Vec<String> {
+    let mut i = 0;
+    while i < before.len() {
+        let w = &before[i];
+        if !w.starts_with('-') {
+            break;
+        }
+        if cli_flag_takes_value(w) {
+            i += 2;
+        } else {
+            i += 1;
+        }
+    }
+    before[i.min(before.len())..].to_vec()
+}
+
+fn cli_flag_takes_value(flag: &str) -> bool {
     matches!(
         flag,
         "--src" | "--ln" | "-d" | "--delete" | "-i" | "--init"
@@ -159,40 +182,106 @@ fn all_top_level_commands(config: &XConfig) -> Result<Vec<String>> {
     Ok(out)
 }
 
-fn subcommand_candidates(
+/// Resolve the command leaf for completion, following `alias:` redirects.
+///
+/// `cmd_name` is the first positional; `trail` is subsequent tokens before the
+/// cursor. Subcommands are walked until a non-subcommand token (option/arg) or
+/// end of trail. Alias nodes load the target app and continue against its root.
+fn resolve_command(
     config: &XConfig,
     cmd_name: &str,
-    sub_args: &[&str],
-) -> Result<Vec<String>> {
+    trail: &[&str],
+) -> Result<Option<Command>> {
+    let mut walk: Vec<&str> = Vec::new();
+
     if let Ok(Some(path)) = XConfig::project_x_yml_path() {
         if let Ok(app) = loader::load(&path) {
             if app.root.subcommands.contains_key(cmd_name) {
-                let mut all_args = vec![cmd_name];
-                all_args.extend_from_slice(sub_args);
-                return Ok(app_subcommands(&app.root, &all_args));
+                walk.push(cmd_name);
+                walk.extend_from_slice(trail);
+                return Ok(Some(walk_command_tree(app.root, &walk)?));
             }
         }
     }
 
     if let Some(path) = config.find_app(cmd_name)? {
         let app = loader::load(&path)?;
-        return Ok(app_subcommands(&app.root, sub_args));
+        walk.extend_from_slice(trail);
+        return Ok(Some(walk_command_tree(app.root, &walk)?));
     }
 
-    Ok(Vec::new())
+    Ok(None)
 }
 
-fn app_subcommands(root: &Command, sub_args: &[&str]) -> Vec<String> {
+fn walk_command_tree(root: Command, args: &[&str]) -> Result<Command> {
     let mut cmd = root;
-    for arg in sub_args {
-        match cmd.subcommands.get(*arg) {
-            Some(sub) => cmd = sub,
-            None => return Vec::new(),
+    let mut i = 0;
+    while i < args.len() {
+        let head = args[i];
+        let Some(sub) = cmd.subcommands.get(head).cloned() else {
+            break;
+        };
+        if let Some(target) = sub.alias.clone() {
+            let target_app = loader::load(&target)?;
+            cmd = target_app.root;
+            i += 1;
+            continue;
+        }
+        cmd = sub;
+        i += 1;
+    }
+    Ok(cmd)
+}
+
+fn option_completions(cmd: &Command) -> Vec<String> {
+    let mut flags = Vec::new();
+    for opt in &cmd.options {
+        push_option_flags(&mut flags, opt);
+    }
+    flags.push("-h".into());
+    flags.push("--help".into());
+    flags.sort();
+    flags.dedup();
+    flags
+}
+
+fn push_option_flags(flags: &mut Vec<String>, opt: &OptionDef) {
+    if let Some(long) = &opt.long {
+        flags.push(format!("--{long}"));
+    }
+    if let Some(short) = opt.short {
+        flags.push(format!("-{short}"));
+    }
+}
+
+fn find_option_by_token<'a>(cmd: &'a Command, tok: &str) -> Option<&'a OptionDef> {
+    if let Some(rest) = tok.strip_prefix("--") {
+        let name = rest.split('=').next().unwrap_or(rest);
+        return cmd.options.iter().find(|o| o.long.as_deref() == Some(name));
+    }
+    if let Some(rest) = tok.strip_prefix('-') {
+        if rest.chars().count() == 1 {
+            let c = rest.chars().next()?;
+            return cmd.options.iter().find(|o| o.short == Some(c));
         }
     }
-    let mut names: Vec<String> = cmd.subcommands.keys().cloned().collect();
-    names.sort();
-    names
+    None
+}
+
+/// Complete `--opt=partial` inline values when the option has choices.
+fn complete_inline_option_value(cmd: &Command, cur: &str) -> Option<Vec<String>> {
+    let rest = cur.strip_prefix("--")?;
+    let (name, partial) = rest.split_once('=')?;
+    let opt = cmd.options.iter().find(|o| o.long.as_deref() == Some(name))?;
+    let choices = opt.choices.as_ref()?;
+    let _ = partial;
+    Some(
+        choices
+            .iter()
+            .map(|c| format!("--{name}={c}"))
+            .filter(|c| c.starts_with(cur))
+            .collect(),
+    )
 }
 
 fn filter_prefix(candidates: Vec<String>, prefix: &str) -> Vec<String> {
@@ -268,6 +357,18 @@ mod tests {
         fs::write(dir.join(format!("{name}.x.yml")), content).unwrap();
     }
 
+    fn empty_config(tmp: &TempDir) -> XConfig {
+        XConfig {
+            base_dir: tmp.path().join(".x.sh"),
+            scripts_dir: tmp.path().join("scripts"),
+            apps_dir: tmp.path().join("apps"),
+            plugins_dir: tmp.path().join("plugins"),
+            metadata_dir: tmp.path().join("metadata"),
+            activity_metadata_path: tmp.path().join("metadata.json"),
+            config_path: tmp.path().join("config.json"),
+        }
+    }
+
     #[test]
     fn top_level_resolution_order_dedupes() {
         let tmp = TempDir::new().unwrap();
@@ -321,15 +422,7 @@ mod tests {
 ",
         );
 
-        let config = XConfig {
-            base_dir: tmp.path().join(".x.sh"),
-            scripts_dir: tmp.path().join("scripts"),
-            apps_dir: tmp.path().join("apps"),
-            plugins_dir: tmp.path().join("plugins"),
-            metadata_dir: tmp.path().join("metadata"),
-            activity_metadata_path: tmp.path().join("metadata.json"),
-            config_path: tmp.path().join("config.json"),
-        };
+        let config = empty_config(&tmp);
 
         with_temp_cwd(&tmp, || {
             let deploy = candidates(
@@ -376,15 +469,7 @@ name: xpkg
 ",
         );
 
-        let config = XConfig {
-            base_dir: tmp.path().join(".x.sh"),
-            scripts_dir: tmp.path().join("scripts"),
-            apps_dir: tmp.path().join("apps"),
-            plugins_dir: tmp.path().join("plugins"),
-            metadata_dir: tmp.path().join("metadata"),
-            activity_metadata_path: tmp.path().join("metadata.json"),
-            config_path: tmp.path().join("config.json"),
-        };
+        let config = empty_config(&tmp);
 
         with_temp_cwd(&tmp, || {
             let top = candidates(
@@ -402,6 +487,246 @@ name: xpkg
             )
             .unwrap();
             assert_eq!(build, vec!["bin", "docs"]);
+        });
+    }
+
+    #[test]
+    fn completes_command_options() {
+        let tmp = TempDir::new().unwrap();
+        write_x_yml(
+            tmp.path(),
+            r"
+.test:
+  options: |
+    [--complete]
+    [--integration]
+    [--test <test>]
+  $: echo
+",
+        );
+
+        let config = empty_config(&tmp);
+
+        with_temp_cwd(&tmp, || {
+            let opts = candidates(
+                &config,
+                &["x".into(), "test".into(), "--".into()],
+                2,
+            )
+            .unwrap();
+            assert!(opts.contains(&"--complete".into()));
+            assert!(opts.contains(&"--integration".into()));
+            assert!(opts.contains(&"--test".into()));
+            assert!(opts.contains(&"--help".into()));
+
+            let filtered = candidates(
+                &config,
+                &["x".into(), "test".into(), "--c".into()],
+                2,
+            )
+            .unwrap();
+            assert_eq!(filtered, vec!["--complete".to_string()]);
+        });
+    }
+
+    #[test]
+    fn completes_app_nested_options() {
+        let tmp = TempDir::new().unwrap();
+        write_app(
+            tmp.path(),
+            "exapp",
+            r"
+name: exapp
+.demo:
+  .opts:
+    opts: |
+      [-n | --dry-run]
+      [--kind={alpha|beta|gamma}]
+    $: echo
+",
+        );
+
+        let config = empty_config(&tmp);
+
+        with_temp_cwd(&tmp, || {
+            let all = candidates(
+                &config,
+                &[
+                    "x".into(),
+                    "exapp".into(),
+                    "demo".into(),
+                    "opts".into(),
+                    "".into(),
+                ],
+                4,
+            )
+            .unwrap();
+            // Empty prefix after a leaf: no subcommands, so empty (options need `-`/`--`).
+            assert!(all.is_empty());
+
+            let opts = candidates(
+                &config,
+                &[
+                    "x".into(),
+                    "exapp".into(),
+                    "demo".into(),
+                    "opts".into(),
+                    "-".into(),
+                ],
+                4,
+            )
+            .unwrap();
+            assert!(opts.contains(&"--dry-run".into()));
+            assert!(opts.contains(&"-n".into()));
+            assert!(opts.contains(&"--kind".into()));
+
+            let long_only = candidates(
+                &config,
+                &[
+                    "x".into(),
+                    "exapp".into(),
+                    "demo".into(),
+                    "opts".into(),
+                    "--".into(),
+                ],
+                4,
+            )
+            .unwrap();
+            assert!(long_only.contains(&"--dry-run".into()));
+            assert!(!long_only.iter().any(|o| o == "-n"));
+
+            let choices = candidates(
+                &config,
+                &[
+                    "x".into(),
+                    "exapp".into(),
+                    "demo".into(),
+                    "opts".into(),
+                    "--kind".into(),
+                    "".into(),
+                ],
+                5,
+            )
+            .unwrap();
+            assert_eq!(choices, vec!["alpha", "beta", "gamma"]);
+        });
+    }
+
+    #[test]
+    fn completes_through_alias_command() {
+        let tmp = TempDir::new().unwrap();
+        fs::write(
+            tmp.path().join("other.x.yml"),
+            r"
+name: other
+.hello:
+  $: echo hi
+.world:
+  $: echo
+",
+        )
+        .unwrap();
+        write_x_yml(
+            tmp.path(),
+            r"
+.sub:
+  alias: ./other.x.yml
+",
+        );
+
+        let config = empty_config(&tmp);
+
+        with_temp_cwd(&tmp, || {
+            let top = candidates(
+                &config,
+                &["x".into(), "sub".into(), "".into()],
+                2,
+            )
+            .unwrap();
+            assert_eq!(top, vec!["hello", "world"]);
+
+            let partial = candidates(
+                &config,
+                &["x".into(), "sub".into(), "he".into()],
+                2,
+            )
+            .unwrap();
+            assert_eq!(partial, vec!["hello".to_string()]);
+        });
+    }
+
+    #[test]
+    fn completes_options_on_aliased_target() {
+        let tmp = TempDir::new().unwrap();
+        fs::write(
+            tmp.path().join("other.x.yml"),
+            r"
+name: other
+.run:
+  options: |
+    [--verbose]
+    [--out <path>]
+  $: echo
+",
+        )
+        .unwrap();
+        write_x_yml(
+            tmp.path(),
+            r"
+.sub:
+  alias: ./other.x.yml
+",
+        );
+
+        let config = empty_config(&tmp);
+
+        with_temp_cwd(&tmp, || {
+            let opts = candidates(
+                &config,
+                &["x".into(), "sub".into(), "run".into(), "--".into()],
+                3,
+            )
+            .unwrap();
+            assert!(opts.contains(&"--verbose".into()));
+            assert!(opts.contains(&"--out".into()));
+        });
+    }
+
+    #[test]
+    fn completes_nested_alias_inside_app() {
+        let tmp = TempDir::new().unwrap();
+        fs::create_dir_all(tmp.path().join("handlers")).unwrap();
+        fs::write(
+            tmp.path().join("handlers/nested.x.yml"),
+            r"
+name: nested
+.list-dir:
+  $: echo
+",
+        )
+        .unwrap();
+        write_app(
+            tmp.path(),
+            "exapp",
+            r"
+name: exapp
+.demo:
+  $: echo
+.nested:
+  alias: ./handlers/nested.x.yml
+",
+        );
+
+        let config = empty_config(&tmp);
+
+        with_temp_cwd(&tmp, || {
+            let nested = candidates(
+                &config,
+                &["x".into(), "exapp".into(), "nested".into(), "".into()],
+                3,
+            )
+            .unwrap();
+            assert_eq!(nested, vec!["list-dir".to_string()]);
         });
     }
 }
