@@ -322,26 +322,49 @@ x() {
     if [[ $# -ge 1 && ( "$1" == "-A" || "$1" == "--ai" ) ]]; then
         local plugin
         plugin=$(_x_ai_plugin)
+        shell=$(basename $SHELL)
         if [[ -n "$plugin" ]]; then
-            shift
-            if [[ $# -ge 1 && "$1" == "--config" ]]; then
-                "$plugin" --config
+            if [[ "$shell" == "bash" ]]; then
+                shift
+                if [[ $# -ge 1 && "$1" == "--config" ]]; then
+                    "$plugin" --config
+                    return $?
+                fi
+                local instructions="$*"
+                if [[ -z "$instructions" ]]; then
+                    read -er -p $'\e[2m'"instructions> "$'\e[0m' instructions || return $?
+                fi
+                local cmd
+                cmd=$("$plugin" --shell bash "$instructions") || return $?
+                if [[ -z "$cmd" ]]; then
+                    echo "x: LLM returned empty completion" >&2
+                    return 1
+                fi
+                read -e -i "$cmd" -r -p $'\e[2m'"x.sh> "$'\e[0m' cmd || return $?
+                history -s "$cmd"
+                eval "$cmd"
+                return $?
+            elif [[ "$shell" == "zsh" ]]; then
+                shift
+                if (( $# >= 1 )) && [[ "$1" == "--config" ]]; then
+                    "$plugin" --config
+                    return $?
+                fi
+                local instructions="$*"
+                if [[ -z "$instructions" ]]; then
+                    read -r "instructions?instructions> " || return $?
+                fi
+                local cmd
+                cmd=$("$plugin" --shell zsh "$instructions") || return $?
+                if [[ -z "$cmd" ]]; then
+                    print -u2 "x: LLM returned empty completion"
+                    return 1
+                fi
+                vared -p $'%{\e[2m%}x.sh> %{\e[0m%}' cmd || return $?
+                print -s -- "$cmd"
+                eval "$cmd"
                 return $?
             fi
-            local instructions="$*"
-            if [[ -z "$instructions" ]]; then
-                read -er -p $'\e[2m'"instructions> "$'\e[0m' instructions || return $?
-            fi
-            local cmd
-            cmd=$("$plugin" --shell bash "$instructions") || return $?
-            if [[ -z "$cmd" ]]; then
-                echo "x: LLM returned empty completion" >&2
-                return 1
-            fi
-            read -e -i "$cmd" -r -p $'\e[2m'"x.sh> "$'\e[0m' cmd || return $?
-            history -s "$cmd"
-            eval "$cmd"
-            return $?
         fi
     fi
     command x "$@"
@@ -370,26 +393,49 @@ x() {
     if (( $# >= 1 )) && [[ "$1" == "-A" || "$1" == "--ai" ]]; then
         local plugin
         plugin=$(_x_ai_plugin)
+        shell=$SHELL
         if [[ -n "$plugin" ]]; then
-            shift
-            if (( $# >= 1 )) && [[ "$1" == "--config" ]]; then
-                "$plugin" --config
+            if [[ "$shell" == "bash" ]]; then
+                shift
+                if [[ $# -ge 1 && "$1" == "--config" ]]; then
+                    "$plugin" --config
+                    return $?
+                fi
+                local instructions="$*"
+                if [[ -z "$instructions" ]]; then
+                    read -er -p $'\e[2m'"instructions> "$'\e[0m' instructions || return $?
+                fi
+                local cmd
+                cmd=$("$plugin" --shell bash "$instructions") || return $?
+                if [[ -z "$cmd" ]]; then
+                    echo "x: LLM returned empty completion" >&2
+                    return 1
+                fi
+                read -e -i "$cmd" -r -p $'\e[2m'"x.sh> "$'\e[0m' cmd || return $?
+                history -s "$cmd"
+                eval "$cmd"
+                return $?
+            elif [[ "$shell" == "zsh" ]]; then
+                shift
+                if (( $# >= 1 )) && [[ "$1" == "--config" ]]; then
+                    "$plugin" --config
+                    return $?
+                fi
+                local instructions="$*"
+                if [[ -z "$instructions" ]]; then
+                    read -r "instructions?instructions> " || return $?
+                fi
+                local cmd
+                cmd=$("$plugin" --shell zsh "$instructions") || return $?
+                if [[ -z "$cmd" ]]; then
+                    print -u2 "x: LLM returned empty completion"
+                    return 1
+                fi
+                vared -p $'%{\e[2m%}x.sh> %{\e[0m%}' cmd || return $?
+                print -s -- "$cmd"
+                eval "$cmd"
                 return $?
             fi
-            local instructions="$*"
-            if [[ -z "$instructions" ]]; then
-                read -r "instructions?instructions> " || return $?
-            fi
-            local cmd
-            cmd=$("$plugin" --shell zsh "$instructions") || return $?
-            if [[ -z "$cmd" ]]; then
-                print -u2 "x: LLM returned empty completion"
-                return 1
-            fi
-            vared -p $'%{\e[2m%}x.sh> %{\e[0m%}' cmd || return $?
-            print -s -- "$cmd"
-            eval "$cmd"
-            return $?
         fi
     fi
     command x "$@"
