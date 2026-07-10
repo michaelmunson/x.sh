@@ -314,7 +314,7 @@ cargo build --release
 ├── config.json       # default_program and other settings
 ├── metadata.json     # usage / activity tracking
 └── config/
-    └── llm.sh        # LLM provider script (after x --config)</code></pre>
+    └── llm.sh        # LLM provider script (after x --ai --config)</code></pre>
         </fieldset>
       </section>
     </details>
@@ -451,7 +451,7 @@ x -d --ln my-script       # remove the symlink</code></pre>
         <p>Create a new app YAML file. Scope flags control where the file is written; without them, x prompts
           interactively.</p>
         <h3><code>x --config</code></h3>
-        <p>Interactive configuration for default script language and LLM provider. See the Configuration section.</p>
+        <p>Interactive configuration for the default script language. See the Configuration section.</p>
       </section>
     </details>
     <section id="scripts">
@@ -1504,9 +1504,8 @@ env:
       <summary>Configuration</summary>
       <section>
         <h3><code>x --config</code></h3>
-        <p>Interactive menu with two options:</p>
-        <h4>Default Script Language</h4>
-        <p>Sets <code>default_program</code> in <code>~/.x.sh/config.json</code>. Pre-selected during <code>x -i</code>
+        <p>Sets the default script language (<code>default_program</code> in
+          <code>~/.x.sh/config.json</code>). Pre-selected during <code>x -i</code>
           and used for <code>x.yml</code> inline execution.</p>
         <fieldset>
           <legend>config.json</legend>
@@ -1514,9 +1513,11 @@ env:
   &quot;default_program&quot;: &quot;bash&quot;
 }</code></pre>
         </fieldset>
-        <h4>LLM Provider</h4>
-        <p>Opens your editor with a template script saved to <code>~/.x.sh/config/llm.sh</code>. The script must accept
-          the prompt as <code>$1</code> and print the completion to stdout.</p>
+        <h3>LLM provider (<code>ai-cmd-gen</code> plugin)</h3>
+        <p>After installing <code>x -i --plugin ai-cmd-gen</code>, configure the LLM with
+          <code>x --ai --config</code> (requires sourced shell completion). This opens your
+          editor on <code>~/.x.sh/config/llm.sh</code>. The script must accept the prompt as
+          <code>$1</code> and print the completion to stdout.</p>
         <fieldset>
           <legend>llm.sh example</legend>
           <pre><code>#!/bin/bash
@@ -1525,7 +1526,7 @@ ollama run llama2 &quot;$PROMPT&quot;</code></pre>
         </fieldset>
         <h3>Environment</h3>
         <ul>
-          <li><code>$EDITOR</code>: used by <code>x -i</code>, <code>x -i --app</code>, and LLM config.</li>
+          <li><code>$EDITOR</code>: used by <code>x -i</code>, <code>x -i --app</code>, and <code>x --ai --config</code>.</li>
           <li><code>$PATH</code>: must include <code>~/.local/bin</code> for <code>x --ln</code> symlinks.</li>
         </ul>
       </section>

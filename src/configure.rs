@@ -1,28 +1,9 @@
 use anyhow::{Context, Result};
 use crate::config::XConfig;
-use crate::ai;
 use inquire::Select;
 
 pub fn configure(config: &XConfig) -> Result<()> {
-    let options = vec![
-        "Default Script Language",
-        "LLM Provider",
-    ];
-    
-    let selected = Select::new("Configuration Options:", options.clone())
-        .with_help_message("Select a configuration option to modify")
-        .prompt()
-        .context("Failed to get configuration selection")?;
-    
-    if selected == "Default Script Language" {
-        configure_default_program(config)?;
-    } else if selected == "LLM Provider" {
-        configure_llm_provider()?;
-    } else {
-        anyhow::bail!("Invalid selection");
-    }
-    
-    Ok(())
+    configure_default_program(config)
 }
 
 fn configure_default_program(config: &XConfig) -> Result<()> {
@@ -87,40 +68,3 @@ fn configure_default_program(config: &XConfig) -> Result<()> {
     println!("✓ Default program set to: {}", program);
     Ok(())
 }
-
-fn configure_llm_provider() -> Result<()> {
-    use crate::utils;
-    use std::fs;
-    
-    let llm_script_path = ai::get_llm_script_path();
-    
-    // Ensure the config directory exists
-    if let Some(parent) = llm_script_path.parent() {
-        fs::create_dir_all(parent)
-            .context("Failed to create config directory")?;
-    }
-    
-    // Write template if file doesn't exist, so editor can open it with content
-    if !llm_script_path.exists() {
-        let template = ai::get_llm_template();
-        fs::write(&llm_script_path, template)
-            .context("Failed to write LLM script template")?;
-    }
-    
-    // Edit the script (now it exists with template or existing content)
-    utils::edit_file(&llm_script_path)
-        .context("Failed to edit LLM script")?;
-    
-    // Make it executable
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mut perms = fs::metadata(&llm_script_path)?.permissions();
-        perms.set_mode(0o755);
-        fs::set_permissions(&llm_script_path, perms)?;
-    }
-    
-    println!("✓ LLM provider script saved to: {}", llm_script_path.display());
-    Ok(())
-}
-

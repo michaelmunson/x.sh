@@ -1240,7 +1240,7 @@ dependencies = [
 
 [[package]]
 name = "x"
-version = "3.1.0"
+version = "3.2.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -1255,6 +1255,15 @@ dependencies = [
  "serde_yaml",
  "tempfile",
  "toml",
+]
+
+[[package]]
+name = "x-plugin-ai-cmd-gen"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "dirs",
 ]
 
 [[package]]
