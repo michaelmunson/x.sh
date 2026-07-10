@@ -1514,8 +1514,9 @@ env:
 }</code></pre>
         </fieldset>
         <h3>LLM provider (<code>ai-cmd-gen</code> plugin)</h3>
-        <p>After installing <code>x -i --plugin ai-cmd-gen</code>, configure the LLM with
-          <code>x --ai --config</code> (requires sourced shell completion). This opens your
+        <p>After installing <code>x -i --plugin ai-cmd-gen</code>, source the shell wrapper with
+          <code>source &lt;(x --plugin ai-cmd-gen __wrapper)</code>, then configure the LLM with
+          <code>x --ai --config</code>. This opens your
           editor on <code>~/.x.sh/config/llm.sh</code>. The script must accept the prompt as
           <code>$1</code> and print the completion to stdout.</p>
         <fieldset>

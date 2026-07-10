@@ -23,7 +23,7 @@ Global state lives under `~/.x.sh/`. Project-local commands live in `./x.yml` or
 | A few project commands, run as `x <cmd>` | `./x.yml` | `.command:` keys in repo root |
 | Structured CLI with flags, help, validation, run as `x <app> <cmd>` | `x -i --app [--local\|--global] <name>` | `./<name>.x.yml` or `~/.x.sh/apps/<name>.x.yml` |
 | Convert OpenAPI → x app | `x -i --plugin openapi` then `x --plugin openapi <spec>` | writes `./<name>.x.yml` |
-| AI shell command generation | `x -i --plugin ai-cmd-gen`, then `x --ai --config` | `x -A "…"` or `x --ai "…"` |
+| AI shell command generation | `x -i --plugin ai-cmd-gen`, source wrapper, then `x --ai --config` | `x -A "…"` or `x --ai "…"` |
 | Run without `x` prefix | `x --ln <name> [alias]` | Symlink in `~/.local/bin/` |
 
 **Prefer `x.yml`** for a few repo-specific commands. **Prefer an app**
@@ -60,19 +60,20 @@ x -i --plugin <name>                   # install plugin into ~/.x.sh/plugins/
 x --plugin <name> [args…]              # run an installed plugin
 ```
 
-After installing the `ai-cmd-gen` plugin and sourcing shell completion
-(`source <(x __complete bash)` or `source <(x __complete zsh)`), configure the
-LLM provider and generate shell commands:
+After installing the `ai-cmd-gen` plugin and sourcing its shell wrapper
+(`source <(x --plugin ai-cmd-gen __wrapper)`), configure the LLM provider and
+generate shell commands:
 
 ```bash
 x -i --plugin ai-cmd-gen
+source <(x --plugin ai-cmd-gen __wrapper)
 x --ai --config                         # edit ~/.x.sh/config/llm.sh
 x -A "list the 10 largest files in this directory"
 x --ai find all rust files modified today
 x -A                                    # prompts for instructions
 ```
 
-`-A` / `--ai` only appear when the plugin is installed. If the LLM is not
+`-A` / `--ai` require the wrapper to be sourced. If the LLM is not
 configured, generation errors and tells you to run `x --ai --config`. The
 generated command is shown for editing (`vared` in zsh, `read -e` in bash),
 added to shell history, then executed.

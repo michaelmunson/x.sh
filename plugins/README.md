@@ -51,13 +51,12 @@ Mapping overview:
 ## ai-cmd-gen
 
 Generate a shell command from natural-language instructions, edit it in your
-shell, then run it. Requires shell completion to be sourced so the `x()`
-wrapper can intercept `-A` / `--ai` (those flags only exist when this plugin
-is installed):
+shell, then run it. Source the shell wrapper so `x()` can intercept `-A` /
+`--ai`:
 
 ```bash
 x -i --plugin ai-cmd-gen
-source <(x __complete bash)   # or: source <(x __complete zsh)
+source <(x --plugin ai-cmd-gen __wrapper)
 
 x --ai --config               # configure ~/.x.sh/config/llm.sh
 x -A "list the 10 largest files here"

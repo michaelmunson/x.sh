@@ -4,7 +4,7 @@
 //!   `x --plugin ai-cmd-gen --config`
 //!   `x --plugin ai-cmd-gen [--shell bash|zsh] <instructions…>`
 //!
-//! Via the shell wrapper (after `source <(x __complete …)`):
+//! Via the shell wrapper (after `source <(x --plugin ai-cmd-gen __wrapper)`):
 //!   `x --ai --config` / `x -A --config`
 //!   `x --ai <instructions…>` / `x -A <instructions…>`
 
@@ -169,7 +169,73 @@ fn call_llm(prompt: &str) -> Result<String> {
     Ok(completion.trim().to_string())
 }
 
+const WRAPPER_SCRIPT: &str = r#"# x shell wrapper for ai-cmd-gen (-A / --ai)
+_x_ai_plugin() {
+    if [[ -x "$HOME/.x.sh/plugins/ai-cmd-gen" ]]; then
+        echo "$HOME/.x.sh/plugins/ai-cmd-gen"
+    fi
+}
+
+x() {
+    if [[ $# -ge 1 && ( "$1" == "-A" || "$1" == "--ai" ) ]]; then
+        local plugin
+        plugin=$(_x_ai_plugin)
+        shell=$(basename $SHELL)
+        if [[ -n "$plugin" ]]; then
+            if [[ "$shell" == "bash" ]]; then
+                shift
+                if [[ $# -ge 1 && "$1" == "--config" ]]; then
+                    "$plugin" --config
+                    return $?
+                fi
+                local instructions="$*"
+                if [[ -z "$instructions" ]]; then
+                    read -er -p $'\e[2m'"instructions> "$'\e[0m' instructions || return $?
+                fi
+                local cmd
+                cmd=$("$plugin" --shell bash "$instructions") || return $?
+                if [[ -z "$cmd" ]]; then
+                    echo "x: LLM returned empty completion" >&2
+                    return 1
+                fi
+                read -e -i "$cmd" -r -p $'\e[2m'"x.sh> "$'\e[0m' cmd || return $?
+                history -s "$cmd"
+                eval "$cmd"
+                return $?
+            elif [[ "$shell" == "zsh" ]]; then
+                shift
+                if (( $# >= 1 )) && [[ "$1" == "--config" ]]; then
+                    "$plugin" --config
+                    return $?
+                fi
+                local instructions="$*"
+                if [[ -z "$instructions" ]]; then
+                    read -r "instructions?instructions> " || return $?
+                fi
+                local cmd
+                cmd=$("$plugin" --shell zsh "$instructions") || return $?
+                if [[ -z "$cmd" ]]; then
+                    print -u2 "x: LLM returned empty completion"
+                    return 1
+                fi
+                vared -p $'%{\e[2m%}x.sh> %{\e[0m%}' cmd || return $?
+                print -s -- "$cmd"
+                eval "$cmd"
+                return $?
+            fi
+        fi
+    fi
+    command x "$@"
+}
+"#;
+
 fn main() -> Result<()> {
+    let args: Vec<String> = env::args().collect();
+    if args.len() >= 2 && args[1] == "__wrapper" {
+        print!("{WRAPPER_SCRIPT}");
+        return Ok(());
+    }
+
     let cli = Cli::parse();
 
     if cli.config {
