@@ -57,7 +57,7 @@ pub fn candidates(config: &XConfig, words: &[String], cword: usize) -> Result<Ve
 
     if after_cli.is_empty() {
         if cur.starts_with('-') {
-            return Ok(filter_prefix(cli_flag_completions(), cur));
+            return Ok(filter_prefix(cli_flag_completions(config, before), cur));
         }
         if let Some(prev) = before.last() {
             if cli_flag_takes_value(prev) {
@@ -123,7 +123,7 @@ fn cli_flag_takes_value(flag: &str) -> bool {
     )
 }
 
-fn cli_flag_completions() -> Vec<String> {
+fn cli_flag_completions(config: &XConfig, _before: &[String]) -> Vec<String> {
     let cmd = Cli::command();
     let mut flags = Vec::new();
     for arg in cmd.get_arguments() {
@@ -134,6 +134,17 @@ fn cli_flag_completions() -> Vec<String> {
             flags.push(format!("-{short}"));
         }
     }
+
+    let ai_plugin_installed = config.plugin_path("ai-cmd-gen").is_file();
+    if ai_plugin_installed {
+        if !flags.iter().any(|f| f == "--ai") {
+            flags.push("--ai".into());
+        }
+        if !flags.iter().any(|f| f == "-A") {
+            flags.push("-A".into());
+        }
+    }
+
     flags.sort();
     flags.dedup();
     flags
@@ -301,6 +312,64 @@ fn print_completion_script(shell: &str) -> Result<()> {
 }
 
 const BASH_COMPLETION: &str = r#"# bash completion for x
+_x_ai_plugin() {
+    if [[ -x "$HOME/.x.sh/plugins/ai-cmd-gen" ]]; then
+        echo "$HOME/.x.sh/plugins/ai-cmd-gen"
+    fi
+}
+
+x() {
+    if [[ $# -ge 1 && ( "$1" == "-A" || "$1" == "--ai" ) ]]; then
+        local plugin
+        plugin=$(_x_ai_plugin)
+        shell=$(basename $SHELL)
+        if [[ -n "$plugin" ]]; then
+            if [[ "$shell" == "bash" ]]; then
+                shift
+                if [[ $# -ge 1 && "$1" == "--config" ]]; then
+                    "$plugin" --config
+                    return $?
+                fi
+                local instructions="$*"
+                if [[ -z "$instructions" ]]; then
+                    read -er -p $'\e[2m'"instructions> "$'\e[0m' instructions || return $?
+                fi
+                local cmd
+                cmd=$("$plugin" --shell bash "$instructions") || return $?
+                if [[ -z "$cmd" ]]; then
+                    echo "x: LLM returned empty completion" >&2
+                    return 1
+                fi
+                read -e -i "$cmd" -r -p $'\e[2m'"x.sh> "$'\e[0m' cmd || return $?
+                history -s "$cmd"
+                eval "$cmd"
+                return $?
+            elif [[ "$shell" == "zsh" ]]; then
+                shift
+                if (( $# >= 1 )) && [[ "$1" == "--config" ]]; then
+                    "$plugin" --config
+                    return $?
+                fi
+                local instructions="$*"
+                if [[ -z "$instructions" ]]; then
+                    read -r "instructions?instructions> " || return $?
+                fi
+                local cmd
+                cmd=$("$plugin" --shell zsh "$instructions") || return $?
+                if [[ -z "$cmd" ]]; then
+                    print -u2 "x: LLM returned empty completion"
+                    return 1
+                fi
+                vared -p $'%{\e[2m%}x.sh> %{\e[0m%}' cmd || return $?
+                print -s -- "$cmd"
+                eval "$cmd"
+                return $?
+            fi
+        fi
+    fi
+    command x "$@"
+}
+
 _x() {
     local cur="${COMP_WORDS[COMP_CWORD]}"
     local candidates
@@ -313,6 +382,64 @@ complete -F _x x
 "#;
 
 const ZSH_COMPLETION: &str = r#"#compdef x
+
+_x_ai_plugin() {
+    if [[ -x "$HOME/.x.sh/plugins/ai-cmd-gen" ]]; then
+        echo "$HOME/.x.sh/plugins/ai-cmd-gen"
+    fi
+}
+
+x() {
+    if (( $# >= 1 )) && [[ "$1" == "-A" || "$1" == "--ai" ]]; then
+        local plugin
+        plugin=$(_x_ai_plugin)
+        shell=$SHELL
+        if [[ -n "$plugin" ]]; then
+            if [[ "$shell" == "bash" ]]; then
+                shift
+                if [[ $# -ge 1 && "$1" == "--config" ]]; then
+                    "$plugin" --config
+                    return $?
+                fi
+                local instructions="$*"
+                if [[ -z "$instructions" ]]; then
+                    read -er -p $'\e[2m'"instructions> "$'\e[0m' instructions || return $?
+                fi
+                local cmd
+                cmd=$("$plugin" --shell bash "$instructions") || return $?
+                if [[ -z "$cmd" ]]; then
+                    echo "x: LLM returned empty completion" >&2
+                    return 1
+                fi
+                read -e -i "$cmd" -r -p $'\e[2m'"x.sh> "$'\e[0m' cmd || return $?
+                history -s "$cmd"
+                eval "$cmd"
+                return $?
+            elif [[ "$shell" == "zsh" ]]; then
+                shift
+                if (( $# >= 1 )) && [[ "$1" == "--config" ]]; then
+                    "$plugin" --config
+                    return $?
+                fi
+                local instructions="$*"
+                if [[ -z "$instructions" ]]; then
+                    read -r "instructions?instructions> " || return $?
+                fi
+                local cmd
+                cmd=$("$plugin" --shell zsh "$instructions") || return $?
+                if [[ -z "$cmd" ]]; then
+                    print -u2 "x: LLM returned empty completion"
+                    return 1
+                fi
+                vared -p $'%{\e[2m%}x.sh> %{\e[0m%}' cmd || return $?
+                print -s -- "$cmd"
+                eval "$cmd"
+                return $?
+            fi
+        fi
+    fi
+    command x "$@"
+}
 
 _x() {
     local -a completions
@@ -728,5 +855,51 @@ name: exapp
             .unwrap();
             assert_eq!(nested, vec!["list-dir".to_string()]);
         });
+    }
+
+    #[test]
+    fn ai_flags_hidden_without_plugin() {
+        let tmp = TempDir::new().unwrap();
+        let config = empty_config(&tmp);
+        let flags = cli_flag_completions(&config, &["x".into()]);
+        assert!(!flags.iter().any(|f| f == "--ai" || f == "-A"));
+    }
+
+    #[test]
+    fn ai_flags_shown_with_plugin() {
+        let tmp = TempDir::new().unwrap();
+        let plugins_dir = tmp.path().join(".x.sh").join("plugins");
+        fs::create_dir_all(&plugins_dir).unwrap();
+        let plugin = plugins_dir.join("ai-cmd-gen");
+        fs::write(&plugin, "#!/bin/sh\necho ls\n").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(&plugin).unwrap().permissions();
+            perms.set_mode(0o755);
+            fs::set_permissions(&plugin, perms).unwrap();
+        }
+
+        let config = XConfig {
+            base_dir: tmp.path().join(".x.sh"),
+            scripts_dir: tmp.path().join("scripts"),
+            apps_dir: tmp.path().join("apps"),
+            plugins_dir: plugins_dir.clone(),
+            metadata_dir: tmp.path().join("metadata"),
+            activity_metadata_path: tmp.path().join("metadata.json"),
+            config_path: tmp.path().join("config.json"),
+        };
+
+        let flags = cli_flag_completions(&config, &["x".into()]);
+        assert!(flags.iter().any(|f| f == "--ai"));
+        assert!(flags.iter().any(|f| f == "-A"));
+    }
+
+    #[test]
+    fn ai_flags_hidden_for_init_without_plugin() {
+        let tmp = TempDir::new().unwrap();
+        let config = empty_config(&tmp);
+        let flags = cli_flag_completions(&config, &["x".into(), "-i".into()]);
+        assert!(!flags.iter().any(|f| f == "--ai" || f == "-A"));
     }
 }

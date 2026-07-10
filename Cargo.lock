@@ -1258,6 +1258,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "x-plugin-ai-cmd-gen"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "dirs",
+]
+
+[[package]]
 name = "x-plugin-openapi"
 version = "0.1.0"
 dependencies = [

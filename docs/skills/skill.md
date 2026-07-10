@@ -23,6 +23,7 @@ Global state lives under `~/.x.sh/`. Project-local commands live in `./x.yml` or
 | A few project commands, run as `x <cmd>` | `./x.yml` | `.command:` keys in repo root |
 | Structured CLI with flags, help, validation, run as `x <app> <cmd>` | `x -i --app [--local\|--global] <name>` | `./<name>.x.yml` or `~/.x.sh/apps/<name>.x.yml` |
 | Convert OpenAPI → x app | `x -i --plugin openapi` then `x --plugin openapi <spec>` | writes `./<name>.x.yml` |
+| AI shell command generation | `x -i --plugin ai-cmd-gen`, then `x --ai --config` | `x -A "…"` or `x --ai "…"` |
 | Run without `x` prefix | `x --ln <name> [alias]` | Symlink in `~/.local/bin/` |
 
 **Prefer `x.yml`** for a few repo-specific commands. **Prefer an app**
@@ -48,17 +49,33 @@ Invalid `./x.yml` YAML fails immediately; it does not fall back to global script
 ```bash
 x <name> [args…]          # run script, local x.yml command, or app
 x -i [name] [content]     # create/edit global script (opens $EDITOR)
-x -i --ai [name]          # generate script via configured LLM
 x -l | --ls               # list global scripts (with metadata/activity)
 x -d | --delete <name>    # remove global script + metadata
 x --ln <name> [alias]     # symlink into ~/.local/bin/
 x -d --ln <name>          # remove symlink only
 x --src <name>            # print absolute path to app or script file
-x --config                # default language + LLM provider
+x --config                # default script language
 x -i --app [--local|--global] [name]   # create/edit app YAML
 x -i --plugin <name>                   # install plugin into ~/.x.sh/plugins/
 x --plugin <name> [args…]              # run an installed plugin
 ```
+
+After installing the `ai-cmd-gen` plugin and sourcing shell completion
+(`source <(x __complete bash)` or `source <(x __complete zsh)`), configure the
+LLM provider and generate shell commands:
+
+```bash
+x -i --plugin ai-cmd-gen
+x --ai --config                         # edit ~/.x.sh/config/llm.sh
+x -A "list the 10 largest files in this directory"
+x --ai find all rust files modified today
+x -A                                    # prompts for instructions
+```
+
+`-A` / `--ai` only appear when the plugin is installed. If the LLM is not
+configured, generation errors and tells you to run `x --ai --config`. The
+generated command is shown for editing (`vared` in zsh, `read -e` in bash),
+added to shell history, then executed.
 
 Script names: letters, numbers, dashes only. App names also allow underscores.
 
@@ -85,7 +102,7 @@ See [plugins/README.md](../../plugins/README.md).
 ├── apps/             # global <name>.x.yml apps
 ├── plugins/          # installed plugin binaries (not on PATH)
 ├── config.json       # default_program, etc.
-├── config/llm.sh     # LLM hook: receives prompt as $1, prints to stdout
+├── config/llm.sh     # LLM hook (ai-cmd-gen): prompt as $1, completion on stdout
 └── metadata.json     # activity timestamps for global scripts
 ```
 

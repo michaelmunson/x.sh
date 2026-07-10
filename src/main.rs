@@ -11,7 +11,6 @@ mod plugin;
 mod rm;
 mod srcpath;
 mod utils;
-mod ai;
 
 use anyhow::Result;
 use clap::Parser;
@@ -40,10 +39,6 @@ pub(crate) struct Cli {
     /// Configure default program
     #[arg(long = "config")]
     config: bool,
-    
-    /// AI-powered command generation
-    #[arg(long = "ai")]
-    ai: bool,
     
     /// With --init: create an app config (`<name>.x.yml`) instead of a script
     #[arg(long = "app")]
@@ -131,11 +126,7 @@ fn main() -> Result<()> {
                 (Some(name.clone()), script)
             }
         };
-        if cli.ai {
-            make::add_script_with_ai(&config, name, script)?;
-        } else {
-            make::add_script(&config, name, script)?;
-        }
+        make::add_script(&config, name, script)?;
     } else if cli.delete && cli.ln {
         // Special case: --delete --ln means remove the link (not the script)
         // args[0] = link_name (or script name if link_name not provided)
@@ -156,8 +147,6 @@ fn main() -> Result<()> {
         list::list_scripts(&config)?;
     } else if cli.config {
         configure::configure(&config)?;
-    } else if cli.ai {
-        ai::ai_command()?;
     } else {
         // Execute script or app.
         if let Some(script_name) = cli.args.first() {

@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "plugins/openapi"]
+members = [".", "plugins/openapi", "plugins/ai-cmd-gen"]
 default-members = ["."]
 resolver = "2"
 
