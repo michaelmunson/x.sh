@@ -309,6 +309,15 @@
                     <td>Populate a caller-named bash associative array with all arguments.</td>
                   </tr>
                   <tr>
+                    <td><code>x-opts-set [name[=VAR]…]</code></td>
+                    <td>Set shell variables from option values. <code>name</code> → <code>$name</code>;
+                      <code>name=VAR</code> → <code>$VAR</code>; no args → all options (hyphens → underscores).</td>
+                  </tr>
+                  <tr>
+                    <td><code>x-args-set [name[=VAR]…]</code></td>
+                    <td>Set shell variables from argument values. Same forms as <code>x-opts-set</code>.</td>
+                  </tr>
+                  <tr>
                     <td><code>x-run &lt;cmd&gt; [args…]</code></td>
                     <td>Run a command with <code>x-*</code> helpers still in scope.</td>
                   </tr>
@@ -367,6 +376,15 @@
                 <legend></legend>
                 <pre><code>echo &quot;mode=$(x-opt mode)&quot;
 echo &quot;path=$(x-arg path)&quot;
+
+# assign into shell variables directly
+x-opts-set mode
+x-args-set path
+# custom variable names
+x-opts-set mode=MODE
+# all options / args at once (hyphens → underscores)
+x-opts-set
+x-args-set
 
 declare -A opts
 x-opts opts

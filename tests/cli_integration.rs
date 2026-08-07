@@ -385,6 +385,51 @@ name: multi
 }
 
 #[test]
+fn opts_set_and_args_set_assign_shell_variables() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(
+        dir.path().join("setvars.x.yml"),
+        r#"
+name: setvars
+.hello:
+  args: '[<name="world">]'
+  opts: |
+    (-g | --greeting=<greeting='hello'>)
+    (-p | --punctuation=<punctuation='!'>)
+    [--dry-run]
+  $: |
+    # selective + rename
+    x-args-set name=NAME
+    x-opts-set greeting
+    echo "partial=$greeting,$NAME"
+
+    # all remaining (and re-set) with auto names; hyphens → underscores
+    x-opts-set
+    x-args-set
+    echo "all=$greeting,$name$punctuation"
+    [[ $dry_run == true ]] && echo "dry"
+"#,
+    )
+    .unwrap();
+
+    x_cmd()
+        .current_dir(dir.path())
+        .args([
+            "setvars",
+            "hello",
+            "-g",
+            "hi",
+            "-p",
+            "?",
+            "--dry-run",
+            "there",
+        ])
+        .assert()
+        .success()
+        .stdout("partial=hi,there\nall=hi,there?\ndry\n");
+}
+
+#[test]
 fn commands_key_is_rejected_with_helpful_error() {
     let dir = tempfile::tempdir().unwrap();
     fs::write(

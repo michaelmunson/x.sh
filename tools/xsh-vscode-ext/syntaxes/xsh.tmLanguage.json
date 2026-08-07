@@ -419,7 +419,7 @@
     },
 
     "x-builtin-directive": {
-      "match": "\\bx-(?:opt|arg|opts|args|usage|run|help|prt|tui|io-(?:read|confirm|select))\\b",
+      "match": "\\bx-(?:opts-set|args-set|opt|arg|opts|args|usage|run|help|prt|tui|io-(?:read|confirm|select))\\b",
       "name": "support.function.x-builtin.xsh"
     },
 

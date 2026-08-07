@@ -6,6 +6,8 @@
 #   x-arg <name>           prints the value of a positional argument
 #   x-opts <assoc-name>    populates a caller-named bash assoc array (nameref)
 #   x-args <assoc-name>    populates a caller-named bash assoc array (nameref)
+#   x-opts-set [name[=VAR]...]  set shell vars from option values (no args = all)
+#   x-args-set [name[=VAR]...]  set shell vars from argument values (no args = all)
 #   x-run <cmd> [args...]  runs a command with x-* helpers in scope
 #   x-run-self <cmd> [args...]  run another command in the same app
 #   x-usage <cmd-path>     prints generated --help for the given path
@@ -65,6 +67,54 @@ x-args() {
     v="${line#*=}"
     [[ -n "$k" ]] && __ref["$k"]="$v"
   done <<< "${X_ARGS_PAIRS-}"
+}
+
+# Assign option/arg values into global shell variables.
+#   _x_set_vars_from_env <cmd> <X_OPT|X_ARG> <pairs> [name[=VAR]...]
+# No name args → one variable per unique key in pairs (hyphens → underscores).
+# name → $<name> (hyphens → underscores); name=VAR → $VAR.
+# Locals are `_x_*`-prefixed so they never shadow the caller's target names.
+_x_set_vars_from_env() {
+  local _x_cmd="$1" _x_prefix="$2" _x_pairs="$3"
+  shift 3
+  local _x_specs=()
+  if (($# == 0)); then
+    local _x_line _x_k
+    local -A _x_seen=()
+    while IFS= read -r _x_line; do
+      [[ -z "$_x_line" ]] && continue
+      _x_k="${_x_line%%=*}"
+      [[ -z "$_x_k" || -n ${_x_seen[$_x_k]+x} ]] && continue
+      _x_seen[$_x_k]=1
+      _x_specs+=("$_x_k")
+    done <<< "$_x_pairs"
+  else
+    _x_specs=("$@")
+  fi
+  local _x_spec _x_name _x_var _x_env_var
+  for _x_spec in "${_x_specs[@]}"; do
+    if [[ "$_x_spec" == *=* ]]; then
+      _x_name="${_x_spec%%=*}"
+      _x_var="${_x_spec#*=}"
+    else
+      _x_name="$_x_spec"
+      _x_var="${_x_name//-/_}"
+    fi
+    if [[ -z "$_x_name" || ! "$_x_var" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
+      echo "usage: $_x_cmd [<name[=VAR]>...]" >&2
+      return 2
+    fi
+    _x_env_var="${_x_prefix}_${_x_name//-/_}"
+    _x_io_assign_global_scalar "$_x_var" "${!_x_env_var-}"
+  done
+}
+
+x-opts-set() {
+  _x_set_vars_from_env x-opts-set X_OPT "${X_OPTS_PAIRS-}" "$@"
+}
+
+x-args-set() {
+  _x_set_vars_from_env x-args-set X_ARG "${X_ARGS_PAIRS-}" "$@"
 }
 
 x-run() {
@@ -422,4 +472,4 @@ x-env-load() {
   done <<< "$pairs"
 }
 
-export -f x-opt x-arg x-opts x-args x-run x-run-self x-usage x-io-read x-io-confirm x-io-select x-prt x-tui x-env-load x-path-root
+export -f x-opt x-arg x-opts x-args x-opts-set x-args-set x-run x-run-self x-usage x-io-read x-io-confirm x-io-select x-prt x-tui x-env-load x-path-root

@@ -18,7 +18,7 @@ Syntax highlighting and linting for [x.sh](https://github.com/michaelmunson/x.sh
 | `[...]` brackets                          | Optional grouping         |
 | `{a\|b}`                                  | Enum choice                |
 | `...`                                     | Variadic marker           |
-| `x-opt`, `x-arg`, `x-usage`               | x.sh built-ins            |
+| `x-opt`, `x-arg`, `x-opts-set`, `x-args-set`, `x-usage` | x.sh built-ins |
 | Bash/zsh/sh scripts (inline and block `\|`/`>`) | Embedded shell     |
 
 ### Linting
@@ -120,4 +120,6 @@ The following x.sh built-ins receive special highlighting inside bash scripts:
 
 - `x-opt <name>` - expand an option value
 - `x-arg <name>` - expand an argument value
+- `x-opts-set [name[=VAR]...]` - set shell vars from option values
+- `x-args-set [name[=VAR]...]` - set shell vars from argument values
 - `x-usage [command]` - print usage/help

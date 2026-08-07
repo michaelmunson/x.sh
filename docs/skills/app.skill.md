@@ -315,6 +315,8 @@ Injected via bash preamble before each script body:
 | `x-arg <name>` | Positional value; repeats → one per line |
 | `x-opts <assoc>` | Fill caller-named bash assoc array with all options |
 | `x-args <assoc>` | Fill caller-named bash assoc array with all args |
+| `x-opts-set [name[=VAR]...]` | Set shell vars from options (`name` → `$name`; no args → all) |
+| `x-args-set [name[=VAR]...]` | Set shell vars from args (`name` → `$name`; no args → all) |
 | `x-usage <cmd.path>` | Print auto-generated help (e.g. `x-usage create.file`) |
 | `x-io-read …` | Prompt for a line; `-v NAME` assigns global scalar |
 | `x-io-confirm …` | Yes/no; `--default yes\|no` (default `no`) |
@@ -328,6 +330,15 @@ Injected via bash preamble before each script body:
 ```bash
 mode=$(x-opt mode)
 path=$(x-arg path)
+
+# or assign into shell variables directly
+x-opts-set mode
+x-args-set path
+# custom variable names
+x-opts-set mode=MODE
+# all options / args at once (hyphens → underscores)
+x-opts-set
+x-args-set
 
 # repeating option
 mapfile -t dirs < <(x-opt dir)
