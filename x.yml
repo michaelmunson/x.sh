@@ -11,6 +11,7 @@ env:
   help: build the binary/docs
   $: |
     cargo build --release
+    x-run-self build plugins
 
   .extension:
     description: build the tools
