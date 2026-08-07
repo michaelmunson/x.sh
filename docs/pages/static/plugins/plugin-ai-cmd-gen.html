@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>x.sh - Commands</title>
+  <title>x.sh - ai-cmd-gen plugin</title>
   <style>
     * {
       box-sizing: border-box;
@@ -238,37 +238,37 @@
     <h2>Contents</h2>
     <ul>
       <li>
-        <a href="index.html">Overview</a>
+        <a href="../index.html">Overview</a>
         <ul>
-          <li><a href="index.html#installation">Installation</a></li>
-          <li><a href="index.html#languages">Supported Languages</a></li>
+          <li><a href="../index.html#installation">Installation</a></li>
+          <li><a href="../index.html#languages">Supported Languages</a></li>
         </ul>
       </li>
-      <li><a href="quickstart.html">Quick Start</a></li>
-      <li><a href="architecture.html">Architecture</a></li>
-      <li><a href="commands.html" aria-current="page">Commands</a></li>
+      <li><a href="../quickstart.html">Quick Start</a></li>
+      <li><a href="../architecture.html">Architecture</a></li>
+      <li><a href="../commands.html">Commands</a></li>
       <li>
-        <a href="scripts.html"> Global Scripts</a>
+        <a href="../scripts.html"> Global Scripts</a>
         
       </li>
       <li>
-        <a href="apps.html">Apps</a>
+        <a href="../apps.html">Apps</a>
         <ul>
-          <li><a href="apps.html#app-framework">Overview</a></li>
-          <li><a href="apps/apps-file-format.html">File Format</a></li>
-          <li><a href="apps/apps-synopsis-dsl.html">Synopsis DSL</a></li>
-          <li><a href="apps/apps-builtins.html">Built-in Helpers</a></li>
-          <li><a href="apps/apps-validation-and-help.html">Validation &amp; Help</a></li>
-          <li><a href="apps/apps-examples.html">Examples</a></li>
-          <li><a href="apps/apps-project-local-scripts.html">Project-local Scripts</a></li>
+          <li><a href="../apps.html#app-framework">Overview</a></li>
+          <li><a href="../apps/apps-file-format.html">File Format</a></li>
+          <li><a href="../apps/apps-synopsis-dsl.html">Synopsis DSL</a></li>
+          <li><a href="../apps/apps-builtins.html">Built-in Helpers</a></li>
+          <li><a href="../apps/apps-validation-and-help.html">Validation &amp; Help</a></li>
+          <li><a href="../apps/apps-examples.html">Examples</a></li>
+          <li><a href="../apps/apps-project-local-scripts.html">Project-local Scripts</a></li>
         </ul>
       </li>
       <li>
-        <a href="plugins.html">Plugins</a>
+        <a href="../plugins.html" aria-current="page">Plugins</a>
         <ul>
-          <li><a href="plugins.html#plugins">Overview</a></li>
-          <li><a href="plugins/plugin-openapi.html">plugin: openapi</a></li>
-          <li><a href="plugins/plugin-ai-cmd-gen.html">plugin: ai-cmd-gen</a></li>
+          <li><a href="../plugins.html#plugins">Overview</a></li>
+          <li><a href="plugin-openapi.html">plugin: openapi</a></li>
+          <li><a href="plugin-ai-cmd-gen.html" aria-current="page">plugin: ai-cmd-gen</a></li>
         </ul>
       </li>
     </ul>
@@ -276,61 +276,61 @@
   <div class="page">
   <header>
     <h1 style="display:flex; align-items:center; gap:10px">
-      <img alt="x.sh" height="40" width="40" src="icon.png">
+      <img alt="x.sh" height="40" width="40" src="../icon.png">
       x.sh
     </h1>
   </header>
     <main>
-<section id="commands"><h2>Commands</h2><h3><code>x --init | -i [name] [script]</code></h3>
-        <p>Create a new global script or re-open an existing one in your editor.</p>
-        <ul>
-          <li><code>x -i</code>: fully interactive (name, description, language, editor).</li>
-          <li><code>x -i my-script</code>: prompts for metadata, opens editor. If the script exists, you can rename it
-            first; metadata and history follow the new name.</li>
-          <li><code>x -i my-script "echo hello"</code>: creates the script with inline content using the default or
-            existing program.</li>
-        </ul>
-        <aside><strong>Note:</strong> Script names must be non-empty and contain only letters, numbers, and dashes.
-        </aside>
-        <h3><code>x &lt;script_name&gt; [args…]</code></h3>
-        <p>Execute a command using the resolution order described in <a href="architecture.html">Architecture</a>. Arguments
-          are forwarded verbatim.</p>
-        <h3><code>x --ls</code> / <code>x -l</code></h3>
-        <p>List all global scripts in a table with description, program, groups, and activity timestamps.</p>
-        <h3><code>x --delete &lt;name&gt;</code> / <code>x -d</code></h3>
-        <p>Remove a global script and its metadata. Does <strong>not</strong> remove symlinks created with
-          <code>x --ln</code>; delete those separately.</p>
-        <h3><code>x --ln &lt;name&gt; [link_name]</code></h3>
-        <p>Symlink a script into <code>~/.local/bin/</code> so you can invoke it without the <code>x</code> prefix.</p>
-        <fieldset>
-          <legend></legend>
-          <pre><code>x --ln my-script          # → ~/.local/bin/my-script
-x --ln my-script alias    # → ~/.local/bin/alias
-x -d --ln my-script       # remove the symlink</code></pre>
-        </fieldset>
-        <h3><code>x --src &lt;name&gt;</code></h3>
-        <p>Print the absolute path of a script or app file. Resolution: local app → global app → global script.
-          <code>x.yml</code> keys are not matched.</p>
-        <h3><code>x -i --app [--local | --global] [&lt;name&gt;]</code></h3>
-        <p>Create a new app YAML file. Scope flags control where the file is written; without them, x prompts
-          interactively.</p>
-        <h3><code>x -i --plugin &lt;name&gt;</code></h3>
-        <p>Build and install a plugin into <code>~/.x.sh/plugins/&lt;name&gt;</code>. Sources come from
-          <code>plugins/&lt;name&gt;</code> in the local x.sh repo when available, otherwise the repo is cloned.
-          Re-running updates an existing install. See <a href="plugins.html">Plugins</a>.</p>
-        <h3><code>x --plugin &lt;name&gt; [args…]</code></h3>
-        <p>Run an installed plugin binary. Arguments after the plugin name are forwarded verbatim. Plugins are
-          never on <code>PATH</code> - always invoke them through <code>x --plugin</code>.</p>
-        <fieldset>
-          <legend></legend>
-          <pre><code>x -i --plugin openapi
-x --plugin openapi ./spec.yaml -o ./api.x.yml
-
-x -i --plugin ai-cmd-gen
+<section id="ai-cmd-gen"><h2><a href="../plugins.html">Plugins</a><span style="font-weight:normal; padding: 0 0.5rem; color: gray;">&gt;</span>ai-cmd-gen</h2><p>Generate a shell command from natural-language instructions, edit it in your
+                shell, then run it. Source the shell wrapper so <code>x()</code> can intercept
+                <code>-A</code> / <code>--ai</code>:</p>
+              <fieldset>
+                <legend></legend>
+                <pre><code>x -i --plugin ai-cmd-gen
 source &lt;(x --plugin ai-cmd-gen __wrapper)
-x --ai --config
-x -A &quot;list rust files modified today&quot;</code></pre>
-        </fieldset></section>
+
+x --ai --config               # configure ~/.x.sh/config/llm.sh
+x -A &quot;list the 10 largest files here&quot;
+x --ai find all rust files modified today
+x -A                          # prompts for instructions when omitted</code></pre>
+              </fieldset>
+              <aside><strong>Shell startup:</strong> Add
+                <code>source &lt;(x --plugin ai-cmd-gen __wrapper)</code> to
+                <code>~/.bashrc</code> or <code>~/.zshrc</code> so <code>-A</code> / <code>--ai</code> work in every
+                session. Without the wrapper, those flags are not intercepted.</aside>
+              <h3>LLM provider</h3>
+              <p>If the LLM provider is not configured, generation fails with a message to run
+                <code>x --ai --config</code>. That opens your editor on
+                <code>~/.x.sh/config/llm.sh</code>. The script must accept the prompt as <code>$1</code> and print
+                the completion to stdout.</p>
+              <fieldset>
+                <legend>llm.sh example</legend>
+                <pre><code>#!/bin/bash
+PROMPT=&quot;$1&quot;
+ollama run llama2 &quot;$PROMPT&quot;</code></pre>
+              </fieldset>
+              <h3>Flow</h3>
+              <ol>
+                <li>The plugin calls <code>~/.x.sh/config/llm.sh</code> with a shell-specific system prompt plus your
+                  instructions.</li>
+                <li>The generated command is shown for editing (<code>read -e</code> in bash, <code>vared</code> in
+                  zsh).</li>
+                <li>The command is added to shell history, then <code>eval</code>'d.</li>
+              </ol>
+              <h3>Direct plugin invocation</h3>
+              <p>You can call the plugin without the shell wrapper (prints the command to stdout; does not
+                edit or eval):</p>
+              <fieldset>
+                <legend></legend>
+                <pre><code>x --plugin ai-cmd-gen --config
+x --plugin ai-cmd-gen --shell zsh list files by size</code></pre>
+              </fieldset>
+              <ul>
+                <li><code>--config</code>: create/edit <code>~/.x.sh/config/llm.sh</code>.</li>
+                <li><code>--shell bash|zsh</code>: target shell dialect for the generated command (defaults from
+                  <code>$SHELL</code>).</li>
+                <li><code>&lt;instructions…&gt;</code>: natural-language description of the desired command.</li>
+              </ul></section>
     </main>
   <footer>
     <p>Repository: <a href="https://github.com/michaelmunson/x.sh">github.com/michaelmunson/x.sh</a></p>

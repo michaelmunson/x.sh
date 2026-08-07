@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>x.sh - App Examples</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Trebuchet MS', sans-serif;
+      color: #222;
+    }
+
+    nav#toc {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 15rem;
+      height: 100vh;
+      overflow-y: auto;
+      border-right: 1px solid #cacaca;
+      padding: 1em 1.25em;
+      background: #fafafa;
+      z-index: 10;
+    }
+
+    nav#toc h2 {
+      font-size: 1rem;
+      margin: 0 0 0.5em;
+    }
+
+    nav#toc ul {
+      list-style: none;
+      margin: 0;
+      padding-left: 1.1em;
+    }
+
+    nav#toc>ul {
+      padding-left: 0;
+    }
+
+    nav#toc li {
+      margin: 0.2em 0;
+    }
+
+    nav#toc a {
+      color: #1a5fb4;
+      text-decoration: none;
+      font-size: 0.95rem;
+    }
+
+    nav#toc a[aria-current="page"] {
+      font-weight: bold;
+      text-decoration: underline;
+    }
+
+    nav#toc a:hover {
+      text-decoration: underline;
+    }
+
+    .page {
+      margin-right: 15rem;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      gap: 1em;
+      padding: 1.25em 2em 2em;
+    }
+
+    header {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5em;
+      padding-bottom: 1em;
+      border-bottom: 1px solid #cacaca;
+    }
+
+    header>h1,
+    header>p {
+      margin: 0;
+    }
+
+    main {
+      display: flex;
+      flex-direction: column;
+      gap: 2em;
+      flex: 1;
+    }
+
+    main>section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75em;
+    }
+
+    main>section>h2 {
+      font-size: 1.5rem;
+      margin: 0 0 0.25em;
+      padding-bottom: 0.25em;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    main>section>h3:first-of-type {
+      margin-top: 0;
+    }
+
+    h3 {
+      font-size: 1.2rem;
+      margin: 0.75em 0 0;
+    }
+
+    h3+fieldset,
+    h3+p {
+      margin-top: 0.25em;
+    }
+
+    h3 code {
+      font-size: 1rem;
+    }
+
+    h4, h5, h6, p {
+      margin: 0.5em 0;
+    }
+
+    fieldset {
+      border-radius: 5px;
+      margin: 0;
+    }
+
+    fieldset legend {
+      padding: 0 0.3rem;
+      border: 1px solid #cacaca;
+      border-radius: 5px;
+      font-size: 0.8rem;
+    }
+
+    fieldset+fieldset {
+      margin-top: 1em;
+    }
+
+    pre {
+      margin: 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0.5em 0 1em;
+      background: #fff;
+    }
+
+    table th,
+    table td {
+      padding: 0.6em 1em;
+      border: 1px solid #ececec;
+      text-align: left;
+    }
+
+    table th {
+      font-weight: bold;
+      border-bottom: 2px solid #cacaca;
+    }
+
+    footer {
+      border-top: 1px solid #cacaca;
+      padding-top: 1em;
+      margin-top: 1em;
+      color: #555;
+    }
+
+    footer p {
+      margin: 0;
+    }
+
+    aside {
+      display: block;
+      padding: 0.75em 1em;
+      border-left: 3px solid #b7b7b7;
+      background: #f5f5f5;
+      border-radius: 0 4px 4px 0;
+    }
+
+  </style>
+  <style>
+    body:has(details#toggle-toc[open]) {
+      & nav#toc {
+        display: none;
+      }
+      & .page {
+        margin-right: 0;
+      }
+    }
+    div#toggle-toc-container {
+      position:fixed;
+      z-index: 1000;
+      right: 10px;
+      top: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 5px;
+      background: #fafafa;
+      border: 1px solid #cacaca;
+      border-radius: 5px;
+    }
+    details#toggle-toc {
+      & summary {
+        list-style: none;
+        &::after {
+          content: "Menu ▶";
+        }
+      }
+
+      & summary::-webkit-details-marker {
+        display: none; /* older Safari/Chrome */
+      }
+
+      & summary::marker {
+        display: none; /* modern spec-compliant approach */
+        content: ""; /* fallback in case display:none isn't respected */
+      }
+    }
+    details#toggle-toc:not([open]) summary::after {
+      content: "Menu ▼";
+    }
+  </style>
+</head>
+<body>
+  <div id="toggle-toc-container">
+    <details id="toggle-toc"><summary></summary></details>
+  </div>
+  <nav id="toc">
+    <h2>Contents</h2>
+    <ul>
+      <li>
+        <a href="../index.html">Overview</a>
+        <ul>
+          <li><a href="../index.html#installation">Installation</a></li>
+          <li><a href="../index.html#languages">Supported Languages</a></li>
+        </ul>
+      </li>
+      <li><a href="../quickstart.html">Quick Start</a></li>
+      <li><a href="../architecture.html">Architecture</a></li>
+      <li><a href="../commands.html">Commands</a></li>
+      <li>
+        <a href="../scripts.html"> Global Scripts</a>
+        
+      </li>
+      <li>
+        <a href="../apps.html" aria-current="page">Apps</a>
+        <ul>
+          <li><a href="../apps.html#app-framework">Overview</a></li>
+          <li><a href="apps-file-format.html">File Format</a></li>
+          <li><a href="apps-synopsis-dsl.html">Synopsis DSL</a></li>
+          <li><a href="apps-builtins.html">Built-in Helpers</a></li>
+          <li><a href="apps-validation-and-help.html">Validation &amp; Help</a></li>
+          <li><a href="apps-examples.html" aria-current="page">Examples</a></li>
+          <li><a href="apps-project-local-scripts.html">Project-local Scripts</a></li>
+        </ul>
+      </li>
+      <li>
+        <a href="../plugins.html">Plugins</a>
+        <ul>
+          <li><a href="../plugins.html#plugins">Overview</a></li>
+          <li><a href="../plugins/plugin-openapi.html">plugin: openapi</a></li>
+          <li><a href="../plugins/plugin-ai-cmd-gen.html">plugin: ai-cmd-gen</a></li>
+        </ul>
+      </li>
+    </ul>
+  </nav>
+  <div class="page">
+  <header>
+    <h1 style="display:flex; align-items:center; gap:10px">
+      <img alt="x.sh" height="40" width="40" src="../icon.png">
+      x.sh
+    </h1>
+  </header>
+    <main>
+<section id="examples"><h2><a href="../apps.html">Apps</a><span style="font-weight:normal; padding: 0 0.5rem; color: gray;">&gt;</span>Examples</h2><h3>Comprehensive example app (<code>exapp</code>)</h3>
+              <p>The app definition imports scripts from two sidecar files via <code>import.$</code>:</p>
+              <fieldset>
+                <legend>exapp.x.yml</legend>
+                <pre><code># Comprehensive sample app for the `x` app framework (`x exapp …`).
+# Demonstrates: metadata, root options/arguments, nested commands, YAML anchors,
+# every synopsis form from the cheat-sheet, and split `import.$` handler files.
+
+name: exapp
+version: 0.1.0
+description: &gt;-
+  Exercise app - exercises options, positionals, nesting, validation, and bash helpers
+  (`x-opt`, `x-arg`, `x-opts`, `x-args`, `x-run`, `x-usage`).
+import:
+  $:
+    - handlers/exapp.handlers-a.yml
+    - handlers/exapp.handlers-b.yml
+env:
+  DEBUG: &quot;true&quot;
+
+options:
+  - &#x27;[-v | --version]&#x27;
+  - &#x27;[-g | --global &lt;note=&quot;&quot;&gt;]&#x27;
+
+arguments: &#x27;[&lt;topic=&quot;overview&quot;&gt;]&#x27;
+
+.demo:
+  description: nested demos (each subcommand highlights different DSL pieces)
+
+  .opts:
+    description: &gt;-
+      Option forms - bool pair, value, defaulted value, repeating values,
+      enum choice, `=` default, requires-chain, and a required bare flag.
+    opts: |
+      [-n | --dry-run]
+      [-o | --out &lt;path&gt;]
+      [-c | --count &lt;n=&quot;1&quot;&gt;]
+      [-D | --define &lt;kv&gt; ...]
+      [--kind={alpha|beta|gamma}]
+      [--label=&lt;text=&quot;demo&quot;&gt;]
+      [--src=&lt;path&gt; [--dst=&lt;path&gt;]]
+      [--default={yes|no}]
+      --commit
+      (-f | --force)
+      (--fmt | --format)
+      (-q | --quiet | -v | --verbose)
+      [--tag &lt;label&gt;]...
+
+  .args:
+    description: &gt;-
+      Positional forms - required, optional, optional-with-default,
+      and greedy repeat (must be last).
+    args: &#x27;&lt;one&gt; [&lt;two&gt;] [&lt;three=&quot;3&quot;&gt;] [&lt;rest&gt;...]&#x27;
+
+  .pick:
+    description: required choice - `(alt1|alt2|alt3)` becomes positional name `choice`
+    args: &#x27;(north|south|east|west)&#x27;
+
+  .mode:
+    description: &gt;-
+      Positional choice in angle brackets - `&lt;action={…}&gt;` and
+      optional `[&lt;speed={…}=&#x27;default&#x27;&gt;]`.
+    args: &#x27;&lt;action={read|write|delete}&gt; [&lt;speed={fast|slow}=&quot;fast&quot;&gt;]&#x27;
+
+  .tail:
+    description: optional repeating positional `[&lt;items&gt;...]`
+    args: &#x27;[&lt;items&gt;...]&#x27;
+
+  .group:
+    description: &gt;-
+      Non-leaf group - invoke `x exapp demo group` with no subcommand to see auto-help.
+    .alpha:
+      description: nested leaf α - shares options via YAML anchor (see `reflect`)
+      opts: &amp;demo_verbose
+        - &#x27;[-V | --verbose]&#x27;
+      args: &#x27;&lt;msg&gt;&#x27;
+    .beta:
+      description: nested leaf β - same shared options as `alpha`
+      opts: *demo_verbose
+      args: &#x27;&lt;msg&gt;&#x27;
+
+  .reflect:
+    description: dump parsed options/args via `x-opts` / `x-args` (and `x-run`)
+    opts: *demo_verbose
+    args: &#x27;[&lt;label=&quot;state&quot;&gt;]&#x27;
+
+  .sparse:
+    description: optional repeat with a default (see also `tail` for plain `[&lt;items&gt;...]`)
+    args: &#x27;[&lt;parts=&quot;*&quot;&gt;...]&#x27;
+
+  .usage-tip:
+    description: &gt;-
+      One-line handler - forwards to x-usage (same idea as README create → x-usage create).
+
+  .io:
+    description: interactive builtins
+    .read:
+      description: read a line of text
+    .confirm:
+      description: confirm a yes/no question
+    .select:
+      description: select an option from a list
+    .multiselect:
+      description: select an option from a list
+
+  .style:
+    description: terminal styling and TUI control builtins
+    .prt:
+      description: styled print via x-prt (--style)
+    .tui:
+      description: alternate buffer demo via x-tui
+
+.debug:
+  description: debug the environment variables
+  $: |
+    echo &quot;DEBUG = $DEBUG&quot;</code></pre>
+              </fieldset>
+              <fieldset>
+                <legend>handlers/exapp.handlers-a.yml</legend>
+                <pre><code># Scripts merged via `import.$` (first file). Keys are dotted command paths -
+# import files keep this flat shape; they're not rewritten to dot-prefixed keys.
+
+&quot;&quot;:
+  |
+    topic=$(x-arg topic)
+    note=$(x-opt global)
+    echo &quot;exapp - topic=${topic:-overview}  global-note=${note:-∅}&quot;
+    echo &quot;Try:  x exapp --help&quot;
+    echo &quot;       x exapp demo --help&quot;
+
+demo.opts:
+  |
+    echo &quot;dry-run=$(x-opt dry-run)&quot;
+    echo &quot;out=$(x-opt out)&quot;
+    echo &quot;count=$(x-opt count)&quot;
+    mapfile -t defs &lt; &lt;(x-opt define)
+    printf &#x27;define[%s]\n&#x27; &quot;${defs[@]:-}&quot;
+    echo &quot;kind=$(x-opt kind)&quot;
+    echo &quot;label=$(x-opt label)&quot;
+    echo &quot;src=$(x-opt src)&quot;
+    echo &quot;dst=$(x-opt dst)&quot;
+    echo &quot;commit=$(x-opt commit)&quot;
+    echo &quot;force=$(x-opt force)&quot;
+    echo &quot;fmt=$(x-opt fmt)&quot;
+    echo &quot;format=$(x-opt format)&quot;
+    echo &quot;quiet=$(x-opt quiet)&quot;
+    echo &quot;verbose=$(x-opt verbose)&quot;
+    mapfile -t tags &lt; &lt;(x-opt tag)
+    printf &#x27;tag[%s]\n&#x27; &quot;${tags[@]:-}&quot;
+
+demo.mode:
+  |
+    echo &quot;action=$(x-arg action)&quot;
+    echo &quot;speed=$(x-arg speed)&quot;
+
+demo.args:
+  |
+    echo &quot;one=$(x-arg one)&quot;
+    echo &quot;two=$(x-arg two)&quot;
+    echo &quot;three=$(x-arg three)&quot;
+    mapfile -t rest &lt; &lt;(x-arg rest)
+    printf &#x27;rest[%s]\n&#x27; &quot;${rest[@]:-}&quot;
+
+demo.pick:
+  |
+    echo &quot;direction=$(x-arg choice)&quot;
+
+demo.tail:
+  |
+    mapfile -t items &lt; &lt;(x-arg items)
+    if ((${#items[@]})); then
+      printf &#x27;items: %s\n&#x27; &quot;${items[@]}&quot;
+    else
+      echo &quot;(no items)&quot;
+    fi
+
+demo.sparse:
+  |
+    mapfile -t parts &lt; &lt;(x-arg parts)
+    echo &quot;parts=${parts[*]}&quot;
+
+demo.usage-tip: x-usage demo.opts</code></pre>
+              </fieldset>
+              <fieldset>
+                <legend>handlers/exapp.handlers-b.yml</legend>
+                <pre><code># Second import file - merged keys must not duplicate the first import.
+
+demo.group.alpha:
+  |
+    msg=$(x-arg msg)
+    if [[ $(x-opt verbose) == true ]]; then
+      echo &quot;[verbose] alpha ← $msg&quot;
+    else
+      echo &quot;alpha ← $msg&quot;
+    fi
+
+demo.group.beta:
+  |
+    msg=$(x-arg msg)
+    if [[ $(x-opt verbose) == true ]]; then
+      echo &quot;[verbose] beta ← $msg&quot;
+    else
+      echo &quot;beta ← $msg&quot;
+    fi
+
+demo.reflect:
+  |
+    declare -A opts args
+    x-opts opts
+    x-args args
+    echo &quot;--- x-opts ($(x-arg label)) ---&quot;
+    for k in &quot;${!opts[@]}&quot;; do echo &quot;  $k=${opts[$k]}&quot;; done | sort
+    echo &quot;--- x-args ---&quot;
+    for k in &quot;${!args[@]}&quot;; do echo &quot;  $k=${args[$k]}&quot;; done | sort
+    echo &quot;--- x-run ---&quot;
+    x-run echo &quot;ran nested echo via x-run&quot;
+
+# IO commands
+demo.io.read: |
+  answer=$(x-io-read &quot;What is your favorite color?&quot;)
+  if [ &quot;$answer&quot; != &quot;blue&quot; ]; then
+    echo &quot;Wrong answer&quot;
+    exit 1
+  else
+    echo &quot;Correct!&quot;
+  fi
+
+demo.io.confirm: |
+  answer=$(x-io-confirm &quot;Are you sure you want to submit?&quot; --default no)
+  echo &quot;Submit = $answer&quot;
+  answer=$(x-io-confirm &quot;Are you sure you want to delete?&quot; --default yes)
+  echo &quot;Delete = $answer&quot;
+
+demo.io.select: |
+  x-io-select &quot;Choose a color&quot; \
+    &quot;red=Red&quot; \
+    &quot;green=Green&quot; \
+    &quot;blue=Blue&quot; \
+    &quot;yellow/orange=Yellow or Orange&quot; \
+    -v color
+  echo &quot;Color = $color&quot;
+
+demo.io.multiselect: |
+  x-io-select --multi &quot;Choose a color&quot; \
+    &quot;red=Red&quot; \
+    &quot;green=Green&quot; \
+    &quot;blue=Blue&quot; \
+    &quot;yellow/orange=Yellow or Orange&quot; \
+    -v colors
+
+  echo &quot;First Color = ${colors[0]}&quot;
+  echo &quot;All Colors = ${colors[*]}&quot;
+
+demo.style.prt: |
+  x-prt \
+    --style red,underline,bg-white \
+    &quot;Hello&quot; \
+    --style blue,bg-yellow \
+    &quot; World&quot; \
+    --newline
+  x-prt --style green,bold &quot;exapp prt demo&quot;
+  x-prt --style red,bold &quot; exapp prt demo (red)&quot; --newline
+
+demo.style.tui: |
+  x-tui --init --clear
+  x-tui --home
+  x-prt --style green,bold &quot;exapp TUI demo&quot;
+  x-io-select &quot;Action&quot; &quot;stay=Stay&quot; &quot;go=Go&quot; -v action
+  echo &quot;Action = $action&quot;
+  if [ &quot;$action&quot; = &quot;go&quot; ]; then
+    echo &quot;Going!&quot;
+    x-prt --style red,bold &quot;Going!&quot;
+  else
+    echo &quot;Staying!&quot;
+    x-prt --style green,bold &quot;Staying!&quot;
+    sleep 2
+    x-run x exapp demo style tui
+  fi
+  sleep 2
+  x-tui --exit</code></pre>
+              </fieldset>
+              <p><a href="https://github.com/michaelmunson/x.sh/tree/main/docs/examples/app"
+                  rel="noopener noreferrer">View source on GitHub</a></p>
+              <h3>Environment example (<code>simple</code>)</h3>
+              <p>Demonstrates inline <code>env:</code> groups plus <code>import.env</code>/<code>import.sh</code>:</p>
+              <fieldset>
+                <legend>simple.x.yml</legend>
+                <pre><code>name: simple
+version: 0.0.0
+description: an x app
+import:
+  $:
+    - handlers/test.yml
+  sh: handlers/example.sh
+  env: .env.example
+
+env:
+  .env1:
+    - MY_NAME: &quot;env1&quot;
+  HELLO: &quot;global&quot;
+
+.get-env:
+  description: print the environment variable
+  $: |
+    echo &quot;HELLO = $HELLO&quot;
+    x-env-load .env1
+    echo &quot;MY_NAME = $MY_NAME&quot;
+    echo &quot;IS_DEBUG = $IS_DEBUG&quot;
+
+.test:
+  description: test the environment variable
+
+.hello-world:
+  description: say hello to the world
+  $: |
+    hello_world</code></pre>
+              </fieldset>
+              <h3>Typical workflows</h3>
+              <ul>
+                <li><strong>Dotfiles scripts</strong>: <code>x -i</code> for personal utilities, <code>x --ln</code> for
+                  PATH access.</li>
+                <li><strong>Monorepo tasks</strong>: root <code>x.yml</code> with <code>.build</code>, <code>.test</code>,
+                  <code>.lint</code> commands; no global install needed.</li>
+                <li><strong>Team CLI tool</strong>: commit <code>&lt;tool&gt;.x.yml</code> to the repo; teammates run
+                  <code>x tool subcmd</code> from any subdirectory.</li>
+                <li><strong>Complex internal CLI</strong>: global app in <code>~/.x.sh/apps/</code> with
+                  <code>import.$</code> for large script sets.</li>
+              </ul></section>
+    </main>
+  <footer>
+    <p>Repository: <a href="https://github.com/michaelmunson/x.sh">github.com/michaelmunson/x.sh</a></p>
+  </footer>
+  </div>
+</body>
+</html>

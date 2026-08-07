@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>x.sh - Apps</title>
+  <title>x.sh - Plugins</title>
   <style>
     * {
       box-sizing: border-box;
@@ -252,9 +252,9 @@
         
       </li>
       <li>
-        <a href="apps.html" aria-current="page">Apps</a>
+        <a href="apps.html">Apps</a>
         <ul>
-          <li><a href="apps.html#app-framework" aria-current="page">Overview</a></li>
+          <li><a href="apps.html#app-framework">Overview</a></li>
           <li><a href="apps/apps-file-format.html">File Format</a></li>
           <li><a href="apps/apps-synopsis-dsl.html">Synopsis DSL</a></li>
           <li><a href="apps/apps-builtins.html">Built-in Helpers</a></li>
@@ -264,9 +264,9 @@
         </ul>
       </li>
       <li>
-        <a href="plugins.html">Plugins</a>
+        <a href="plugins.html" aria-current="page">Plugins</a>
         <ul>
-          <li><a href="plugins.html#plugins">Overview</a></li>
+          <li><a href="plugins.html#plugins" aria-current="page">Overview</a></li>
           <li><a href="plugins/plugin-openapi.html">plugin: openapi</a></li>
           <li><a href="plugins/plugin-ai-cmd-gen.html">plugin: ai-cmd-gen</a></li>
         </ul>
@@ -281,97 +281,44 @@
     </h1>
   </header>
     <main>
-<section id="app-framework"><h2>Overview</h2><p>Apps turn a single <code>&lt;name&gt;.x.yml</code> file into a structured CLI with options, positional
-                arguments, nested <code>.command:</code> keys, and per-command <code>$:</code> scripts. Apps get
-                <strong>parse-time validation</strong>: x checks required args, defaults, choice membership,
-                <code>requires:</code> chains, and unknown flags before any script executes. Project-local
-                <code>x.yml</code> files (see <a href="apps/apps-project-local-scripts.html">Project-local Scripts</a>) use this exact same
-                file format - just invoked without a name prefix.</p>
-              <h3>Where apps live</h3>
-              <ul>
-                <li><strong>Local:</strong> <code>./&lt;name&gt;.x.yml</code> (discovered from CWD up through parents).
-                </li>
-                <li><strong>Global:</strong> <code>~/.x.sh/apps/&lt;name&gt;.x.yml</code>.</li>
-              </ul>
-              <h3>Creating an app</h3>
+<section id="plugins"><h2>Overview</h2><p>Plugins are separate Rust packages under <code>plugins/</code> in the x.sh repository.
+                They are installed into <code>~/.x.sh/plugins/</code> (never on <code>PATH</code>) and always
+                invoked through <code>x</code>.</p>
+              <h3>Install</h3>
               <fieldset>
                 <legend></legend>
-                <pre><code>x -i --app my-app             # prompts for local vs global
-x -i --app --local my-app     # ./my-app.x.yml
-x -i --app --global my-app    # ~/.x.sh/apps/my-app.x.yml</code></pre>
+                <pre><code>x -i --plugin &lt;name&gt;</code></pre>
               </fieldset>
-              <p>After the editor closes, x validates the YAML structure, parses every synopsis string, and checks
-                handler coverage. On failure you can <strong>edit</strong> (re-open) or <strong>revert</strong> (restore
-                prior file or delete the new one).</p>
-              <h3>App vs project-local</h3>
-              <p>As of v3, <code>x.yml</code> and apps run on the <strong>same engine</strong> - full synopsis DSL,
-                validation, nested <code>.command:</code> keys, and auto-help all work in both. The differences are
-                only about scope and invocation:</p>
+              <p>Builds <code>plugins/&lt;name&gt;</code> from this repository (or clones it) and installs the
+                binary as <code>~/.x.sh/plugins/&lt;name&gt;</code>. Plugin names may contain letters, numbers,
+                dashes, and underscores. Re-running install updates an existing plugin in place.</p>
+              <h3>Run</h3>
+              <fieldset>
+                <legend></legend>
+                <pre><code>x --plugin &lt;name&gt; [args…]</code></pre>
+              </fieldset>
+              <aside><strong>Note:</strong> Plugins are never placed on <code>PATH</code>. Always invoke them with
+                <code>x --plugin</code> (or, for <code>ai-cmd-gen</code>, the shell wrapper's
+                <code>x -A</code> / <code>x --ai</code>).</aside>
+              <h3>Available plugins</h3>
               <table>
                 <thead>
                   <tr>
-                    <th>Feature</th>
-                    <th><code>x.yml</code></th>
-                    <th>App (<code>&lt;name&gt;.x.yml</code>)</th>
+                    <th>Plugin</th>
+                    <th>Purpose</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <td>Scope</td>
-                    <td>CWD only</td>
-                    <td>CWD + parent walk / global</td>
+                    <td><a href="plugins/plugin-openapi.html"><code>openapi</code></a></td>
+                    <td>Convert an OpenAPI 3.x spec into an x.sh app (<code>.x.yml</code>)</td>
                   </tr>
                   <tr>
-                    <td>Invocation</td>
-                    <td><code>x &lt;command&gt;</code> (no name prefix)</td>
-                    <td><code>x &lt;name&gt; &lt;command&gt;</code></td>
-                  </tr>
-                  <tr>
-                    <td>CLI parsing</td>
-                    <td>Full synopsis DSL + validation</td>
-                    <td>Full synopsis DSL + validation</td>
-                  </tr>
-                  <tr>
-                    <td>Options / flags</td>
-                    <td>Yes</td>
-                    <td>Yes</td>
-                  </tr>
-                  <tr>
-                    <td>Help generation</td>
-                    <td>Auto <code>-h</code> / <code>--help</code> per command</td>
-                    <td>Auto <code>-h</code> / <code>--help</code> per command</td>
-                  </tr>
-                  <tr>
-                    <td>Scripts</td>
-                    <td>Inline <code>$:</code> per command, or <code>import.$</code></td>
-                    <td>Inline <code>$:</code> per command, or <code>import.$</code></td>
-                  </tr>
-                  <tr>
-                    <td>Metadata</td>
-                    <td><code>name:</code> optional (never shown with a prefix)</td>
-                    <td>name, version, description shown in help</td>
+                    <td><a href="plugins/plugin-ai-cmd-gen.html"><code>ai-cmd-gen</code></a></td>
+                    <td>Generate a shell command from natural-language instructions</td>
                   </tr>
                 </tbody>
-              </table>
-              <h3>Handler imports</h3>
-              <p>Large files can split scripts into external YAML files via <code>import.$</code> (or the legacy
-                <code>$.import</code>). This is mutually exclusive with an inline top-level <code>$:</code> handler
-                map - which no longer exists in v3 anyway; imports simply supply scripts for commands that don't
-                declare their own inline <code>$:</code>.</p>
-              <fieldset>
-                <legend></legend>
-                <pre><code>import:
-  $:
-    - ./handlers/build.yml
-    - ./handlers/deploy.yml</code></pre>
-              </fieldset>
-              <p>Legacy form (still supported, mutually exclusive with <code>import.$</code>):</p>
-              <fieldset>
-                <legend></legend>
-                <pre><code>$.import:
-  - ./handlers/build.yml
-  - ./handlers/deploy.yml</code></pre>
-              </fieldset></section>
+              </table></section>
     </main>
   <footer>
     <p>Repository: <a href="https://github.com/michaelmunson/x.sh">github.com/michaelmunson/x.sh</a></p>

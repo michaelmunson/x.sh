@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>x.sh - Project-local Scripts</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Trebuchet MS', sans-serif;
+      color: #222;
+    }
+
+    nav#toc {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 15rem;
+      height: 100vh;
+      overflow-y: auto;
+      border-right: 1px solid #cacaca;
+      padding: 1em 1.25em;
+      background: #fafafa;
+      z-index: 10;
+    }
+
+    nav#toc h2 {
+      font-size: 1rem;
+      margin: 0 0 0.5em;
+    }
+
+    nav#toc ul {
+      list-style: none;
+      margin: 0;
+      padding-left: 1.1em;
+    }
+
+    nav#toc>ul {
+      padding-left: 0;
+    }
+
+    nav#toc li {
+      margin: 0.2em 0;
+    }
+
+    nav#toc a {
+      color: #1a5fb4;
+      text-decoration: none;
+      font-size: 0.95rem;
+    }
+
+    nav#toc a[aria-current="page"] {
+      font-weight: bold;
+      text-decoration: underline;
+    }
+
+    nav#toc a:hover {
+      text-decoration: underline;
+    }
+
+    .page {
+      margin-right: 15rem;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      gap: 1em;
+      padding: 1.25em 2em 2em;
+    }
+
+    header {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5em;
+      padding-bottom: 1em;
+      border-bottom: 1px solid #cacaca;
+    }
+
+    header>h1,
+    header>p {
+      margin: 0;
+    }
+
+    main {
+      display: flex;
+      flex-direction: column;
+      gap: 2em;
+      flex: 1;
+    }
+
+    main>section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75em;
+    }
+
+    main>section>h2 {
+      font-size: 1.5rem;
+      margin: 0 0 0.25em;
+      padding-bottom: 0.25em;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    main>section>h3:first-of-type {
+      margin-top: 0;
+    }
+
+    h3 {
+      font-size: 1.2rem;
+      margin: 0.75em 0 0;
+    }
+
+    h3+fieldset,
+    h3+p {
+      margin-top: 0.25em;
+    }
+
+    h3 code {
+      font-size: 1rem;
+    }
+
+    h4, h5, h6, p {
+      margin: 0.5em 0;
+    }
+
+    fieldset {
+      border-radius: 5px;
+      margin: 0;
+    }
+
+    fieldset legend {
+      padding: 0 0.3rem;
+      border: 1px solid #cacaca;
+      border-radius: 5px;
+      font-size: 0.8rem;
+    }
+
+    fieldset+fieldset {
+      margin-top: 1em;
+    }
+
+    pre {
+      margin: 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0.5em 0 1em;
+      background: #fff;
+    }
+
+    table th,
+    table td {
+      padding: 0.6em 1em;
+      border: 1px solid #ececec;
+      text-align: left;
+    }
+
+    table th {
+      font-weight: bold;
+      border-bottom: 2px solid #cacaca;
+    }
+
+    footer {
+      border-top: 1px solid #cacaca;
+      padding-top: 1em;
+      margin-top: 1em;
+      color: #555;
+    }
+
+    footer p {
+      margin: 0;
+    }
+
+    aside {
+      display: block;
+      padding: 0.75em 1em;
+      border-left: 3px solid #b7b7b7;
+      background: #f5f5f5;
+      border-radius: 0 4px 4px 0;
+    }
+
+  </style>
+  <style>
+    body:has(details#toggle-toc[open]) {
+      & nav#toc {
+        display: none;
+      }
+      & .page {
+        margin-right: 0;
+      }
+    }
+    div#toggle-toc-container {
+      position:fixed;
+      z-index: 1000;
+      right: 10px;
+      top: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 5px;
+      background: #fafafa;
+      border: 1px solid #cacaca;
+      border-radius: 5px;
+    }
+    details#toggle-toc {
+      & summary {
+        list-style: none;
+        &::after {
+          content: "Menu ▶";
+        }
+      }
+
+      & summary::-webkit-details-marker {
+        display: none; /* older Safari/Chrome */
+      }
+
+      & summary::marker {
+        display: none; /* modern spec-compliant approach */
+        content: ""; /* fallback in case display:none isn't respected */
+      }
+    }
+    details#toggle-toc:not([open]) summary::after {
+      content: "Menu ▼";
+    }
+  </style>
+</head>
+<body>
+  <div id="toggle-toc-container">
+    <details id="toggle-toc"><summary></summary></details>
+  </div>
+  <nav id="toc">
+    <h2>Contents</h2>
+    <ul>
+      <li>
+        <a href="../index.html">Overview</a>
+        <ul>
+          <li><a href="../index.html#installation">Installation</a></li>
+          <li><a href="../index.html#languages">Supported Languages</a></li>
+        </ul>
+      </li>
+      <li><a href="../quickstart.html">Quick Start</a></li>
+      <li><a href="../architecture.html">Architecture</a></li>
+      <li><a href="../commands.html">Commands</a></li>
+      <li>
+        <a href="../scripts.html"> Global Scripts</a>
+        
+      </li>
+      <li>
+        <a href="../apps.html" aria-current="page">Apps</a>
+        <ul>
+          <li><a href="../apps.html#app-framework">Overview</a></li>
+          <li><a href="apps-file-format.html">File Format</a></li>
+          <li><a href="apps-synopsis-dsl.html">Synopsis DSL</a></li>
+          <li><a href="apps-builtins.html">Built-in Helpers</a></li>
+          <li><a href="apps-validation-and-help.html">Validation &amp; Help</a></li>
+          <li><a href="apps-examples.html">Examples</a></li>
+          <li><a href="apps-project-local-scripts.html" aria-current="page">Project-local Scripts</a></li>
+        </ul>
+      </li>
+      <li>
+        <a href="../plugins.html">Plugins</a>
+        <ul>
+          <li><a href="../plugins.html#plugins">Overview</a></li>
+          <li><a href="../plugins/plugin-openapi.html">plugin: openapi</a></li>
+          <li><a href="../plugins/plugin-ai-cmd-gen.html">plugin: ai-cmd-gen</a></li>
+        </ul>
+      </li>
+    </ul>
+  </nav>
+  <div class="page">
+  <header>
+    <h1 style="display:flex; align-items:center; gap:10px">
+      <img alt="x.sh" height="40" width="40" src="../icon.png">
+      x.sh
+    </h1>
+  </header>
+    <main>
+<section id="project-local"><h2><a href="../apps.html">Apps</a><span style="font-weight:normal; padding: 0 0.5rem; color: gray;">&gt;</span>Project-local Scripts</h2><p>Place a file named <code>x.yml</code> in your <strong>current working directory</strong>. When you run
+                <code>x &lt;name&gt;</code>, x loads it and looks for a top-level command matching
+                <code>&lt;name&gt;</code>. If found, the command runs; otherwise x falls back to an app or global
+                script.</p>
+              <aside><strong>v3:</strong> <code>x.yml</code> uses <strong>exactly the same file format</strong> as
+                app files (see <a href="apps-file-format.html">App File Format</a>) - the only difference is that it's invoked
+                without a name prefix, and <code>name:</code> is never required.</aside>
+              <aside><strong>Warning:</strong> Only the CWD is checked for <code>x.yml</code>, not parent directories.
+                Invalid YAML (or removed v3 syntax like <code>commands:</code>) fails immediately; x does not fall
+                back to global scripts on parse/validation errors.</aside>
+              <h3>Dot-prefixed commands</h3>
+              <p>Every command is declared with a <code>.command-name:</code> key. The value is either:</p>
+              <ul>
+                <li><strong>A string</strong> - shorthand for an inline script (equivalent to <code>{ $: &lt;string&gt; }</code>). Often a block scalar with <code>|</code>.</li>
+                <li><strong>A mapping</strong> - any of <code>description</code>/<code>help</code>, <code>options</code>/<code>opts</code>, <code>arguments</code>/<code>args</code>, <code>dir</code>, <code>env</code>, <code>alias</code>, its own <code>$:</code> script, and nested <code>.sub-command:</code> keys.</li>
+              </ul>
+              <fieldset>
+                <legend>x.yml</legend>
+                <pre><code>.lint: npm run lint
+
+.build:
+  args: &lt;version&gt;
+  $: |
+    npm run build
+    npm version &quot;$(x-arg version)&quot;
+    git push --tags
+
+.deploy:
+  $: |
+    echo &quot;Deploying (default)&quot;
+    x deploy dev
+  .dev: npm run deploy:dev
+  .prod: npm run deploy:prod
+  .test:
+    .unit: npx jest unit
+    .integration: npx jest integration</code></pre>
+              </fieldset>
+              <ul>
+                <li><code>x build 1.2.3</code> → <code>x-arg version</code> is <code>1.2.3</code> (or, without a
+                  declared synopsis, extra CLI arguments become <code>$1</code>, <code>$2</code>, … in the script
+                  body).</li>
+                <li><code>x deploy</code> → runs <code>deploy</code>'s own <code>$</code>.</li>
+                <li><code>x deploy prod</code> → runs <code>deploy.prod</code>.</li>
+                <li><code>x deploy test unit</code> → runs <code>deploy.test.unit</code>.</li>
+              </ul>
+              <aside><strong>Note:</strong> If a command has subcommands but no <code>$:</code> of its own, invoking
+                it bare (e.g. <code>x deploy</code> when only nested <code>.dev</code>/<code>.prod</code>/<code>.test</code>
+                exist) <strong>auto-prints help</strong> instead of erroring.</aside>
+              <h3>Execution details</h3>
+              <p>Local commands always run as <strong>bash</strong>, with the same <code>x-opt</code>/<code>x-arg</code>/<code>x-usage</code>
+                preamble injected before every app script. Unlike global scripts (which respect
+                <code>default_program</code> / per-script metadata), <code>x.yml</code> and app commands are
+                bash-only. No per-entry metadata is supported.</p>
+              <h3>Activity tracking</h3>
+              <p>Runs from <code>x.yml</code> are <strong>not</strong> recorded in <code>x --ls</code> activity data;
+                only global scripts are tracked.</p></section>
+    </main>
+  <footer>
+    <p>Repository: <a href="https://github.com/michaelmunson/x.sh">github.com/michaelmunson/x.sh</a></p>
+  </footer>
+  </div>
+</body>
+</html>
