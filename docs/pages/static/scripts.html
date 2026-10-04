@@ -287,6 +287,11 @@
               <p><code>x -i</code> is the primary workflow. x opens your <code>$EDITOR</code>, and on save, writes the
                 file and metadata. <br> Re-running <code>x -i &lt;name&gt;</code> on an existing script lets you edit in
                 place or rename.</p>
+              <p><code>x -i -A &lt;name&gt;</code> creates or revises a global script from natural-language instructions.
+                x opens a temporary Markdown file that starts with <code># &lt;name&gt; Instructions</code>. The
+                <code>ai-cmd-gen</code> plugin sends what you write to <code>~/.x.sh/config/llm.sh</code> and saves the
+                generated script. Install the plugin with <code>x -i --plugin ai-cmd-gen</code> and configure the model
+                with <code>x --ai --config</code>.</p>
               <h3>Passing arguments</h3>
               <fieldset>
                 <legend></legend>

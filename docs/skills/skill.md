@@ -24,6 +24,8 @@ Global state lives under `~/.x.sh/`. Project-local commands live in `./x.yml` or
 | Structured CLI with flags, help, validation, run as `x <app> <cmd>` | `x -i --app [--local\|--global] <name>` | `./<name>.x.yml` or `~/.x.sh/apps/<name>.x.yml` |
 | Convert OpenAPI → x app | `x -i --plugin openapi` then `x --plugin openapi <spec>` | writes `./<name>.x.yml` |
 | AI shell command generation | `x -i --plugin ai-cmd-gen`, source wrapper, then `x --ai --config` | `x -A "…"` or `x --ai "…"` |
+| AI-authored global script | `x -i -A <name>` | `~/.x.sh/scripts/<name>` + metadata |
+| AI-authored app | `x -i --app [--local\|--global] -A <name>` | `./<name>.x.yml` or `~/.x.sh/apps/<name>.x.yml` |
 | Run without `x` prefix | `x --ln <name> [alias]` | Symlink in `~/.local/bin/` |
 
 **Prefer `x.yml`** for a few repo-specific commands. **Prefer an app**
@@ -49,6 +51,7 @@ Invalid `./x.yml` YAML fails immediately; it does not fall back to global script
 ```bash
 x <name> [args…]          # run script, local x.yml command, or app
 x -i [name] [content]     # create/edit global script (opens $EDITOR)
+x -i -A [name] [instructions…]   # AI: editor on `# <name> Instructions`, then save the script
 x -l | --ls               # list global scripts (with metadata/activity)
 x -d | --delete <name>    # remove global script + metadata
 x --ln <name> [alias]     # symlink into ~/.local/bin/
@@ -56,6 +59,7 @@ x -d --ln <name>          # remove symlink only
 x --src <name>            # print absolute path to app or script file
 x --config                # default script language
 x -i --app [--local|--global] [name]   # create/edit app YAML
+x -i --app [--local|--global] -A [name] [instructions…]  # AI-authored app
 x -i --plugin <name>                   # install plugin into ~/.x.sh/plugins/
 x --plugin <name> [args…]              # run an installed plugin
 ```
@@ -71,12 +75,28 @@ x --ai --config                         # edit ~/.x.sh/config/llm.sh
 x -A "list the 10 largest files in this directory"
 x --ai find all rust files modified today
 x -A                                    # prompts for instructions
+
+x -i -A my-script                         # global script from an instructions file
+x -i --app --local -A my-app              # ./my-app.x.yml
+x -i --app --global -A my-app             # ~/.x.sh/apps/my-app.x.yml
+x -i -A my-script "print the date"        # skip the editor; instructions are the extra args
 ```
 
-`-A` / `--ai` require the wrapper to be sourced. If the LLM is not
-configured, generation errors and tells you to run `x --ai --config`. The
-generated command is shown for editing (`vared` in zsh, `read -e` in bash),
-added to shell history, then executed.
+`-A` / `--ai` as the first argument require the wrapper to be sourced. They
+generate one shell command, show it for editing (`vared` in zsh, `read -e` in
+bash), add it to shell history, then execute it.
+
+`x -i -A` is handled by the `x` binary (the wrapper is not required). It opens
+`$EDITOR` on a temporary Markdown file:
+
+```md
+# <name> Instructions
+```
+
+Write the instructions under that heading and close the editor. ai-cmd-gen
+sends them to `llm.sh` and `x` saves the result (a global script, or an app
+when `--app` is set). If the LLM is not configured, generation errors and
+tells you to run `x --ai --config`.
 
 Script names: letters, numbers, dashes only. App names also allow underscores.
 

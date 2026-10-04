@@ -2,6 +2,7 @@
 
 use anyhow::{bail, Context, Result};
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -64,6 +65,82 @@ pub fn install_plugin(config: &XConfig, name: &str) -> Result<()> {
     println!("Installed plugin '{}' → {}", name, dest.display());
     println!("Run with: x --plugin {} …", name);
     Ok(())
+}
+
+/// Generated script or app, plus the instructions the user wrote.
+pub struct AiArtifact {
+    pub content: String,
+    pub instructions: String,
+}
+
+/// Run `ai-cmd-gen --create` and return the generated file contents.
+///
+/// When `instructions` is omitted, the plugin opens `$EDITOR` on a temporary
+/// Markdown file (`# <name> Instructions`).
+pub fn ai_create(
+    config: &XConfig,
+    kind: &str,
+    name: &str,
+    program: Option<&str>,
+    instructions: Option<&str>,
+    context: Option<&str>,
+) -> Result<AiArtifact> {
+    let plugin = config.plugin_path("ai-cmd-gen");
+    if !plugin.is_file() {
+        bail!(
+            "Plugin 'ai-cmd-gen' is not installed. Install with: x -i --plugin ai-cmd-gen"
+        );
+    }
+
+    let output_file = tempfile::NamedTempFile::new().context("Failed to create temp file")?;
+    let instructions_file = tempfile::NamedTempFile::new().context("Failed to create temp file")?;
+
+    let context_file = if let Some(context) = context {
+        let mut tmp = tempfile::NamedTempFile::new().context("Failed to create temp file")?;
+        tmp.write_all(context.as_bytes())
+            .context("Failed to write context file")?;
+        tmp.flush().context("Failed to flush context file")?;
+        Some(tmp)
+    } else {
+        None
+    };
+
+    let mut cmd = Command::new(&plugin);
+    cmd.arg("--create")
+        .arg(kind)
+        .arg("--name")
+        .arg(name)
+        .arg("--output")
+        .arg(output_file.path())
+        .arg("--instructions-output")
+        .arg(instructions_file.path());
+    if let Some(program) = program {
+        cmd.arg("--program").arg(program);
+    }
+    if let Some(file) = context_file.as_ref() {
+        cmd.arg("--context-file").arg(file.path());
+    }
+    if let Some(instructions) = instructions {
+        cmd.arg("--").arg(instructions);
+    }
+
+    let status = cmd
+        .status()
+        .with_context(|| "Failed to execute plugin 'ai-cmd-gen'")?;
+    if !status.success() {
+        bail!("ai-cmd-gen failed to generate the {kind}");
+    }
+
+    let content = fs::read_to_string(output_file.path())
+        .context("Failed to read generated content")?;
+    if content.trim().is_empty() {
+        bail!("ai-cmd-gen returned an empty {kind}");
+    }
+    let instructions = fs::read_to_string(instructions_file.path()).unwrap_or_default();
+    Ok(AiArtifact {
+        content,
+        instructions,
+    })
 }
 
 /// Run an installed plugin: `x --plugin <name> [args…]`.

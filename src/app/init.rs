@@ -72,6 +72,71 @@ pub fn create_app(
     Ok(())
 }
 
+/// `x -i --app -A <name>`: collect instructions via ai-cmd-gen and save an app.
+pub fn create_app_with_ai(
+    config: &XConfig,
+    name: Option<String>,
+    scope: Option<Scope>,
+    instructions: Option<String>,
+) -> Result<()> {
+    let name = match name {
+        Some(n) => {
+            validate_app_name(&n)?;
+            n
+        }
+        None => prompt_app_name()?,
+    };
+
+    let scope = match scope {
+        Some(s) => s,
+        None => prompt_scope()?,
+    };
+
+    let path = match scope {
+        Scope::Local => XConfig::local_app_path(&name)?,
+        Scope::Global => {
+            config.ensure_app_dirs()?;
+            config.global_app_path(&name)
+        }
+    };
+
+    let pre_existed = path.exists();
+    let backup: Option<String> = if pre_existed {
+        Some(fs::read_to_string(&path).with_context(|| format!("read {}", path.display()))?)
+    } else {
+        None
+    };
+
+    let artifact = crate::plugin::ai_create(
+        config,
+        "app",
+        &name,
+        None,
+        instructions.as_deref(),
+        backup.as_deref(),
+    )?;
+
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("failed to create parent of {}", path.display()))?;
+    }
+    fs::write(&path, &artifact.content)
+        .with_context(|| format!("failed to write {}", path.display()))?;
+
+    match validate_file(&path) {
+        Ok(()) => {}
+        Err(message) => {
+            eprintln!("\n{}\n", message);
+            edit_validate_loop(&path, pre_existed, backup.as_deref())?;
+        }
+    }
+
+    if path.exists() {
+        println!("✓ App '{}' saved to {}", name, path.display());
+    }
+    Ok(())
+}
+
 fn validate_app_name(name: &str) -> Result<()> {
     if name.is_empty() {
         bail!("app name cannot be empty");

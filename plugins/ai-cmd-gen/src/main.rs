@@ -3,13 +3,23 @@
 //! Usage:
 //!   `x --plugin ai-cmd-gen --config`
 //!   `x --plugin ai-cmd-gen [--shell bash|zsh] <instructions…>`
+//!   `x --plugin ai-cmd-gen --create script|app --name <name> [instructions…]`
 //!
 //! Via the shell wrapper (after `source <(x --plugin ai-cmd-gen __wrapper)`):
 //!   `x --ai --config` / `x -A --config`
 //!   `x --ai <instructions…>` / `x -A <instructions…>`
+//!
+//! Script and app creation goes through `x` itself (the plugin still performs
+//! the instructions editor and the LLM call):
+//!   `x -i -A <name>`
+//!   `x -i --app --local -A <name>`
+//!   `x -i --app --global -A <name>`
+
+mod harness;
 
 use anyhow::{bail, Context, Result};
 use clap::Parser;
+use harness::{edit_file, edit_instructions, extract_instructions, CreateKind, CreateRequest};
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -44,18 +54,46 @@ impl ShellKind {
 #[derive(Parser, Debug)]
 #[command(
     name = "ai-cmd-gen",
-    about = "Generate a shell command from natural-language instructions"
+    about = "Generate a shell command, script, or x app from natural-language instructions"
 )]
 struct Cli {
     /// Configure the LLM provider script (~/.x.sh/config/llm.sh)
     #[arg(long = "config")]
     config: bool,
 
-    /// Target shell dialect for the generated command
+    /// Target shell dialect for a one-off generated command
     #[arg(long = "shell", value_enum)]
     shell: Option<ShellKind>,
 
-    /// Natural-language instructions describing the desired command
+    /// Create a global script or an x app instead of a one-off command
+    #[arg(long = "create", value_enum)]
+    create: Option<CreateKind>,
+
+    /// Script or app name (`x -i -A <name>`, `x -i --app -A <name>`)
+    #[arg(long = "name")]
+    name: Option<String>,
+
+    /// Interpreter for `--create script` (default: bash, or `--shell` when set)
+    #[arg(long = "program")]
+    program: Option<String>,
+
+    /// Write the generated file here instead of stdout
+    #[arg(long = "output")]
+    output: Option<PathBuf>,
+
+    /// Existing script or app contents to revise
+    #[arg(long = "context-file")]
+    context_file: Option<PathBuf>,
+
+    /// Read instructions from a file instead of the editor
+    #[arg(long = "instructions-file")]
+    instructions_file: Option<PathBuf>,
+
+    /// Write the instructions body here (used by `x -i -A` for metadata)
+    #[arg(long = "instructions-output")]
+    instructions_output: Option<PathBuf>,
+
+    /// Natural-language instructions describing the desired command, script, or app
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
     instructions: Vec<String>,
 }
@@ -72,33 +110,6 @@ echo "example completion"
 "#
 }
 
-fn get_editor() -> String {
-    if let Ok(e) = env::var("EDITOR") {
-        return e;
-    }
-    if let Ok(v) = env::var("VISUAL") {
-        return v;
-    }
-    for candidate in &["nvim", "vi", "nano"] {
-        if Command::new(candidate).arg("--version").output().is_ok() {
-            return candidate.to_string();
-        }
-    }
-    "vi".to_string()
-}
-
-fn edit_file(file_path: &Path) -> Result<()> {
-    let editor = get_editor();
-    let status = Command::new(&editor)
-        .arg(file_path)
-        .status()
-        .with_context(|| format!("Failed to open editor: {editor}"))?;
-    if !status.success() {
-        bail!("Editor exited with non-zero status");
-    }
-    Ok(())
-}
-
 fn configure_llm_provider() -> Result<()> {
     let llm_script_path = llm_script_path();
 
@@ -107,7 +118,8 @@ fn configure_llm_provider() -> Result<()> {
     }
 
     if !llm_script_path.exists() {
-        fs::write(&llm_script_path, llm_template()).context("Failed to write LLM script template")?;
+        fs::write(&llm_script_path, llm_template())
+            .context("Failed to write LLM script template")?;
     }
 
     edit_file(&llm_script_path).context("Failed to edit LLM script")?;
@@ -120,7 +132,10 @@ fn configure_llm_provider() -> Result<()> {
         fs::set_permissions(&llm_script_path, perms)?;
     }
 
-    println!("✓ LLM provider script saved to: {}", llm_script_path.display());
+    println!(
+        "✓ LLM provider script saved to: {}",
+        llm_script_path.display()
+    );
     Ok(())
 }
 
@@ -146,9 +161,7 @@ fn call_llm(prompt: &str) -> Result<String> {
     let llm_script_path = llm_script_path();
 
     if !llm_script_path.exists() {
-        bail!(
-            "LLM provider is not configured.\nRun `x --ai --config` to set it up."
-        );
+        bail!("LLM provider is not configured.\nRun `x --ai --config` to set it up.");
     }
 
     let shell = env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
@@ -164,9 +177,104 @@ fn call_llm(prompt: &str) -> Result<String> {
         bail!("LLM script failed: {}", stderr);
     }
 
-    let completion = String::from_utf8(output.stdout).context("LLM script returned invalid UTF-8")?;
+    let completion =
+        String::from_utf8(output.stdout).context("LLM script returned invalid UTF-8")?;
 
     Ok(completion.trim().to_string())
+}
+
+fn require_name(name: Option<String>) -> Result<String> {
+    let name = name.unwrap_or_default();
+    let name = name.trim();
+    if name.is_empty() {
+        bail!("--name is required with --create");
+    }
+    if name.contains('/') || name.contains('\\') || name.contains('\0') {
+        bail!("Invalid name '{name}'");
+    }
+    Ok(name.to_string())
+}
+
+fn script_program(cli: &Cli) -> String {
+    if let Some(program) = cli.program.as_deref() {
+        let program = program.trim();
+        if !program.is_empty() {
+            return program.to_string();
+        }
+    }
+    match cli.shell {
+        Some(ShellKind::Zsh) => "zsh".to_string(),
+        Some(ShellKind::Bash) | None => "bash".to_string(),
+    }
+}
+
+fn load_instructions(cli: &Cli, name: &str) -> Result<String> {
+    let positional = cli.instructions.join(" ");
+    if !positional.trim().is_empty() && cli.instructions_file.is_some() {
+        bail!("Pass instructions as arguments or --instructions-file, not both.");
+    }
+    if !positional.trim().is_empty() {
+        return Ok(positional.trim().to_string());
+    }
+    if let Some(path) = &cli.instructions_file {
+        let raw = fs::read_to_string(path)
+            .with_context(|| format!("Failed to read {}", path.display()))?;
+        return extract_instructions(name, &raw);
+    }
+    edit_instructions(name)
+}
+
+fn read_context(path: &Path) -> Result<String> {
+    fs::read_to_string(path).with_context(|| format!("Failed to read {}", path.display()))
+}
+
+fn run_create(cli: &Cli, kind: CreateKind) -> Result<()> {
+    let name = require_name(cli.name.clone())?;
+    let program = script_program(cli);
+    let instructions = load_instructions(cli, &name)?;
+    let context = match &cli.context_file {
+        Some(path) => Some(read_context(path)?),
+        None => None,
+    };
+
+    if let Some(path) = &cli.instructions_output {
+        if let Some(parent) = path.parent() {
+            if !parent.as_os_str().is_empty() {
+                fs::create_dir_all(parent)
+                    .with_context(|| format!("Failed to create {}", parent.display()))?;
+            }
+        }
+        fs::write(path, &instructions)
+            .with_context(|| format!("Failed to write {}", path.display()))?;
+    }
+
+    let prompt = harness::build_create_prompt(&CreateRequest {
+        kind,
+        name: &name,
+        program: &program,
+        instructions: &instructions,
+        context: context.as_deref(),
+    });
+
+    eprintln!("Generating {} '{name}'…", kind.as_str());
+    let completion = call_llm(&prompt)?;
+    let body = harness::strip_fences(&completion);
+    if body.trim().is_empty() {
+        bail!("LLM returned empty completion");
+    }
+
+    if let Some(path) = &cli.output {
+        if let Some(parent) = path.parent() {
+            if !parent.as_os_str().is_empty() {
+                fs::create_dir_all(parent)
+                    .with_context(|| format!("Failed to create {}", parent.display()))?;
+            }
+        }
+        fs::write(path, &body).with_context(|| format!("Failed to write {}", path.display()))?;
+    } else {
+        print!("{body}");
+    }
+    Ok(())
 }
 
 const WRAPPER_SCRIPT: &str = r#"# x shell wrapper for ai-cmd-gen (-A / --ai)
@@ -239,7 +347,14 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     if cli.config {
+        if cli.create.is_some() {
+            bail!("--config edits the LLM provider. Omit --create.");
+        }
         return configure_llm_provider();
+    }
+
+    if let Some(kind) = cli.create {
+        return run_create(&cli, kind);
     }
 
     let shell = cli.shell.unwrap_or_else(detect_shell);

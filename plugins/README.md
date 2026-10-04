@@ -62,7 +62,23 @@ x --ai --config               # configure ~/.x.sh/config/llm.sh
 x -A "list the 10 largest files here"
 x --ai find all rust files modified today
 x -A                          # prompts for instructions when omitted
+
+x -i -A my-script              # create ~/.x.sh/scripts/my-script from instructions
+x -i --app --local -A my-app   # create ./my-app.x.yml
+x -i --app --global -A my-app  # create ~/.x.sh/apps/my-app.x.yml
 ```
+
+`x -i -A` opens `$EDITOR` on a temporary Markdown file:
+
+```md
+# <name> Instructions
+```
+
+The plugin turns those instructions into a script or an app (handlers are
+bash; see the app syntax skill). Extra arguments skip the editor:
+`x -i -A my-script "print the date"`. This path is implemented by the `x`
+binary, so the shell wrapper is not required. The plugin must be installed
+and the LLM provider configured.
 
 If the LLM provider is not configured, generation fails with a message to run
 `x --ai --config`.
@@ -76,4 +92,6 @@ Direct plugin invocation (without the shell wrapper):
 ```bash
 x --plugin ai-cmd-gen --config
 x --plugin ai-cmd-gen --shell zsh list files by size
+x --plugin ai-cmd-gen --create script --name hello
+x --plugin ai-cmd-gen --create app --name hello "a greet command"
 ```

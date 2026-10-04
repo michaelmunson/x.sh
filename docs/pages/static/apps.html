@@ -298,7 +298,9 @@
                 <legend></legend>
                 <pre><code>x -i --app my-app             # prompts for local vs global
 x -i --app --local my-app     # ./my-app.x.yml
-x -i --app --global my-app    # ~/.x.sh/apps/my-app.x.yml</code></pre>
+x -i --app --global my-app    # ~/.x.sh/apps/my-app.x.yml
+x -i --app --local -A my-app  # AI instructions → ./my-app.x.yml
+x -i --app --global -A my-app # AI instructions → ~/.x.sh/apps/my-app.x.yml</code></pre>
               </fieldset>
               <p>After the editor closes, x validates the YAML structure, parses every synopsis string, and checks
                 handler coverage. On failure you can <strong>edit</strong> (re-open) or <strong>revert</strong> (restore

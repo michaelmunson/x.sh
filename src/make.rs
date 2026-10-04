@@ -188,17 +188,10 @@ fn get_program_template(program: &str, script_name: &str) -> String {
     }
 }
 
-pub fn add_script(
-    config: &XConfig,
-    name: Option<String>,
-    script: Option<String>,
-) -> Result<()> {
-    config.ensure_directories()?;
-    
-    let name = if let Some(n) = name {
-        // Validate provided name
+fn resolve_script_name(name: Option<String>) -> Result<String> {
+    if let Some(n) = name {
         match validate_script_name(&n) {
-            Validation::Valid => n,
+            Validation::Valid => Ok(n),
             Validation::Invalid(msg) => {
                 let msg_str = format!("{:?}", msg);
                 eprintln!("❌ {}", msg_str);
@@ -210,8 +203,30 @@ pub fn add_script(
             .with_help_message("This will be the command you run, e.g., 'my-script'.")
             .with_validator(|input: &str| Ok::<Validation, Box<dyn std::error::Error + Send + Sync>>(validate_script_name(input)))
             .prompt()
-            .context("Failed to get script name")?
-    };
+            .context("Failed to get script name")
+    }
+}
+
+fn description_from_instructions(text: &str) -> Option<String> {
+    let line = text.lines().find(|line| !line.trim().is_empty())?.trim();
+    if line.is_empty() {
+        return None;
+    }
+    let mut summary: String = line.chars().take(117).collect();
+    if line.chars().count() > 117 {
+        summary.push_str("...");
+    }
+    Some(summary)
+}
+
+pub fn add_script(
+    config: &XConfig,
+    name: Option<String>,
+    script: Option<String>,
+) -> Result<()> {
+    config.ensure_directories()?;
+
+    let name = resolve_script_name(name)?;
     
     // First, try to find existing script (handles extensions)
     let existing_script = config.find_script(&name)?;
@@ -389,6 +404,91 @@ pub fn add_script(
         }
     }
     
+    println!("✓ Script '{}' saved successfully", full_filename);
+    Ok(())
+}
+
+/// `x -i -A <name>`: collect instructions via ai-cmd-gen and save a global script.
+pub fn add_script_with_ai(
+    config: &XConfig,
+    name: Option<String>,
+    instructions: Option<String>,
+) -> Result<()> {
+    config.ensure_directories()?;
+    let name = resolve_script_name(name)?;
+
+    let existing_script = config.find_script(&name)?;
+    let (full_filename, program, script_existed, context) = if let Some(existing_name) = existing_script {
+        let existing_metadata = config.load_metadata(&existing_name)?;
+        let program = existing_metadata.as_ref()
+            .and_then(|m| m.program.clone())
+            .or_else(|| config.load_default_program().ok().flatten())
+            .unwrap_or_else(|| "bash".to_string());
+        let context = fs::read_to_string(config.get_script_path(&existing_name)).ok();
+        (existing_name, program, true, context)
+    } else {
+        let program = config.load_default_program()
+            .context("Failed to load default program")?
+            .unwrap_or_else(|| "bash".to_string());
+        let full_filename = get_filename_with_extension(&name, &program);
+        (full_filename, program, false, None)
+    };
+
+    let artifact = crate::plugin::ai_create(
+        config,
+        "script",
+        &name,
+        Some(&program),
+        instructions.as_deref(),
+        context.as_deref(),
+    )?;
+
+    let script_path = config.get_script_path(&full_filename);
+    fs::write(&script_path, &artifact.content)
+        .with_context(|| format!("Failed to write script file: {}", script_path.display()))?;
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(&script_path)?.permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&script_path, perms)?;
+    }
+
+    let now = chrono::Utc::now().to_rfc3339();
+    let mut activity_metadata = config.load_activity_metadata()?;
+    let activity = activity_metadata.scripts.entry(full_filename.clone()).or_insert_with(|| Activity {
+        created: now.clone(),
+        updated: now.clone(),
+        last_executed: None,
+    });
+    activity.updated = now.clone();
+    if !script_existed {
+        activity.created = now.clone();
+    }
+    config.save_activity_metadata(&activity_metadata)?;
+
+    if !script_existed {
+        let metadata = ScriptMetadata {
+            description: description_from_instructions(&artifact.instructions)
+                .or_else(|| Some("generated from instructions".to_string())),
+            groups: Vec::new(),
+            program: Some(program.clone()),
+        };
+        config.save_metadata(&full_filename, &metadata)?;
+    }
+
+    if script_existed {
+        use crate::link;
+        use crate::execute;
+        if link::is_script_linked(config, &full_filename, &program).unwrap_or(false)
+            && execute::needs_compilation(&program)
+        {
+            let script_path = config.get_script_path(&full_filename);
+            let _ = execute::compile_and_get_executable(&program, &script_path, &full_filename);
+        }
+    }
+
     println!("✓ Script '{}' saved successfully", full_filename);
     Ok(())
 }
