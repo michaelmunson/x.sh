@@ -10,6 +10,12 @@ fn manifest_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
 
+fn target_dir() -> PathBuf {
+    std::env::var_os("CARGO_TARGET_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| manifest_dir().join("target"))
+}
+
 fn exapp_dir() -> PathBuf {
     manifest_dir().join("docs/examples/app")
 }
@@ -574,7 +580,7 @@ fn ai_plugin_binary() -> PathBuf {
             .status()
             .expect("cargo build ai-cmd-gen");
         assert!(status.success(), "ai-cmd-gen build failed");
-        let debug = manifest_dir().join("target/debug/ai-cmd-gen");
+        let debug = target_dir().join("debug/ai-cmd-gen");
         assert!(debug.is_file(), "missing {}", debug.display());
         debug
     })
@@ -660,6 +666,32 @@ fn ai_init_requires_installed_plugin() {
         .failure()
         .stderr(predicate::str::contains("not installed"))
         .stderr(predicate::str::contains("x -i --plugin ai-cmd-gen"));
+}
+
+#[test]
+fn ai_init_rejects_outdated_plugin() {
+    let home = tempfile::tempdir().unwrap();
+    let plugins = home.path().join(".x.sh/plugins");
+    fs::create_dir_all(&plugins).unwrap();
+    write_exe(
+        &plugins.join("ai-cmd-gen"),
+        r#"#!/bin/sh
+if [ "$1" = "--help" ]; then
+  echo "Options: --config --shell <SHELL>"
+  exit 0
+fi
+echo "echo one-off"
+"#,
+    );
+
+    x_cmd()
+        .env("HOME", home.path())
+        .args(["-i", "-A", "hello"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("outdated"))
+        .stderr(predicate::str::contains("x -i --plugin ai-cmd-gen"));
+    assert!(!home.path().join(".x.sh/scripts/hello").exists());
 }
 
 #[test]

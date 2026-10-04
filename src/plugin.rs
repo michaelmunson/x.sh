@@ -91,6 +91,13 @@ pub fn ai_create(
             "Plugin 'ai-cmd-gen' is not installed. Install with: x -i --plugin ai-cmd-gen"
         );
     }
+    // Older builds treat unknown flags as instructions and print a one-off command.
+    if !plugin_supports_create(&plugin) {
+        bail!(
+            "Plugin 'ai-cmd-gen' is outdated and does not support script/app creation.\n\
+             Reinstall with: x -i --plugin ai-cmd-gen"
+        );
+    }
 
     let output_file = tempfile::NamedTempFile::new().context("Failed to create temp file")?;
     let instructions_file = tempfile::NamedTempFile::new().context("Failed to create temp file")?;
@@ -141,6 +148,15 @@ pub fn ai_create(
         content,
         instructions,
     })
+}
+
+fn plugin_supports_create(plugin: &Path) -> bool {
+    Command::new(plugin)
+        .arg("--help")
+        .stdin(Stdio::null())
+        .output()
+        .map(|out| String::from_utf8_lossy(&out.stdout).contains("--create"))
+        .unwrap_or(false)
 }
 
 /// Run an installed plugin: `x --plugin <name> [args…]`.
