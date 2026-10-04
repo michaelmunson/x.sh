@@ -317,19 +317,45 @@ ollama run llama2 &quot;$PROMPT&quot;</code></pre>
                   zsh).</li>
                 <li>The command is added to shell history, then <code>eval</code>'d.</li>
               </ol>
+              <h3>Create a script or app</h3>
+              <p><code>x -i -A</code> adds an instructions step to <code>x -i</code>. x opens your editor on a temporary
+                Markdown file:</p>
+              <fieldset>
+                <legend>instructions template</legend>
+                <pre><code># &lt;name&gt; Instructions</code></pre>
+              </fieldset>
+              <p>Write the instructions under that heading, then save and close the editor. ai-cmd-gen sends them to
+                <code>~/.x.sh/config/llm.sh</code> and x writes the result. An existing script or app is passed back as
+                context so the model can revise it. Generated apps are validated; if validation fails, x reopens the
+                file and offers edit or revert.</p>
+              <fieldset>
+                <legend></legend>
+                <pre><code>x -i -A my-script                 # ~/.x.sh/scripts/my-script
+x -i --app --local -A my-app      # ./my-app.x.yml
+x -i --app --global -A my-app     # ~/.x.sh/apps/my-app.x.yml
+x -i -A my-script &quot;print the date&quot;   # skip the editor</code></pre>
+              </fieldset>
+              <aside>This path is handled by the <code>x</code> binary. The shell wrapper is not required. The plugin
+                must be installed and the LLM provider configured.</aside>
               <h3>Direct plugin invocation</h3>
               <p>You can call the plugin without the shell wrapper (prints the command to stdout; does not
                 edit or eval):</p>
               <fieldset>
                 <legend></legend>
                 <pre><code>x --plugin ai-cmd-gen --config
-x --plugin ai-cmd-gen --shell zsh list files by size</code></pre>
+x --plugin ai-cmd-gen --shell zsh list files by size
+x --plugin ai-cmd-gen --create script --name hello
+x --plugin ai-cmd-gen --create app --name hello &quot;a greet command&quot;</code></pre>
               </fieldset>
               <ul>
                 <li><code>--config</code>: create/edit <code>~/.x.sh/config/llm.sh</code>.</li>
                 <li><code>--shell bash|zsh</code>: target shell dialect for the generated command (defaults from
                   <code>$SHELL</code>).</li>
-                <li><code>&lt;instructions…&gt;</code>: natural-language description of the desired command.</li>
+                <li><code>--create script|app</code>: generate a script or app file. With no instructions, opens the
+                  temporary Markdown file above.</li>
+                <li><code>--name</code>: script or app name used in the instructions heading and the prompt.</li>
+                <li><code>--program</code>: interpreter for <code>--create script</code> (default <code>bash</code>).</li>
+                <li><code>&lt;instructions…&gt;</code>: natural-language description of the desired command, script, or app.</li>
               </ul></section>
     </main>
   <footer>

@@ -289,6 +289,9 @@
             first; metadata and history follow the new name.</li>
           <li><code>x -i my-script "echo hello"</code>: creates the script with inline content using the default or
             existing program.</li>
+          <li><code>x -i -A my-script</code>: opens an instructions file (<code># my-script Instructions</code>), then
+            ai-cmd-gen writes the script. <code>x -i --app --local -A my-app</code> does the same for an app.
+            Requires <code>x -i --plugin ai-cmd-gen</code> and <code>x --ai --config</code>.</li>
         </ul>
         <aside><strong>Note:</strong> Script names must be non-empty and contain only letters, numbers, and dashes.
         </aside>
@@ -329,7 +332,9 @@ x --plugin openapi ./spec.yaml -o ./api.x.yml
 x -i --plugin ai-cmd-gen
 source &lt;(x --plugin ai-cmd-gen __wrapper)
 x --ai --config
-x -A &quot;list rust files modified today&quot;</code></pre>
+x -A &quot;list rust files modified today&quot;
+x -i -A my-script
+x -i --app --local -A my-app</code></pre>
         </fieldset></section>
     </main>
   <footer>

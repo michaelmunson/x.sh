@@ -553,6 +553,289 @@ fn run_self_from_handler_builtin() {
         .stdout("hello from self\n");
 }
 
+fn write_exe(path: &std::path::Path, body: &str) {
+    fs::write(path, body).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(path).unwrap().permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(path, perms).unwrap();
+    }
+}
+
+fn ai_plugin_binary() -> PathBuf {
+    use std::sync::OnceLock;
+    static PATH: OnceLock<PathBuf> = OnceLock::new();
+    PATH.get_or_init(|| {
+        let status = std::process::Command::new("cargo")
+            .args(["build", "-p", "x-plugin-ai-cmd-gen"])
+            .current_dir(manifest_dir())
+            .status()
+            .expect("cargo build ai-cmd-gen");
+        assert!(status.success(), "ai-cmd-gen build failed");
+        let debug = manifest_dir().join("target/debug/ai-cmd-gen");
+        assert!(debug.is_file(), "missing {}", debug.display());
+        debug
+    })
+    .clone()
+}
+
+fn install_ai_plugin(home: &std::path::Path) {
+    let plugins = home.join(".x.sh/plugins");
+    fs::create_dir_all(&plugins).unwrap();
+    let dest = plugins.join("ai-cmd-gen");
+    fs::copy(ai_plugin_binary(), &dest).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(&dest).unwrap().permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&dest, perms).unwrap();
+    }
+}
+
+fn write_llm_stub(home: &std::path::Path) {
+    let dir = home.join(".x.sh/config");
+    fs::create_dir_all(&dir).unwrap();
+    write_exe(
+        &dir.join("llm.sh"),
+        r#"#!/bin/sh
+PROMPT="$1"
+printf '%s\n' "$PROMPT" > "$HOME/llm-prompt.txt"
+case "$PROMPT" in
+  *"Current file contents"*)
+    printf '%s\n' '#!/usr/bin/env bash' 'echo hi-revised'
+    ;;
+  *"x.sh apps"*)
+    cat <<'EOF'
+```yaml
+name: demoapp
+version: "0.0.0"
+description: generated app
+
+.greet:
+  help: say hi
+  $: echo hi-from-app
+```
+EOF
+    ;;
+  *)
+    printf '%s\n' '```bash' '#!/usr/bin/env bash' 'echo hi-from-ai' '```'
+    ;;
+esac
+"#,
+    );
+}
+
+fn instructions_editor(home: &std::path::Path) -> PathBuf {
+    let path = home.join("edit-instructions.sh");
+    write_exe(
+        &path,
+        r#"#!/bin/sh
+cp "$1" "$HOME/instructions.md"
+printf '\nEcho a short greeting.\n' >> "$1"
+"#,
+    );
+    path
+}
+
+#[test]
+fn ai_flag_without_init_explains_usage() {
+    x_cmd()
+        .args(["-A", "hello"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("x -i -A <name>"))
+        .stderr(predicate::str::contains("x -i --app --local -A <name>"));
+}
+
+#[test]
+fn ai_init_requires_installed_plugin() {
+    let home = tempfile::tempdir().unwrap();
+    x_cmd()
+        .env("HOME", home.path())
+        .args(["-i", "-A", "hello"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("not installed"))
+        .stderr(predicate::str::contains("x -i --plugin ai-cmd-gen"));
+}
+
+#[test]
+fn ai_init_rejects_invalid_script_name() {
+    let home = tempfile::tempdir().unwrap();
+    x_cmd()
+        .env("HOME", home.path())
+        .args(["-i", "-A", "bad name"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Invalid script name"));
+}
+
+#[test]
+fn ai_init_script_opens_instructions_and_saves_generated_script() {
+    let home = tempfile::tempdir().unwrap();
+    install_ai_plugin(home.path());
+    write_llm_stub(home.path());
+    let editor = instructions_editor(home.path());
+
+    x_cmd()
+        .env("HOME", home.path())
+        .env("EDITOR", &editor)
+        .args(["-i", "-A", "hello"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Script 'hello' saved"));
+
+    let seen = fs::read_to_string(home.path().join("instructions.md")).unwrap();
+    assert_eq!(seen, "# hello Instructions\n");
+
+    let script = fs::read_to_string(home.path().join(".x.sh/scripts/hello")).unwrap();
+    assert_eq!(script, "#!/usr/bin/env bash\necho hi-from-ai\n");
+
+    let prompt = fs::read_to_string(home.path().join("llm-prompt.txt")).unwrap();
+    assert!(prompt.contains("Echo a short greeting."));
+    assert!(prompt.contains("hello"));
+    assert!(!prompt.contains("```"));
+
+    let meta = fs::read_to_string(home.path().join(".x.sh/metadata/hello.toml")).unwrap();
+    assert!(meta.contains("program = \"bash\""));
+    assert!(meta.contains("Echo a short greeting."));
+
+    x_cmd()
+        .env("HOME", home.path())
+        .args(["hello"])
+        .assert()
+        .success()
+        .stdout("hi-from-ai\n");
+}
+
+#[test]
+fn ai_init_script_accepts_inline_instructions() {
+    let home = tempfile::tempdir().unwrap();
+    install_ai_plugin(home.path());
+    write_llm_stub(home.path());
+
+    x_cmd()
+        .env("HOME", home.path())
+        .env("EDITOR", "/bin/false")
+        .args(["-i", "-A", "hello", "print", "hi"])
+        .assert()
+        .success();
+
+    let prompt = fs::read_to_string(home.path().join("llm-prompt.txt")).unwrap();
+    assert!(prompt.contains("print hi"));
+    let meta = fs::read_to_string(home.path().join(".x.sh/metadata/hello.toml")).unwrap();
+    assert!(meta.contains("print hi"));
+}
+
+#[test]
+fn ai_init_script_revises_existing_file() {
+    let home = tempfile::tempdir().unwrap();
+    install_ai_plugin(home.path());
+    write_llm_stub(home.path());
+    let editor = instructions_editor(home.path());
+
+    x_cmd()
+        .env("HOME", home.path())
+        .env("EDITOR", &editor)
+        .args(["-i", "-A", "hello"])
+        .assert()
+        .success();
+
+    x_cmd()
+        .env("HOME", home.path())
+        .env("EDITOR", &editor)
+        .args(["-i", "-A", "hello"])
+        .assert()
+        .success();
+
+    let script = fs::read_to_string(home.path().join(".x.sh/scripts/hello")).unwrap();
+    assert_eq!(script, "#!/usr/bin/env bash\necho hi-revised\n");
+    let prompt = fs::read_to_string(home.path().join("llm-prompt.txt")).unwrap();
+    assert!(prompt.contains("echo hi-from-ai"));
+}
+
+#[test]
+fn ai_init_empty_instructions_do_not_create_a_script() {
+    let home = tempfile::tempdir().unwrap();
+    install_ai_plugin(home.path());
+    write_llm_stub(home.path());
+
+    x_cmd()
+        .env("HOME", home.path())
+        .env("EDITOR", "/bin/true")
+        .args(["-i", "-A", "hello"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Instructions cannot be empty"));
+
+    assert!(!home.path().join(".x.sh/scripts/hello").exists());
+}
+
+#[test]
+fn ai_init_local_app_saves_runnable_yaml() {
+    let home = tempfile::tempdir().unwrap();
+    let work = tempfile::tempdir().unwrap();
+    install_ai_plugin(home.path());
+    write_llm_stub(home.path());
+    let editor = instructions_editor(home.path());
+
+    x_cmd()
+        .env("HOME", home.path())
+        .env("EDITOR", &editor)
+        .current_dir(work.path())
+        .args(["-i", "--app", "--local", "-A", "demoapp"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("demoapp.x.yml"));
+
+    let seen = fs::read_to_string(home.path().join("instructions.md")).unwrap();
+    assert_eq!(seen, "# demoapp Instructions\n");
+
+    let app = fs::read_to_string(work.path().join("demoapp.x.yml")).unwrap();
+    assert!(app.contains(".greet:"));
+    assert!(!app.contains("```"));
+
+    x_cmd()
+        .env("HOME", home.path())
+        .current_dir(work.path())
+        .args(["demoapp", "greet"])
+        .assert()
+        .success()
+        .stdout("hi-from-app\n");
+}
+
+#[test]
+fn ai_init_global_app_saves_under_apps_dir() {
+    let home = tempfile::tempdir().unwrap();
+    let work = tempfile::tempdir().unwrap();
+    install_ai_plugin(home.path());
+    write_llm_stub(home.path());
+    let editor = instructions_editor(home.path());
+
+    x_cmd()
+        .env("HOME", home.path())
+        .env("EDITOR", &editor)
+        .current_dir(work.path())
+        .args(["-i", "--app", "--global", "-A", "demoapp"])
+        .assert()
+        .success();
+
+    let app_path = home.path().join(".x.sh/apps/demoapp.x.yml");
+    assert!(app_path.is_file());
+    assert!(!work.path().join("demoapp.x.yml").exists());
+
+    x_cmd()
+        .env("HOME", home.path())
+        .current_dir(work.path())
+        .args(["demoapp", "greet"])
+        .assert()
+        .success()
+        .stdout("hi-from-app\n");
+}
+
 #[test]
 fn run_self_request_accepts_curl_options() {
     x_cmd()

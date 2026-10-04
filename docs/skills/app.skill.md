@@ -58,6 +58,8 @@ suffix if omitted.
 x -i --app my-app              # prompts: local vs global
 x -i --app --local my-app      # ./my-app.x.yml
 x -i --app --global my-app     # ~/.x.sh/apps/my-app.x.yml
+x -i --app --local -A my-app   # AI: edit `# my-app Instructions`, then write the app
+x -i --app --global -A my-app  # same, saved under ~/.x.sh/apps
 ```
 
 Flow: seed template → open `$EDITOR` → validate → on failure offer **Edit config**

@@ -44,6 +44,10 @@ pub(crate) struct Cli {
     #[arg(long = "app")]
     app: bool,
 
+    /// With --init: generate a script (`x -i -A <name>`) or app (`x -i --app --local -A <name>`) from instructions
+    #[arg(short = 'A', long = "ai")]
+    ai: bool,
+
     /// Install (`-i --plugin`) or run (`--plugin`) a plugin
     #[arg(long = "plugin")]
     plugin: bool,
@@ -91,6 +95,19 @@ fn main() -> Result<()> {
 
     let cli = Cli::parse();
     let config = XConfig::new()?;
+
+    if cli.ai && cli.plugin {
+        anyhow::bail!("-A / --ai creates a script or app with -i. --plugin installs or runs a plugin on its own.");
+    }
+    if cli.ai && !cli.init {
+        anyhow::bail!(
+            "Use -A / --ai with -i to create a script or app from instructions:\n  \
+             x -i -A <name>\n  \
+             x -i --app --local -A <name>\n  \
+             x -i --app --global -A <name>\n\
+             One-off shell commands use the ai-cmd-gen wrapper: x -A \"…\""
+        );
+    }
     
     // Handle option flags
     if cli.init && cli.plugin {
@@ -102,6 +119,20 @@ fn main() -> Result<()> {
             .ok_or_else(|| anyhow::anyhow!("Plugin name required: x --plugin <plugin> …"))?;
         let plugin_args: Vec<String> = cli.args.iter().skip(1).cloned().collect();
         plugin::run_plugin(&config, name, &plugin_args)?;
+    } else if cli.init && cli.ai {
+        let (name, instructions) = split_name_and_instructions(&cli.args);
+        if cli.app {
+            let scope = if cli.local {
+                Some(app::init::Scope::Local)
+            } else if cli.global {
+                Some(app::init::Scope::Global)
+            } else {
+                None
+            };
+            app::init::create_app_with_ai(&config, name, scope, instructions)?;
+        } else {
+            make::add_script_with_ai(&config, name, instructions)?;
+        }
     } else if cli.init && cli.app {
         let scope = if cli.local {
             Some(app::init::Scope::Local)
@@ -175,4 +206,20 @@ fn main() -> Result<()> {
     }
     
     Ok(())
+}
+
+fn split_name_and_instructions(args: &[String]) -> (Option<String>, Option<String>) {
+    match args {
+        [] => (None, None),
+        [name] => (Some(name.clone()), None),
+        [name, rest @ ..] => {
+            let text = rest.join(" ");
+            let instructions = if text.trim().is_empty() {
+                None
+            } else {
+                Some(text)
+            };
+            (Some(name.clone()), instructions)
+        }
+    }
 }
